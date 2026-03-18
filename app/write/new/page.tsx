@@ -7,7 +7,7 @@ import {
     PaperEditorWorkspace,
     type PaperFormData,
 } from "@/components/paper-editor-workspace";
-import { LIVE_WRITER_EXPORT_KEY } from "@/lib/live-writer-bridge";
+import { LIVE_WRITER_EXPORT_KEY, readQueuedWriterImport, serializeWriterBridgeBlock } from "@/lib/live-writer-bridge";
 
 const defaultContent = `# Maqola matnini bu yerga kiritasiz...
 
@@ -69,7 +69,7 @@ export default function NewPaperPage() {
             return;
         }
 
-        const laboratoryExport = window.localStorage.getItem(LIVE_WRITER_EXPORT_KEY);
+        const laboratoryExport = readQueuedWriterImport();
         if (!laboratoryExport) {
             return;
         }
@@ -77,14 +77,23 @@ export default function NewPaperPage() {
         importedFromLaboratory.current = true;
         window.localStorage.removeItem(LIVE_WRITER_EXPORT_KEY);
         const timer = window.setTimeout(() => {
+            const importedSections = [
+                laboratoryExport.block ? serializeWriterBridgeBlock(laboratoryExport.block) : "",
+                laboratoryExport.markdown,
+            ].filter(Boolean);
+
             setFormData((current) => ({
                 ...current,
-                title: current.title === "Yangi Maqola Sarlavhasi" ? "Laboratoriya hisoboti asosidagi maqola" : current.title,
+                title:
+                    current.title === "Yangi Maqola Sarlavhasi"
+                        ? laboratoryExport.title || "Laboratoriya hisoboti asosidagi maqola"
+                        : current.title,
                 abstract:
                     current.abstract ||
-                    "Ushbu qoralama matematik laboratoriyadan eksport qilingan series, limit va Taylor tahliliga tayangan holda shakllantirildi.",
-                content: `${laboratoryExport}\n\n---\n\n${current.content}`,
-                keywords: current.keywords || "series, limits, taylor, laboratory",
+                    laboratoryExport.abstract ||
+                    "Ushbu qoralama matematik laboratoriyadan eksport qilingan hisob-kitob va vizual natijalarga tayangan holda shakllantirildi.",
+                content: `${importedSections.join("\n\n")}\n\n---\n\n${current.content}`,
+                keywords: current.keywords || laboratoryExport.keywords || "mathematics, laboratory",
             }));
         }, 0);
 

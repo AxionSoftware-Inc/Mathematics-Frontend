@@ -8,7 +8,7 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { solveDifferentialEquation } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type DifferentialBlockId = "setup" | "table" | "plot" | "bridge";
@@ -163,7 +163,22 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
             return;
         }
 
-        window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, buildDifferentialMarkdown({ derivative, x0, y0, step, steps, points }));
+        queueWriterImport({
+            version: 1,
+            markdown: buildDifferentialMarkdown({ derivative, x0, y0, step, steps, points }),
+            block: buildDifferentialLivePayload({
+                targetId: `import-differential-${Date.now()}`,
+                derivative,
+                x0,
+                y0,
+                step,
+                steps,
+                points,
+            }),
+            title: `Differential study: y' = ${derivative}`,
+            abstract: "Differensial laboratoriyadan eksport qilingan trajectory va solver natijalari bilan yaratilgan qoralama.",
+            keywords: "differential equations, euler, heun, laboratory",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

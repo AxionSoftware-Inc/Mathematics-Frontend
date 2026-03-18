@@ -2,7 +2,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, BrainCircuit, ChartSpline, GraduationCap, Newspaper, Sigma, Sparkles } from "lucide-react";
 
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
@@ -71,11 +70,7 @@ export default function Home() {
                             </div>
                         </div>
 
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="site-panel-strong p-8 md:p-10"
-                        >
+                        <div className="site-panel-strong p-8 md:p-10">
                             <div className="grid gap-4 sm:grid-cols-2">
                                 {metrics.map((metric) => (
                                     <div key={metric.label} className="site-outline-card p-5">
@@ -91,7 +86,7 @@ export default function Home() {
                                     professional brend ohangida ishlashi kerak.
                                 </p>
                             </div>
-                        </motion.div>
+                        </div>
                     </div>
                 </SiteContainer>
             </SiteSection>

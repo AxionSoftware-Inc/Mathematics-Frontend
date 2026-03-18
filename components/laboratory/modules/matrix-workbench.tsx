@@ -7,7 +7,7 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { parseNumericMatrix, runMatrixOperation, summarizeMatrix, type MatrixOperation } from "@/components/laboratory/math-utils";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 const operations: { value: MatrixOperation; label: string }[] = [
@@ -331,9 +331,9 @@ export function MatrixWorkbenchModule({ module }: { module: LaboratoryModuleMeta
             return;
         }
 
-        window.localStorage.setItem(
-            LIVE_WRITER_EXPORT_KEY,
-            buildMatrixMarkdown({
+        queueWriterImport({
+            version: 1,
+            markdown: buildMatrixMarkdown({
                 operation,
                 matrixA,
                 matrixB,
@@ -342,7 +342,20 @@ export function MatrixWorkbenchModule({ module }: { module: LaboratoryModuleMeta
                 summaryB,
                 summaryResult,
             }),
-        );
+            block: buildMatrixLivePayload({
+                targetId: `import-matrix-${Date.now()}`,
+                operation,
+                result,
+                matrixA,
+                matrixB,
+                summaryA,
+                summaryB,
+                summaryResult,
+            }),
+            title: `Matrix workbench: ${result.label}`,
+            abstract: "Matritsa laboratoriyasidan eksport qilingan algebraik natijalar va strukturaviy summary.",
+            keywords: "matrix, linear algebra, determinant, inverse",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

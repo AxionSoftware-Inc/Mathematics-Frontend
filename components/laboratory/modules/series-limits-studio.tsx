@@ -7,7 +7,7 @@ import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { analyzeSeries, analyzeTaylorApproximation, estimateLimit } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 const seriesPresets = [
@@ -313,9 +313,9 @@ export function SeriesLimitsStudioModule({ module }: { module: LaboratoryModuleM
 
     function sendToWriter() {
         if (!series || !limit || !taylor) return;
-        window.localStorage.setItem(
-            LIVE_WRITER_EXPORT_KEY,
-            buildLaboratoryMarkdown({
+        queueWriterImport({
+            version: 1,
+            markdown: buildLaboratoryMarkdown({
                 seriesExpression: deferredSeriesExpression,
                 limitExpression: deferredLimitExpression,
                 taylorExpression: deferredTaylorExpression,
@@ -323,7 +323,35 @@ export function SeriesLimitsStudioModule({ module }: { module: LaboratoryModuleM
                 limit,
                 taylor,
             }),
-        );
+            block: {
+                id: `import-series-limits-${Date.now()}`,
+                status: "ready",
+                moduleSlug: "series-limits-studio",
+                kind: "series-limits",
+                title: `Series and limits: ${deferredTaylorExpression}`,
+                summary: "Series, limit va Taylor tahlilining birlashtirilgan eksporti.",
+                generatedAt: new Date().toISOString(),
+                metrics: [
+                    { label: "Series", value: series.diagnosticLabel },
+                    { label: "Limit", value: limit.diagnosticLabel },
+                    { label: "Taylor order", value: String(taylor.order) },
+                    { label: "Mean error", value: formatMetric(taylor.meanError, 6) },
+                ],
+                notes: [
+                    `Series: ${deferredSeriesExpression}`,
+                    `Limit: ${deferredLimitExpression}`,
+                    `Taylor: ${taylor.polynomialExpression}`,
+                ],
+                coefficients: taylor.coefficients,
+                plotSeries: [
+                    { label: "f(x)", color: "#1d4ed8", points: taylor.originalSamples },
+                    { label: "Taylor", color: "#d97706", points: taylor.approximationSamples },
+                ],
+            },
+            title: `Series and limits analysis`,
+            abstract: "Series, limit va Taylor laboratoriyasidan eksport qilingan birlashtirilgan tahlil.",
+            keywords: "series, limits, taylor, convergence",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

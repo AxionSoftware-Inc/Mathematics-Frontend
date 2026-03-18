@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Menu, Moon, Sun, X } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -28,7 +27,7 @@ export default function Navbar() {
     }
 
     return (
-        <div className="sticky top-0 z-50 border-b border-border/80 bg-background/75 backdrop-blur-2xl">
+        <div className="sticky top-0 z-50 border-b border-border/80 bg-background/85 backdrop-blur-md">
             <SiteContainer className="flex h-20 items-center justify-between gap-6">
                 <Link href="/" className="flex items-center gap-4">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background shadow-lg">
@@ -81,32 +80,25 @@ export default function Navbar() {
                 </div>
             </SiteContainer>
 
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="border-t border-border/80 bg-background/90 lg:hidden"
-                    >
-                        <SiteContainer className="flex flex-col gap-2 py-4">
-                            {navLinks.map((link) => (
-                                <Link
-                                    key={link.href}
-                                    href={link.href}
-                                    onClick={() => setIsOpen(false)}
-                                    className="site-outline-card px-4 py-3 text-sm font-bold"
-                                >
-                                    {link.name}
-                                </Link>
-                            ))}
-                            <Link href="/write" onClick={() => setIsOpen(false)} className="site-button-primary mt-2">
-                                Maqola Yozish
+            {isOpen ? (
+                <div className="border-t border-border/80 bg-background/95 lg:hidden">
+                    <SiteContainer className="flex flex-col gap-2 py-4">
+                        {navLinks.map((link) => (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={() => setIsOpen(false)}
+                                className="site-outline-card px-4 py-3 text-sm font-bold"
+                            >
+                                {link.name}
                             </Link>
-                        </SiteContainer>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        ))}
+                        <Link href="/write" onClick={() => setIsOpen(false)} className="site-button-primary mt-2">
+                            Maqola Yozish
+                        </Link>
+                    </SiteContainer>
+                </div>
+            ) : null}
         </div>
     );
 }

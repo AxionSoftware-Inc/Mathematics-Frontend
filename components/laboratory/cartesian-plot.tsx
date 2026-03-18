@@ -40,6 +40,7 @@ export function CartesianPlot({
     const yMin = Math.min(...yValues);
     const yMax = Math.max(...yValues);
     const width = 680;
+    const showMarkers = points.length <= 80;
 
     return (
         <div className="site-outline-card overflow-hidden p-4">
@@ -54,11 +55,11 @@ export function CartesianPlot({
                             strokeWidth="3"
                             strokeLinecap="round"
                         />
-                        {entry.points.map((point, index) => {
+                        {showMarkers ? entry.points.map((point, index) => {
                             const x = 20 + ((point.x - xMin) / Math.max(xMax - xMin, 1e-9)) * (width - 40);
                             const y = height - 20 - ((point.y - yMin) / Math.max(yMax - yMin, 1e-9)) * (height - 40);
                             return <circle key={`${entry.label}-${index}`} cx={x} cy={y} r="3.5" fill={entry.color} />;
-                        })}
+                        }) : null}
                     </g>
                 ))}
             </svg>

@@ -32,7 +32,7 @@ export function AdminSidebar() {
                     </div>
                     <div>
                         <h1 className="font-playfair font-bold text-xl tracking-tight text-white group-hover:text-gray-300 transition-colors">
-                            Quantum<span className="text-gray-400">Uz</span>
+                            Math<span className="text-gray-400">Sphere</span>
                         </h1>
                         <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Admin Panel</p>
                     </div>

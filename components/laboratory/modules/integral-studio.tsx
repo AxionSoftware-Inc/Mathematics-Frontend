@@ -8,7 +8,7 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { approximateIntegral } from "@/components/laboratory/math-utils";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 const presets = [
@@ -180,16 +180,27 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             return;
         }
 
-        window.localStorage.setItem(
-            LIVE_WRITER_EXPORT_KEY,
-            buildIntegralMarkdown({
+        queueWriterImport({
+            version: 1,
+            markdown: buildIntegralMarkdown({
                 expression,
                 lower: numericLower,
                 upper: numericUpper,
                 segments: numericSegments,
                 summary,
             }),
-        );
+            block: buildIntegralLivePayload({
+                targetId: `import-integral-${Date.now()}`,
+                expression,
+                lower: numericLower,
+                upper: numericUpper,
+                segments: numericSegments,
+                summary,
+            }),
+            title: `Integral study: ${expression}`,
+            abstract: "Integral laboratoriyasidan eksport qilingan numerik integratsiya natijalari va grafik preview.",
+            keywords: "integral, numerical integration, simpson, trapezoid",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

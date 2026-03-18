@@ -3,6 +3,7 @@ import { type PlotPoint } from "@/components/laboratory/math-utils";
 export const LIVE_WRITER_BRIDGE_CHANNEL = "mathsphere-live-writer-bridge";
 export const LIVE_WRITER_BLOCK_LANGUAGE = "lab-result";
 export const LIVE_WRITER_EXPORT_KEY = "mathsphere_laboratory_export";
+export const LIVE_WRITER_EXPORT_VERSION = 1;
 
 export type WriterBridgeMetric = {
     label: string;
@@ -46,6 +47,15 @@ export type WriterBridgeTarget = {
     title: string;
     status: WriterBridgeBlockData["status"];
     generatedAt: string;
+};
+
+export type WriterImportPayload = {
+    version: typeof LIVE_WRITER_EXPORT_VERSION;
+    markdown: string;
+    block?: WriterBridgeBlockData;
+    title?: string;
+    abstract?: string;
+    keywords?: string;
 };
 
 export type WriterTargetsBroadcast = {
@@ -160,4 +170,48 @@ export function blockToTarget(block: WriterBridgeBlockData): WriterBridgeTarget 
         status: block.status,
         generatedAt: block.generatedAt,
     };
+}
+
+export function queueWriterImport(payload: WriterImportPayload | string) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    const normalizedPayload: WriterImportPayload =
+        typeof payload === "string"
+            ? {
+                  version: LIVE_WRITER_EXPORT_VERSION,
+                  markdown: payload,
+              }
+            : payload;
+
+    window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, JSON.stringify(normalizedPayload));
+}
+
+export function readQueuedWriterImport(): WriterImportPayload | null {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    const raw = window.localStorage.getItem(LIVE_WRITER_EXPORT_KEY);
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(raw) as WriterImportPayload;
+        if (!parsed || typeof parsed !== "object" || typeof parsed.markdown !== "string") {
+            return {
+                version: LIVE_WRITER_EXPORT_VERSION,
+                markdown: raw,
+            };
+        }
+
+        return parsed;
+    } catch {
+        return {
+            version: LIVE_WRITER_EXPORT_VERSION,
+            markdown: raw,
+        };
+    }
 }

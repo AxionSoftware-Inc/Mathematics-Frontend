@@ -10,7 +10,7 @@ import {
     type LaboratoryBridgeGuideMode,
 } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type ProofStrategyId = "direct" | "contradiction" | "contrapositive" | "induction" | "cases" | "equivalence";
@@ -313,7 +313,26 @@ export function ProofAssistantModule({ module }: { module: LaboratoryModuleMeta 
     }
 
     function sendToWriter() {
-        window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, markdownExport);
+        queueWriterImport({
+            version: 1,
+            markdown: markdownExport,
+            block: buildLiveProofPayload({
+                targetId: `import-proof-${Date.now()}`,
+                theoremType,
+                title,
+                statement,
+                assumptions,
+                goal,
+                strategy,
+                keyIdea,
+                criticalSteps,
+                edgeCases,
+                completion: readiness,
+            }),
+            title: `${theoremType}: ${title}`,
+            abstract: "Proof Assistant'dan eksport qilingan theorem statement va isbot skeleti.",
+            keywords: "proof, theorem, lemma, strategy",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

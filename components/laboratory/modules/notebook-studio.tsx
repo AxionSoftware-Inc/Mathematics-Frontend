@@ -8,7 +8,7 @@ import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { analyzeSeries, analyzeTaylorApproximation, estimateLimit } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type NotebookCellType = "markdown" | "series" | "limit" | "taylor";
@@ -378,7 +378,14 @@ export function NotebookStudioModule({ module }: { module: LaboratoryModuleMeta 
     }
 
     function sendToWriter() {
-        window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, compileNotebookMarkdown(title, cells));
+        queueWriterImport({
+            version: 1,
+            markdown: compileNotebookMarkdown(title, cells),
+            block: buildNotebookLivePayload(`import-notebook-${Date.now()}`, title, cells, activeCellId),
+            title,
+            abstract: "Notebook studio'dan eksport qilingan matematik hujjat va faol cell natijasi.",
+            keywords: "notebook, mathematics, laboratory",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

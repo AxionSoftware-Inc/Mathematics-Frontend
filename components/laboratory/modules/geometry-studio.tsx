@@ -8,7 +8,7 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { analyzeAnalyticGeometry } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, LIVE_WRITER_EXPORT_KEY, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type PointKey = "ax" | "ay" | "bx" | "by" | "cx" | "cy" | "dx" | "dy";
@@ -172,7 +172,18 @@ export function GeometryStudioModule({ module }: { module: LaboratoryModuleMeta 
             return;
         }
 
-        window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, buildGeometryMarkdown({ values, analysis }));
+        queueWriterImport({
+            version: 1,
+            markdown: buildGeometryMarkdown({ values, analysis }),
+            block: buildGeometryLivePayload({
+                targetId: `import-geometry-${Date.now()}`,
+                values,
+                analysis,
+            }),
+            title: "Geometry studio result",
+            abstract: "Analitik geometriya laboratoriyasidan eksport qilingan chiziqlar va kesishish natijalari.",
+            keywords: "geometry, analytic geometry, lines, intersection",
+        });
         setExportState("sent");
         setGuideMode(null);
         window.location.assign("/write/new?source=laboratory");

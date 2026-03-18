@@ -91,7 +91,7 @@ h6 {
 }
 
 .glass-panel {
-  @apply rounded-[2rem] border backdrop-blur-xl;
+  @apply rounded-[2rem] border backdrop-blur-md;
   background: var(--surface);
   border-color: var(--border);
 }
@@ -151,13 +151,13 @@ h6 {
 }
 
 .site-panel {
-  @apply rounded-[2rem] border shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)] backdrop-blur-xl;
+  @apply rounded-[2rem] border shadow-[0_18px_52px_-28px_rgba(15,23,42,0.24)] backdrop-blur-md;
   background: var(--surface);
   border-color: var(--border);
 }
 
 .site-panel-strong {
-  @apply rounded-[2.5rem] border shadow-[0_28px_100px_-40px_rgba(15,23,42,0.4)] backdrop-blur-xl;
+  @apply rounded-[2.5rem] border shadow-[0_20px_64px_-34px_rgba(15,23,42,0.28)] backdrop-blur-md;
   background: var(--surface-strong);
   border-color: var(--border);
 }
