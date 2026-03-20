@@ -94,6 +94,7 @@ export function UnifiedPlotRenderer({
             ...axisStyle,
             title: { text },
         });
+        const cartesianAxis = withAxisTitle("");
 
         const baseLayout: Partial<Layout> = {
             title: title
@@ -101,6 +102,8 @@ export function UnifiedPlotRenderer({
                       text: title,
                       font: { family: "var(--font-serif)", size: 14, color: "#111827" },
                       x: 0.03,
+                      xanchor: "left",
+                      yanchor: "top",
                   }
                 : undefined,
             autosize: true,
@@ -114,6 +117,8 @@ export function UnifiedPlotRenderer({
                 orientation: "h",
                 x: 0,
                 y: -0.12,
+                xanchor: "left",
+                yanchor: "top",
                 bgcolor: "rgba(255,255,255,0.45)",
                 bordercolor: "rgba(148,163,184,0.16)",
                 borderwidth: 1,
@@ -132,8 +137,6 @@ export function UnifiedPlotRenderer({
                       bgcolor: "transparent",
                   }
                 : undefined,
-            xaxis: is3D ? undefined : withAxisTitle(""),
-            yaxis: is3D ? undefined : withAxisTitle(""),
         };
 
         const mergedScene = is3D
@@ -147,13 +150,22 @@ export function UnifiedPlotRenderer({
               }
             : undefined;
 
-        return {
+        const mergedLayout = {
             ...baseLayout,
             ...layoutOverrides,
-            scene: mergedScene,
-            xaxis: is3D ? undefined : { ...(baseLayout.xaxis || {}), ...(layoutOverrides?.xaxis || {}) },
-            yaxis: is3D ? undefined : { ...(baseLayout.yaxis || {}), ...(layoutOverrides?.yaxis || {}) },
         } as Partial<Layout>;
+
+        if (is3D) {
+            mergedLayout.scene = mergedScene;
+            delete mergedLayout.xaxis;
+            delete mergedLayout.yaxis;
+        } else {
+            mergedLayout.xaxis = { ...cartesianAxis, ...(layoutOverrides?.xaxis || {}) };
+            mergedLayout.yaxis = { ...cartesianAxis, ...(layoutOverrides?.yaxis || {}) };
+            delete mergedLayout.scene;
+        }
+
+        return mergedLayout;
     }, [cameraRevision, data, defaultCamera, height, is3D, layoutOverrides, title]);
 
     const finalizedConfig = useMemo(
