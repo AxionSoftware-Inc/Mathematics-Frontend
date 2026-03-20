@@ -1,61 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
 
 import {
     PaperEditorWorkspace,
     type PaperFormData,
 } from "@/components/paper-editor-workspace";
 import { LIVE_WRITER_EXPORT_KEY, readQueuedWriterImport, serializeWriterBridgeBlock } from "@/lib/live-writer-bridge";
+import { createDraftFromTemplate, getDefaultWriterTemplate, getWriterTemplate, getWriterTemplatePreset } from "@/lib/writer-templates";
 
-const defaultContent = `# Maqola matnini bu yerga kiritasiz...
-
-Matematik ifodalar uchun LaTeX foydalaning, masalan $E = mc^2$ yoki
-$$ \\int_0^\\infty x^2 dx $$
-
-## 2D Grafik
-\`\`\`plot2d
-{
-  "f": "sin(x)*x",
-  "domain": [-20, 20]
-}
-\`\`\`
-
-## 3D Grafik
-\`\`\`plot3d
-{
-  "f": "sin(x)*cos(y)",
-  "xDomain": [-5, 5],
-  "yDomain": [-5, 5]
-}
-\`\`\`
-
-## Python Kod bloki
-\`\`\`python
-import numpy as np
-import matplotlib.pyplot as plt
-
-x = np.linspace(0, 10, 100)
-y = np.sin(x)
-
-plt.plot(x, y)
-plt.grid(True)
-plt.show()
-\`\`\`
-`;
 
 export default function NewPaperPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const importedFromLaboratory = useRef(false);
-    const [formData, setFormData] = useState<PaperFormData>({
-        title: "Yangi Maqola Sarlavhasi",
-        abstract: "",
-        content: defaultContent,
-        authors: "",
-        keywords: "",
-        status: "draft",
-    });
+
+    const presetId = searchParams.get("preset");
+    const templateId = searchParams.get("template");
+    const selectedPreset = getWriterTemplatePreset(presetId);
+    const addOnIds = (searchParams.get("addons") || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    const selectedTemplate = getWriterTemplate(templateId || selectedPreset?.templateId) ?? getDefaultWriterTemplate();
+    const resolvedAddOnIds = addOnIds.length ? addOnIds : selectedPreset?.addOnIds ?? [];
+
+    const [formData, setFormData] = useState<PaperFormData>(createDraftFromTemplate(selectedTemplate, resolvedAddOnIds));
+
     const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [errorMessage, setErrorMessage] = useState("");
 
@@ -85,7 +58,7 @@ export default function NewPaperPage() {
             setFormData((current) => ({
                 ...current,
                 title:
-                    current.title === "Yangi Maqola Sarlavhasi"
+                    current.title === getDefaultWriterTemplate().titleTemplate
                         ? laboratoryExport.title || "Laboratoriya hisoboti asosidagi maqola"
                         : current.title,
                 abstract:

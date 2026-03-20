@@ -88,8 +88,10 @@ Bu endi ishlaydi.
 ### Laboratory tomoni
 
 1. Laboratoriya ochiq writer target'larini eshitadi.
-2. Foydalanuvchi kerakli target'ni tanlaydi.
-3. `Live push` bosilganda structured payload writer'ga yuboriladi.
+2. Agar writer oldinroq ochilgan bo'lsa, target'lar local storage orqali ham tiklanadi.
+3. Laboratoriya `writer-targets-request` xabari yuborib writer'dan qayta broadcast so'raydi.
+4. Foydalanuvchi kerakli target'ni tanlaydi.
+5. `Live push` bosilganda structured payload writer'ga yuboriladi.
 
 ### Update
 
@@ -190,7 +192,9 @@ standart bridge orqali ishlaydi
 - Backend talab qilmaydi
 - Bir xil brauzer ichida ishlaydi
 - `BroadcastChannel` asosida ishlaydi
-- Writer yopilsa target heartbeat tugaydi va laboratoriyada bir necha soniyada yo'qoladi
+- Writer target state local storage'da qisqa muddat saqlanadi
+- Writer va laboratoriya oralig'ida handshake request mavjud
+- Writer yopilsa target heartbeat tugaydi va laboratoriyada bir muddatdan keyin `stale` bo'lib, keyin yo'qoladi
 
 ## Keyingi tabiiy kengayish
 

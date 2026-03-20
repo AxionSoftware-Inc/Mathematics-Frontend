@@ -4,6 +4,11 @@ export const LIVE_WRITER_BRIDGE_CHANNEL = "mathsphere-live-writer-bridge";
 export const LIVE_WRITER_BLOCK_LANGUAGE = "lab-result";
 export const LIVE_WRITER_EXPORT_KEY = "mathsphere_laboratory_export";
 export const LIVE_WRITER_EXPORT_VERSION = 1;
+export const LIVE_WRITER_TARGETS_STORAGE_KEY = "mathsphere_live_writer_targets";
+export const LIVE_WRITER_SELECTED_TARGET_KEY = "mathsphere_live_writer_selected_target";
+export const LIVE_WRITER_TARGET_SYNC_STORAGE_KEY = "mathsphere_live_writer_target_sync";
+export const LIVE_WRITER_TARGET_TTL_MS = 20000;
+export const LIVE_WRITER_SYNC_EVENT = "mathsphere-live-writer-sync";
 
 export type WriterBridgeMetric = {
     label: string;
@@ -27,6 +32,13 @@ export type WriterBridgePlotSeries = {
     points: PlotPoint[];
 };
 
+export type WriterBridgeSyncMeta = {
+    revision: number;
+    pushedAt: string;
+    acknowledgedAt?: string;
+    sourceLabel: string;
+};
+
 export type WriterBridgeBlockData = {
     id: string;
     status: "waiting" | "ready";
@@ -40,6 +52,7 @@ export type WriterBridgeBlockData = {
     coefficients?: WriterBridgeCoefficient[];
     matrixTables?: WriterBridgeMatrixTable[];
     plotSeries?: WriterBridgePlotSeries[];
+    sync?: WriterBridgeSyncMeta;
 };
 
 export type WriterBridgeTarget = {
@@ -47,6 +60,10 @@ export type WriterBridgeTarget = {
     title: string;
     status: WriterBridgeBlockData["status"];
     generatedAt: string;
+    revision?: number;
+    lastPublishedAt?: string;
+    lastAcknowledgedAt?: string;
+    sourceLabel?: string;
 };
 
 export type WriterImportPayload = {
@@ -65,14 +82,61 @@ export type WriterTargetsBroadcast = {
     targets: WriterBridgeTarget[];
 };
 
+export type WriterTargetsRequest = {
+    type: "writer-targets-request";
+};
+
 export type LabPublishBroadcast = {
     type: "lab-publish";
     writerId: string;
     targetId: string;
+    revision: number;
+    publishedAt: string;
+    sourceLabel: string;
     payload: WriterBridgeBlockData;
 };
 
-export type LiveWriterBridgeMessage = WriterTargetsBroadcast | LabPublishBroadcast;
+export type LabPublishAckBroadcast = {
+    type: "lab-publish-ack";
+    writerId: string;
+    targetId: string;
+    revision: number;
+    acknowledgedAt: string;
+    documentTitle: string;
+    blockTitle: string;
+    sourceLabel: string;
+};
+
+export type StoredWriterTargetSession = {
+    writerId: string;
+    documentTitle: string;
+    lastSeen: number;
+    targets: WriterBridgeTarget[];
+};
+
+export type StoredWriterTarget = WriterBridgeTarget & {
+    writerId: string;
+    documentTitle: string;
+    lastSeen: number;
+};
+
+export type StoredWriterTargetSync = {
+    writerId: string;
+    targetId: string;
+    revision: number;
+    state: "pending" | "acknowledged";
+    lastPushedAt: number;
+    lastAckAt?: number;
+    blockTitle?: string;
+    documentTitle?: string;
+    sourceLabel: string;
+};
+
+export type LiveWriterBridgeMessage =
+    | WriterTargetsBroadcast
+    | WriterTargetsRequest
+    | LabPublishBroadcast
+    | LabPublishAckBroadcast;
 
 const LAB_RESULT_BLOCK_REGEX = /```lab-result\n([\s\S]*?)\n```/g;
 
@@ -94,6 +158,231 @@ export function createBroadcastChannel(name = LIVE_WRITER_BRIDGE_CHANNEL) {
 
 export function createWriterId() {
     return buildId();
+}
+
+function buildTargetSyncKey(writerId: string, targetId: string) {
+    return `${writerId}::${targetId}`;
+}
+
+function notifyLiveWriterSyncChanged() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.dispatchEvent(new CustomEvent(LIVE_WRITER_SYNC_EVENT));
+}
+
+export function readStoredWriterTargetSessions() {
+    if (typeof window === "undefined") {
+        return [] as StoredWriterTargetSession[];
+    }
+
+    const raw = window.localStorage.getItem(LIVE_WRITER_TARGETS_STORAGE_KEY);
+    if (!raw) {
+        return [] as StoredWriterTargetSession[];
+    }
+
+    try {
+        const parsed = JSON.parse(raw) as StoredWriterTargetSession[];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+export function writeStoredWriterTargetSessions(
+    sessions: StoredWriterTargetSession[],
+    options: { notify?: boolean } = {},
+) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.setItem(LIVE_WRITER_TARGETS_STORAGE_KEY, JSON.stringify(sessions));
+    if (options.notify ?? true) {
+        notifyLiveWriterSyncChanged();
+    }
+}
+
+export function upsertStoredWriterTargetSession(session: StoredWriterTargetSession) {
+    const nextSessions = readStoredWriterTargetSessions().filter((entry) => entry.writerId !== session.writerId);
+    nextSessions.push(session);
+    writeStoredWriterTargetSessions(nextSessions);
+}
+
+export function removeStoredWriterTargetSession(writerId: string) {
+    const nextSessions = readStoredWriterTargetSessions().filter((entry) => entry.writerId !== writerId);
+    writeStoredWriterTargetSessions(nextSessions);
+}
+
+export function flattenStoredWriterTargets(now = Date.now(), ttlMs = LIVE_WRITER_TARGET_TTL_MS) {
+    const freshSessions = readStoredWriterTargetSessions().filter((session) => now - session.lastSeen < ttlMs);
+    writeStoredWriterTargetSessions(freshSessions, { notify: false });
+
+    return freshSessions.flatMap((session) =>
+        session.targets.map((target) => ({
+            ...target,
+            writerId: session.writerId,
+            documentTitle: session.documentTitle,
+            lastSeen: session.lastSeen,
+        })),
+    ) as StoredWriterTarget[];
+}
+
+export function readStoredWriterTargetSyncs() {
+    if (typeof window === "undefined") {
+        return [] as StoredWriterTargetSync[];
+    }
+
+    const raw = window.localStorage.getItem(LIVE_WRITER_TARGET_SYNC_STORAGE_KEY);
+    if (!raw) {
+        return [] as StoredWriterTargetSync[];
+    }
+
+    try {
+        const parsed = JSON.parse(raw) as StoredWriterTargetSync[];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+export function writeStoredWriterTargetSyncs(syncs: StoredWriterTargetSync[]) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    window.localStorage.setItem(LIVE_WRITER_TARGET_SYNC_STORAGE_KEY, JSON.stringify(syncs));
+    notifyLiveWriterSyncChanged();
+}
+
+export function upsertStoredWriterTargetSync(sync: StoredWriterTargetSync) {
+    const key = buildTargetSyncKey(sync.writerId, sync.targetId);
+    const nextSyncs = readStoredWriterTargetSyncs().filter(
+        (entry) => buildTargetSyncKey(entry.writerId, entry.targetId) !== key,
+    );
+    nextSyncs.push(sync);
+    writeStoredWriterTargetSyncs(nextSyncs);
+}
+
+export function getStoredWriterTargetSync(writerId: string, targetId: string) {
+    const key = buildTargetSyncKey(writerId, targetId);
+    return readStoredWriterTargetSyncs().find((entry) => buildTargetSyncKey(entry.writerId, entry.targetId) === key) ?? null;
+}
+
+export function markStoredWriterTargetPending(params: {
+    writerId: string;
+    targetId: string;
+    revision: number;
+    publishedAt: string;
+    sourceLabel: string;
+    blockTitle?: string;
+    documentTitle?: string;
+}) {
+    const current = getStoredWriterTargetSync(params.writerId, params.targetId);
+
+    upsertStoredWriterTargetSync({
+        writerId: params.writerId,
+        targetId: params.targetId,
+        revision: params.revision,
+        state: "pending",
+        lastPushedAt: Date.parse(params.publishedAt),
+        lastAckAt: current?.lastAckAt,
+        blockTitle: params.blockTitle ?? current?.blockTitle,
+        documentTitle: params.documentTitle ?? current?.documentTitle,
+        sourceLabel: params.sourceLabel,
+    });
+}
+
+export function markStoredWriterTargetAcknowledged(ack: LabPublishAckBroadcast) {
+    const current = getStoredWriterTargetSync(ack.writerId, ack.targetId);
+
+    upsertStoredWriterTargetSync({
+        writerId: ack.writerId,
+        targetId: ack.targetId,
+        revision: ack.revision,
+        state: "acknowledged",
+        lastPushedAt: current?.lastPushedAt ?? Date.parse(ack.acknowledgedAt),
+        lastAckAt: Date.parse(ack.acknowledgedAt),
+        blockTitle: ack.blockTitle,
+        documentTitle: ack.documentTitle,
+        sourceLabel: ack.sourceLabel,
+    });
+}
+
+export function createLiveWriterPublishMessage(params: {
+    writerId: string;
+    targetId: string;
+    payload: WriterBridgeBlockData;
+    sourceLabel: string;
+}) {
+    const current = getStoredWriterTargetSync(params.writerId, params.targetId);
+    const revision = Math.max(current?.revision ?? 0, params.payload.sync?.revision ?? 0) + 1;
+    const publishedAt = new Date().toISOString();
+
+    return {
+        type: "lab-publish",
+        writerId: params.writerId,
+        targetId: params.targetId,
+        revision,
+        publishedAt,
+        sourceLabel: params.sourceLabel,
+        payload: {
+            ...params.payload,
+            id: params.targetId,
+            sync: {
+                revision,
+                pushedAt: publishedAt,
+                sourceLabel: params.sourceLabel,
+            },
+        },
+    } satisfies LabPublishBroadcast;
+}
+
+export function publishToLiveWriterTarget(params: {
+    writerId: string;
+    targetId: string;
+    payload: WriterBridgeBlockData;
+    sourceLabel: string;
+    documentTitle?: string;
+}) {
+    const channel = createBroadcastChannel();
+    if (!channel) {
+        return null;
+    }
+
+    const message = createLiveWriterPublishMessage(params);
+    markStoredWriterTargetPending({
+        writerId: params.writerId,
+        targetId: params.targetId,
+        revision: message.revision,
+        publishedAt: message.publishedAt,
+        sourceLabel: params.sourceLabel,
+        blockTitle: message.payload.title,
+        documentTitle: params.documentTitle,
+    });
+    channel.postMessage(message);
+    channel.close();
+
+    return message;
+}
+
+export function createLiveWriterPublishAck(params: {
+    message: LabPublishBroadcast;
+    acknowledgedAt: string;
+    documentTitle: string;
+    blockTitle: string;
+}) {
+    return {
+        type: "lab-publish-ack",
+        writerId: params.message.writerId,
+        targetId: params.message.targetId,
+        revision: params.message.revision,
+        acknowledgedAt: params.acknowledgedAt,
+        documentTitle: params.documentTitle,
+        blockTitle: params.blockTitle,
+        sourceLabel: params.message.sourceLabel,
+    } satisfies LabPublishAckBroadcast;
 }
 
 export function createWaitingWriterBridgeBlock(title = "Live Laboratory Block"): WriterBridgeBlockData {
@@ -169,6 +458,10 @@ export function blockToTarget(block: WriterBridgeBlockData): WriterBridgeTarget 
         title: block.title,
         status: block.status,
         generatedAt: block.generatedAt,
+        revision: block.sync?.revision,
+        lastPublishedAt: block.sync?.pushedAt,
+        lastAcknowledgedAt: block.sync?.acknowledgedAt,
+        sourceLabel: block.sync?.sourceLabel,
     };
 }
 

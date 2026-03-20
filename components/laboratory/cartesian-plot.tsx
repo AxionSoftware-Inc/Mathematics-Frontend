@@ -1,75 +1,132 @@
 "use client";
 
+import React from "react";
 import { PlotPoint } from "@/components/laboratory/math-utils";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Legend
+} from "recharts";
 
-type PlotSeries = {
+export type PlotSeries = {
     label: string;
     color: string;
     points: PlotPoint[];
 };
 
-function toPath(points: PlotPoint[], width: number, height: number, xMin: number, xMax: number, yMin: number, yMax: number) {
-    const usableWidth = width - 40;
-    const usableHeight = height - 40;
-
-    return points
-        .map((point, index) => {
-            const x = 20 + ((point.x - xMin) / Math.max(xMax - xMin, 1e-9)) * usableWidth;
-            const y = height - 20 - ((point.y - yMin) / Math.max(yMax - yMin, 1e-9)) * usableHeight;
-            return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-        })
-        .join(" ");
-}
-
 export function CartesianPlot({
     series,
-    height = 280,
+    height = 360,
+    domainX = ["auto", "auto"],
+    title
 }: {
     series: PlotSeries[];
     height?: number;
+    domainX?: [number | "auto", number | "auto"];
+    title?: string;
 }) {
-    const points = series.flatMap((entry) => entry.points);
-    if (!points.length) {
+    if (!series.length || !series[0]?.points.length) {
         return null;
     }
 
-    const xValues = points.map((point) => point.x);
-    const yValues = points.map((point) => point.y);
-    const xMin = Math.min(...xValues);
-    const xMax = Math.max(...xValues);
-    const yMin = Math.min(...yValues);
-    const yMax = Math.max(...yValues);
-    const width = 680;
-    const showMarkers = points.length <= 80;
+    // Merge points by X value so Recharts can overlay them correctly
+    const mergedMap = new Map<number, any>();
+    series.forEach((s) => {
+        s.points.forEach((p) => {
+            // Rounded slightly to avoid floating-point map key misses
+            const roundedX = Number(p.x.toFixed(6));
+            if (!mergedMap.has(roundedX)) {
+                mergedMap.set(roundedX, { x: roundedX });
+            }
+            mergedMap.get(roundedX)[s.label] = p.y;
+        });
+    });
+
+    const data = Array.from(mergedMap.values()).sort((a, b) => a.x - b.x);
 
     return (
-        <div className="site-outline-card overflow-hidden p-4">
-            <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
-                <rect x="20" y="20" width={width - 40} height={height - 40} rx="18" fill="transparent" stroke="currentColor" className="text-border" />
-                {series.map((entry) => (
-                    <g key={entry.label}>
-                        <path
-                            d={toPath(entry.points, width, height, xMin, xMax, yMin, yMax)}
-                            fill="none"
-                            stroke={entry.color}
-                            strokeWidth="3"
-                            strokeLinecap="round"
+        <div className="site-panel w-full p-2 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            {title && (
+                <div className="px-5 pt-4 pb-2">
+                    <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{title}</h4>
+                </div>
+            )}
+            <div style={{ height }} className="w-full px-2 py-4">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid 
+                            strokeDasharray="4 4" 
+                            stroke="var(--border)" 
+                            opacity={0.5} 
+                            vertical={true} 
                         />
-                        {showMarkers ? entry.points.map((point, index) => {
-                            const x = 20 + ((point.x - xMin) / Math.max(xMax - xMin, 1e-9)) * (width - 40);
-                            const y = height - 20 - ((point.y - yMin) / Math.max(yMax - yMin, 1e-9)) * (height - 40);
-                            return <circle key={`${entry.label}-${index}`} cx={x} cy={y} r="3.5" fill={entry.color} />;
-                        }) : null}
-                    </g>
-                ))}
-            </svg>
-            <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold text-muted-foreground">
-                {series.map((entry) => (
-                    <div key={entry.label} className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                        {entry.label}
-                    </div>
-                ))}
+                        <XAxis 
+                            dataKey="x" 
+                            type="number" 
+                            domain={domainX} 
+                            tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
+                            tickLine={false}
+                            axisLine={{ stroke: 'var(--border)', strokeWidth: 2 }}
+                            minTickGap={30}
+                            tickFormatter={(val) => val.toFixed(1)}
+                        />
+                        <YAxis 
+                            tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
+                            tickLine={false}
+                            axisLine={false}
+                            width={50}
+                            tickFormatter={(val) => (Math.abs(val) > 1000 ? val.toExponential(1) : val.toPrecision(3))}
+                        />
+                        <Tooltip 
+                            contentStyle={{ 
+                                backgroundColor: 'var(--surface)', 
+                                borderColor: 'var(--border)',
+                                borderRadius: 'var(--radius-small)',
+                                boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
+                                backdropFilter: 'blur(12px)',
+                                color: 'var(--foreground)'
+                            }}
+                            itemStyle={{ fontWeight: 700, fontSize: 13 }}
+                            labelStyle={{ color: 'var(--muted-foreground)', marginBottom: 6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                            formatter={(value) => {
+                                if (typeof value !== "number") {
+                                    return value ?? "";
+                                }
+
+                                // Formatting massive or tiny numbers for clean plotting
+                                if (Math.abs(value) > 10000 || (Math.abs(value) < 0.001 && value !== 0)) {
+                                    return value.toExponential(4);
+                                }
+                                return Number.isInteger(value) ? value : value.toFixed(4);
+                            }}
+                            labelFormatter={(label) => typeof label === "number" ? `x = ${label.toFixed(4)}` : `x = ${String(label)}`}
+                        />
+                        <Legend 
+                            wrapperStyle={{ paddingTop: "20px", fontSize: "12px", fontWeight: 700, color: 'var(--foreground)' }}
+                            iconType="circle"
+                            iconSize={8}
+                        />
+                        {series.map((s, idx) => (
+                            <Line
+                                key={s.label}
+                                type="monotone"
+                                dataKey={s.label}
+                                stroke={s.color}
+                                strokeWidth={3}
+                                dot={data.length < 40 ? { r: 4, strokeWidth: 0, fill: s.color } : false}
+                                activeDot={{ r: 6, strokeWidth: 2, stroke: 'var(--background)' }}
+                                animationDuration={1200}
+                                animationEasing="ease-out"
+                                isAnimationActive={true}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
             </div>
         </div>
     );

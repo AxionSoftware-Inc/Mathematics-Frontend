@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, FileText, Pencil, Trash2, Calendar, Clock, BookOpen, Layers, Search, X } from "lucide-react";
+import { WriteTypeSelector } from "@/components/write-type-selector";
+
 
 interface Paper {
     id: number;
@@ -18,6 +20,8 @@ export default function WriteIndexPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState<"all" | "published" | "draft">("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const [isWriteSelectorOpen, setIsWriteSelectorOpen] = useState(false);
+
 
     const fetchPapers = async () => {
         setIsLoading(true);
@@ -76,14 +80,16 @@ export default function WriteIndexPage() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link 
-                            href="/write/new" 
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-foreground text-background font-medium hover:bg-foreground/90 transition-all px-5 py-2 text-sm shadow-md hover:shadow-lg"
+                        <button 
+                            onClick={() => setIsWriteSelectorOpen(true)} 
+                            className="site-button-primary shadow-md hover:shadow-lg cursor-pointer"
                         >
                             <Plus className="w-4 h-4" />
                             Yangi Maqola
-                        </Link>
+                        </button>
+
                     </div>
+
                 </div>
             </div>
 
@@ -163,15 +169,18 @@ export default function WriteIndexPage() {
                             </div>
                             <h3 className="text-xl font-semibold tracking-tight">Hali ilmiy maqolalar yoʻq</h3>
                             <p className="text-muted-foreground mt-2 max-w-md mb-8 leading-relaxed">
-                                Yangi loyihani boshlang. Ma'lumotlar avtomatik tekshiriladi va xavfsiz muhitda tahrirlanadi. Latex formatlarini ham kiritish mumkin.
+                                Yangi loyihani boshlang. Ma&apos;lumotlar avtomatik tekshiriladi va xavfsiz muhitda tahrirlanadi. Latex formatlarini ham kiritish mumkin.
                             </p>
-                            <Link 
-                                href="/write/new" 
-                                className="inline-flex items-center justify-center rounded-xl font-medium transition-all bg-foreground text-background hover:scale-105 active:scale-95 h-12 px-6 shadow-xl"
+                            <button 
+                                onClick={() => setIsWriteSelectorOpen(true)} 
+                                className="site-button-primary shadow-xl cursor-pointer"
                             >
                                 <Plus className="w-5 h-5 mr-2" />
                                 Yangi qoralama yaratish
-                            </Link>
+                            </button>
+
+
+
                         </div>
                     ) : (
                         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -229,6 +238,11 @@ export default function WriteIndexPage() {
                     )}
                 </div>
             </div>
+            <WriteTypeSelector 
+                isOpen={isWriteSelectorOpen} 
+                onClose={() => setIsWriteSelectorOpen(false)} 
+            />
         </div>
     );
 }
+

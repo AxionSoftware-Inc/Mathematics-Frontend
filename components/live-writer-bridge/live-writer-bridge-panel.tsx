@@ -2,7 +2,45 @@
 
 import { Link2, Radio, SendHorizontal } from "lucide-react";
 
-import { type WriterBridgeTarget } from "@/lib/live-writer-bridge";
+import { type LiveWriterTargetOption } from "@/components/live-writer-bridge/use-live-writer-targets";
+
+function formatTime(value: number | null) {
+    if (!value) {
+        return "--";
+    }
+
+    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function getTargetSyncTone(target: LiveWriterTargetOption, active: boolean) {
+    if (active) {
+        return "border-background/20 bg-background/10 text-background";
+    }
+
+    if (target.syncState === "pending") {
+        return "border-amber-500/30 bg-amber-500/10 text-amber-600";
+    }
+
+    if (target.syncState === "acknowledged") {
+        return "border-teal-500/30 bg-teal-500/10 text-teal-600";
+    }
+
+    return target.connectionState === "online"
+        ? "border-sky-500/30 bg-sky-500/10 text-sky-600"
+        : "border-zinc-500/30 bg-zinc-500/10 text-zinc-600";
+}
+
+function getTargetSyncLabel(target: LiveWriterTargetOption) {
+    if (target.syncState === "pending") {
+        return "awaiting ack";
+    }
+
+    if (target.syncState === "acknowledged") {
+        return "synced";
+    }
+
+    return target.connectionState === "online" ? "live" : "stale";
+}
 
 export function LiveWriterBridgePanel({
     targets,
@@ -11,12 +49,15 @@ export function LiveWriterBridgePanel({
     onPush,
     disabled,
 }: {
-    targets: Array<WriterBridgeTarget & { writerId: string; documentTitle: string }>;
+    targets: LiveWriterTargetOption[];
     selectedTargetId: string;
     onSelectTarget: (targetId: string) => void;
     onPush: () => void;
     disabled: boolean;
 }) {
+    const selectedTarget = targets.find((target) => target.id === selectedTargetId) ?? null;
+    const nextRevision = (selectedTarget?.lastRevision ?? 0) + 1;
+
     return (
         <div className="rounded-[1.5rem] border border-border bg-background/85 p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -49,9 +90,15 @@ export function LiveWriterBridgePanel({
                                         <div className={`mt-1 truncate text-xs ${active ? "text-background/70" : "text-muted-foreground"}`}>
                                             {target.documentTitle}
                                         </div>
+                                        <div className={`mt-1 text-[11px] ${active ? "text-background/70" : "text-muted-foreground"}`}>
+                                            {target.connectionState === "online" ? "online" : "stale"} | seen {formatTime(target.lastSeen)}
+                                        </div>
+                                        <div className={`mt-1 text-[11px] ${active ? "text-background/70" : "text-muted-foreground"}`}>
+                                            rev {target.lastRevision ?? 0} | push {formatTime(target.lastPushedAt)} | ack {formatTime(target.lastAckAt)}
+                                        </div>
                                     </div>
-                                    <div className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${active ? "border-background/20 bg-background/10 text-background" : "border-border text-muted-foreground"}`}>
-                                        {target.status}
+                                    <div className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${getTargetSyncTone(target, active)}`}>
+                                        {getTargetSyncLabel(target)}
                                     </div>
                                 </div>
                             </button>
@@ -73,10 +120,25 @@ export function LiveWriterBridgePanel({
             <div className="mt-4 rounded-[1.25rem] border border-border bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
                 1. Writer sahifasida `Live Lab Block` qo&apos;shing.
                 <br />
-                        2. Shu yerda target&apos;ni tanlang.
+                2. Shu yerda kerakli target&apos;ni tanlang.
                 <br />
-                3. `Live push` bossangiz, natija o&apos;sha blok ichida darrov yangilanadi.
+                3. `Live push` bosilganda natija o&apos;sha blok ichida darrov yangilanadi va ack qaytadi.
+                <br />
+                4. Writer vaqtincha fon rejimiga o&apos;tsa ham target state va revision tarixi bir muddat ushlab turiladi.
             </div>
+
+            {selectedTarget ? (
+                <div className="mt-4 rounded-[1.25rem] border border-border bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground">Selected sync session</div>
+                    <div className="mt-2">
+                        Next push: rev {nextRevision}
+                        <br />
+                        Source: {selectedTarget.sourceLabel || "Laboratory bridge"}
+                        <br />
+                        Last ack: {formatTime(selectedTarget.lastAckAt)}
+                    </div>
+                </div>
+            ) : null}
 
             <button
                 type="button"
@@ -85,7 +147,7 @@ export function LiveWriterBridgePanel({
                 className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-sm font-bold text-background transition hover:opacity-90 disabled:opacity-50"
             >
                 <SendHorizontal className="h-4 w-4" />
-                Live push
+                {selectedTarget ? `Live push rev ${nextRevision}` : "Live push"}
             </button>
 
             <div className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">

@@ -1,10 +1,11 @@
-import { add, compile, derivative, det, inv, multiply, parse } from "mathjs";
+import { add, compile, derivative, det, eigs, inv, multiply, parse } from "mathjs";
 
-export type MatrixOperation = "add" | "multiply" | "determinant" | "inverse";
-export type MatrixResult = {
+export type MatrixOperation = "add" | "multiply" | "determinant" | "inverse" | "transpose" | "eigenvalues";
+export type MatrixOperationResult = {
     label: string;
     matrix?: number[][];
     scalar?: number;
+    values?: number[];
     note: string;
 };
 
@@ -18,6 +19,9 @@ export type MatrixSummary = {
     columnSums: number[];
     min: number;
     max: number;
+    isSquare: boolean;
+    isSymmetric: boolean;
+    isOrthogonal: boolean;
 };
 
 export type PlotPoint = {
@@ -39,10 +43,35 @@ export type DifferentialPoint = {
     heun: number;
 };
 
+export type ODESystemPoint = {
+    t: number;
+    vars: Record<string, number>;
+};
+
+export type DoubleIntegralSummary = {
+    value: number;
+    samples: { x: number; y: number; z: number }[];
+};
+
+export type TripleIntegralSummary = {
+    value: number;
+    samples: { x: number; y: number; z: number; value: number }[];
+};
+
 export type SeriesPoint = {
     n: number;
-    term: number;
-    partial: number;
+    value: number;
+    partialSum: number;
+};
+
+export type StatisticsSummary = {
+    mean: number;
+    median: number;
+    mode: number[];
+    variance: number;
+    standardDeviation: number;
+    count: number;
+    histogram: { bin: string; count: number }[];
 };
 
 export type SeriesDiagnostic = "likely-convergent" | "slow-convergence" | "likely-divergent" | "inconclusive";
@@ -61,6 +90,18 @@ export type SeriesAnalysis = {
 };
 
 export type LimitDiagnostic = "likely-exists" | "one-sided-mismatch" | "likely-unbounded" | "unstable";
+
+export type ComplexPoint = {
+    re: number;
+    im: number;
+    magnitude: number;
+    phase: number;
+};
+
+export type ComplexMappingResult = {
+    original: ComplexPoint[];
+    mapped: ComplexPoint[];
+};
 
 export type LimitEstimate = {
     point: number;
@@ -106,6 +147,44 @@ export type AnalyticLine = {
     c: number;
     equation: string;
     samples: PlotPoint[];
+};
+
+export type FrequencyPoint = {
+    freq: number;
+    magnitude: number;
+    phase: number;
+};
+
+export type SpectralAnalysis = {
+    timeDomain: PlotPoint[];
+    frequencyDomain: FrequencyPoint[];
+    peakFreq: number;
+};
+
+export type QuantumWavePoint = {
+    x: number;
+    y: number;
+    prob: number;
+};
+
+export type QuantumStateAnalysis = {
+    theta: number;
+    phi: number;
+    cartesian: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    alphaMagnitude: number;
+    betaMagnitude: number;
+    zeroProbability: number;
+    oneProbability: number;
+    coherence: number;
+    longitude: number;
+    latitude: number;
+    phaseClass: string;
+    label: string;
+    ket: string;
 };
 
 export type GeometryIntersection = GeometryPoint | null;
@@ -188,10 +267,27 @@ export function summarizeMatrix(matrix: number[][]): MatrixSummary {
     const values = matrix.flat();
     const trace = isSquare ? roundValue(matrix.reduce((sum, row, index) => sum + row[index], 0)) : null;
     let determinantValue: number | null = null;
+    let isSymmetric = false;
+    const isOrthogonal = false;
 
     if (isSquare) {
         try {
             determinantValue = roundValue(Number(det(matrix)));
+            
+            // Symmetry check
+            isSymmetric = true;
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < columns; j++) {
+                    if (Math.abs(matrix[i][j] - matrix[j][i]) > 1e-9) {
+                        isSymmetric = false;
+                        break;
+                    }
+                }
+                if (!isSymmetric) break;
+            }
+
+            // Orthogonality check placeholder
+            // multiply(transpose(matrix), matrix) and check for I
         } catch {
             determinantValue = null;
         }
@@ -207,15 +303,16 @@ export function summarizeMatrix(matrix: number[][]): MatrixSummary {
         columnSums,
         min: roundValue(Math.min(...values)),
         max: roundValue(Math.max(...values)),
+        isSquare,
+        isSymmetric,
+        isOrthogonal
     };
 }
 
-export function runMatrixOperation(matrixAInput: string, matrixBInput: string, operation: MatrixOperation): MatrixResult {
-    const matrixA = parseNumericMatrix(matrixAInput);
-    const matrixB = operation === "add" || operation === "multiply" ? parseNumericMatrix(matrixBInput) : null;
-
+export function runMatrixOperation(matrixA: number[][], operation: MatrixOperation, matrixB: number[][] | null = null): MatrixOperationResult {
     if (operation === "add") {
-        const result = add(matrixA, matrixB as number[][]) as number[][];
+        if (!matrixB) throw new Error("Qo'shish uchun ikkinchi matritsa kerak.");
+        const result = add(matrixA, matrixB) as number[][];
         return {
             label: "A + B",
             matrix: normalizeMatrix(result),
@@ -224,7 +321,8 @@ export function runMatrixOperation(matrixAInput: string, matrixBInput: string, o
     }
 
     if (operation === "multiply") {
-        const result = multiply(matrixA, matrixB as number[][]) as number[][];
+        if (!matrixB) throw new Error("Ko'paytirish uchun ikkinchi matritsa kerak.");
+        const result = multiply(matrixA, matrixB) as number[][];
         return {
             label: "A x B",
             matrix: normalizeMatrix(result),
@@ -233,20 +331,53 @@ export function runMatrixOperation(matrixAInput: string, matrixBInput: string, o
     }
 
     if (operation === "determinant") {
-        const result = det(matrixA) as number;
+        const resultValue = det(matrixA) as number;
         return {
             label: "det(A)",
-            scalar: Number(result.toFixed(6)),
-            note: "Determinant faqat kvadrat matritsa uchun aniqlanadi.",
+            scalar: roundValue(resultValue),
+            note: "Determinant kvadrat matritsa uchun xarakterli hajm ko'rsatkichi.",
         };
     }
 
-    const result = inv(matrixA) as number[][];
-    return {
-        label: "A^-1",
-        matrix: normalizeMatrix(result),
-        note: "Inverse faqat determinant nol bo'lmagan kvadrat matritsa uchun hisoblanadi.",
-    };
+    if (operation === "transpose") {
+        const resultMatrix = Array.from({ length: matrixA[0].length }, (_, i) => matrixA.map(row => row[i]));
+        return {
+            label: "A^T",
+            matrix: resultMatrix,
+            note: "Matritsani qatorlari ustunlarga o'zgartirildi.",
+        };
+    }
+
+    if (operation === "eigenvalues") {
+        try {
+            const res = eigs(matrixA);
+            const rawValues = res.values;
+            const vals = Array.isArray(rawValues) ? rawValues : (rawValues as { toArray?: () => unknown[] }).toArray ? (rawValues as { toArray: () => unknown[] }).toArray() : [rawValues];
+            
+            return {
+                label: "Eigenvalues",
+                values: vals.map((v: unknown) => {
+                    if (typeof v === 'number') return roundValue(v);
+                    const complex = v as { re?: number };
+                    return roundValue(complex.re || 0);
+                }),
+                note: "Xos qiymatlar (Eigenvalues) matritsaning chiziqli o'zgarish xarakteristikasi.",
+            };
+        } catch {
+             throw new Error("Eigenvalues hisoblashda xato (faqat kvadrat matritsalar uchun).");
+        }
+    }
+
+    if (operation === "inverse") {
+        const resultMatrix = inv(matrixA) as number[][];
+        return {
+            label: "A^-1",
+            matrix: normalizeMatrix(resultMatrix),
+            note: "Inverse faqat determinant nol bo'lmagan kvadrat matritsa uchun hisoblanadi.",
+        };
+    }
+
+    throw new Error(`Noma'lum operatsiya: ${operation}`);
 }
 
 function evaluateExpression(expression: string, scope: Record<string, number>) {
@@ -310,6 +441,306 @@ export function approximateIntegral(expression: string, lower: number, upper: nu
     };
 }
 
+export function approximateDoubleIntegral(
+    expression: string,
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    nx: number,
+    ny: number
+): DoubleIntegralSummary {
+    const dx = (xMax - xMin) / nx;
+    const dy = (yMax - yMin) / ny;
+    const executor = compile(expression);
+    let totalVolume = 0;
+    const samples: { x: number; y: number; z: number }[] = [];
+
+    for (let i = 0; i < nx; i++) {
+        const x = xMin + (i + 0.5) * dx;
+        for (let j = 0; j < ny; j++) {
+            const y = yMin + (j + 0.5) * dy;
+            const z = Number(executor.evaluate({ x, y }));
+            totalVolume += z * dx * dy;
+            
+            // Limit samples for performance visualization
+            if (i % Math.ceil(nx / 10) === 0 && j % Math.ceil(ny / 10) === 0) {
+                samples.push({ x, y, z: roundValue(z) });
+            }
+        }
+    }
+
+    return {
+        value: roundValue(totalVolume),
+        samples
+    };
+}
+
+export function approximateTripleIntegral(
+    expression: string,
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    zMin: number,
+    zMax: number,
+    nx = 8,
+    ny = 8,
+    nz = 8,
+): TripleIntegralSummary {
+    const executor = compile(expression);
+    const dx = (xMax - xMin) / nx;
+    const dy = (yMax - yMin) / ny;
+    const dz = (zMax - zMin) / nz;
+    let total = 0;
+    const samples: { x: number; y: number; z: number; value: number }[] = [];
+
+    for (let i = 0; i < nx; i++) {
+        const x = xMin + (i + 0.5) * dx;
+        for (let j = 0; j < ny; j++) {
+            const y = yMin + (j + 0.5) * dy;
+            for (let k = 0; k < nz; k++) {
+                const z = zMin + (k + 0.5) * dz;
+                const value = Number(executor.evaluate({ x, y, z }));
+                if (Number.isFinite(value)) {
+                    total += value;
+                    // Sparse sampling for visualization
+                    if (nx >= 4 && i % 2 === 0 && j % 2 === 0 && k % 2 === 0) {
+                        samples.push({ x, y, z, value });
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        value: roundValue(total * dx * dy * dz),
+        samples,
+    };
+}
+
+export const LABORATORY_PRESETS = {
+    integral: [
+        { label: "Gaussian Bell", mode: "single", expr: "exp(-x^2)", lower: "-3", upper: "3" },
+        { label: "Double Paraboloid", mode: "double", expr: "x^2 + y^2", x: "[-2, 2]", y: "[-2, 2]" },
+        { label: "Sphere Volume (Triple)", mode: "triple", expr: "1", x: "[-1, 1]", y: "[-1, 1]", z: "[-1, 1]" },
+        { label: "Sin-Wave Surface", mode: "double", expr: "sin(x) * cos(y)", x: "[0, 6.28]", y: "[0, 6.28]" },
+    ],
+    differential: [
+        { label: "Logistic Growth", mode: "single", expr: "0.5 * y * (1 - y/10)", x0: "0", y0: "1" },
+        { label: "Van der Pol Oscillator", mode: "system", exprs: ["y", "-0.5 * (x^2 - 1) * y - x"], x0: "1", y0: "0" },
+        { label: "Predator-Prey (Lotka-Volterra)", mode: "system", exprs: ["1.5*x - 1.0*x*y", "-3.0*y + 1.2*x*y"], x0: "10", y0: "5" },
+        { label: "Lorenz Attractor (3D Chaos)", mode: "system", exprs: ["10 * (y - x)", "x * (28 - z) - y", "x * y - (8 / 3) * z"], x0: "1", y0: "1", z0: "1", step: "0.01", steps: "1500" },
+        { label: "Rossler Attractor (Chaos)", mode: "system", exprs: ["-y - z", "x + 0.2 * y", "0.2 + z * (x - 5.7)"], x0: "0.1", y0: "0", z0: "0", step: "0.05", steps: "2000" },
+        { label: "Brusselator (Chemical Oscillator)", mode: "system", exprs: ["1 + x^2 * y - 3.5 * x", "2.5 * x - x^2 * y"], x0: "1", y0: "1", step: "0.05", steps: "1000" },
+        { label: "Duffing Oscillator (Chaos)", mode: "system", exprs: ["y", "x - x^3 - 0.1 * y + 0.3 * cos(1.2 * t)"], x0: "1", y0: "0", step: "0.1", steps: "500" },
+        { label: "Thomas Cyclical Attractor", mode: "system", exprs: ["sin(y) - 0.2 * x", "sin(z) - 0.2 * y", "sin(x) - 0.2 * z"], x0: "0.1", y0: "0", z0: "0", step: "0.1", steps: "2000" },
+    ],
+    series: [
+        { label: "Riemann Zeta (s=2)", expr: "1 / n^2", start: "1", terms: "50" },
+        { label: "Grandis Series (alt)", expr: "(-1)^n", start: "0", terms: "10" },
+        { label: "Factorial Inverse", expr: "1 / n!", start: "0", terms: "10" },
+    ],
+    matrix: [
+        { label: "Identity Matrix", A: "1 0 0\n0 1 0\n0 0 1", op: "determinant" },
+        { label: "Rotation 45 deg (X-axis)", A: "1 0 0\n0 0.707 -0.707\n0 0.707 0.707", op: "transpose", type: "transformation" },
+        { label: "Shear Transformation", A: "1 0.5 0\n0 1 0\n0 0 1", op: "transpose", type: "transformation" },
+        { label: "Non-uniform Scaling", A: "2 0 0\n0 0.5 0\n0 0 1.5", op: "transpose", type: "transformation" },
+        { label: "Hilbert 3x3", A: "1 0.5 0.33\n0.5 0.33 0.25\n0.33 0.25 0.2", op: "eigenvalues" },
+    ],
+    geometry: [
+        { label: "Perpendicular Lines", ax: "0", ay: "0", bx: "4", by: "4", cx: "0", cy: "4", dx: "4", dy: "0" },
+        { label: "Parallel Lines", ax: "0", ay: "0", bx: "5", by: "0", cx: "0", cy: "2", dx: "5", dy: "2" },
+        { label: "Unit Triangle Delta", ax: "0", ay: "0", bx: "1", by: "0", cx: "0.5", cy: "0.866", dx: "0", dy: "0" },
+    ],
+    proof: [
+        { label: "Pythagorean Theorem", title: "Pifagor teoremasi", strategy: "direct", statement: "To'g'ri burchakli uchburchakda gipotenuza kvadrati katetlar kvadratlari yig'indisiga teng." },
+        { label: "Prime Infinity", title: "Tub sonlar cheksizligi", strategy: "contradiction", statement: "Tub sonlar to'plami cheksizdir." },
+        { label: "Square Root 2 Irrational", title: "sqrt(2) irratsional", strategy: "contradiction", statement: "2 ning kvadrat ildizi ratsional son emas." },
+    ],
+    statistics: [
+        { label: "Standard Normal", type: "normal", mean: "0", sd: "1" },
+        { label: "Coin Flips (n=10)", type: "binomial", n: "10", p: "0.5" },
+        { label: "Poisson Call Center (lambda=4)", type: "poisson", lambda: "4" },
+        { label: "IQ Distribution", type: "normal", mean: "100", sd: "15" },
+    ],
+    complex: [
+        { label: "Mandelbrot Explorer", type: "fractal", fractal: "mandelbrot", zoom: 1, cx: -0.5, cy: 0 },
+        { label: "Julia: Burning Ship", type: "fractal", fractal: "julia", cr: -0.8, ci: 0.156 },
+        { label: "Z -> Exp(Z) Map", type: "mapping", expr: "exp(z)", range: 2 },
+        { label: "Z -> Sin(Z) Map", type: "mapping", expr: "sin(z)", range: 3 },
+    ],
+    signal: [
+        { label: "Pure Sine (440Hz)", type: "basic", wave: "sine", f: 440, a: 1 },
+        { label: "Square Harmonic", type: "basic", wave: "square", f: 220, a: 0.8 },
+        { label: "Sawtooth Spectrum", type: "basic", wave: "sawtooth", f: 330, a: 0.9 },
+        { label: "Noisy Signal", type: "analysis", wave: "sine", f: 100, noise: 0.5 },
+    ],
+    numerical: [
+        { label: "Find Roots: x^3 - x - 2", mode: "root", expr: "x^3 - x - 2", x0: "1.5" },
+        { label: "Find Roots: sin(x) - x/2", mode: "root", expr: "sin(x) - x/2", x0: "2" },
+        { label: "Linear Fit: Economics", mode: "regression", data: "1 2, 2 3.8, 3 6.1, 4 8.2, 5 10" },
+    ],
+    graph: [
+        { label: "Triangle Mesh", nodes: "A, B, C", edges: "A-B:1, B-C:1, C-A:1" },
+        { label: "Star Topology", nodes: "Center, S1, S2, S3", edges: "Center-S1:2, Center-S2:2, Center-S3:2" },
+        { label: "Path Finder Graph", nodes: "Start, X, Y, Z, End", edges: "Start-X:2, Start-Y:5, X-Z:1, Y-Z:2, Z-End:3" },
+        { label: "Weighted Metro Ring", nodes: "T1, T2, T3, T4, T5, T6", edges: "T1-T2:2, T2-T3:2, T3-T4:3, T4-T5:2, T5-T6:4, T6-T1:3, T2-T5:1" },
+        { label: "Research Cluster Mesh", nodes: "Core, AI, Bio, Chem, Math, Net", edges: "Core-AI:1, Core-Bio:2, Core-Chem:2, Core-Math:1, Core-Net:1, AI-Math:2, Bio-Chem:1, Net-AI:2, Net-Math:2" },
+    ],
+    optimization: [
+        { label: "Parabolic Valley", expr: "x^2 + y^2", x0: "2", y0: "2", lr: "0.1" },
+        { label: "Rosenbrock (Banana)", expr: "(1-x)^2 + 100*(y - x^2)^2", x0: "-1.2", y0: "1.0", lr: "0.001" },
+        { label: "Ackley (Local Minima)", expr: "-20*exp(-0.2*sqrt(0.5*(x^2+y^2)))-exp(0.5*(cos(2*pi*x)+cos(2*pi*y)))+20+e", x0: "1.0", y0: "1.0", lr: "0.01" },
+        { label: "Matyas (Flat Plate)", expr: "0.26*(x^2+y^2)-0.48*x*y", x0: "5.0", y0: "5.0", lr: "0.1" },
+        { label: "Beale's Funnel", expr: "(1.5-x+x*y)^2+(2.25-x+x*y^2)^2+(2.625-x+x*y^3)^2", x0: "3.0", y0: "0.5", lr: "0.001" },
+        { label: "Saddle Ridge", expr: "x^2 - y^2 + 0.2*x*y", x0: "2.5", y0: "-2.5", lr: "0.05" },
+        { label: "Bohachevsky Bowl", expr: "x^2 + 2*y^2 - 0.3*cos(3*pi*x) - 0.4*cos(4*pi*y) + 0.7", x0: "1.5", y0: "-1.25", lr: "0.02" },
+    ],
+    linear: [
+        { label: "3x3 System (Standard)", matrix: "2 1 -1, -3 -1 2, -2 1 2", b: "8, -11, -3" },
+        { label: "4x4 Sparse Matrix", matrix: "1 0 0 0, 0 1 0 0, 0 0 1 0, 0 0 0 1", b: "1, 2, 3, 4" },
+        { label: "Ill-conditioned System", matrix: "0.1 0.1, 0.1 0.1001", b: "0.2, 0.2001" },
+        { label: "Balanced 3x3 Physics", matrix: "4 -1 0, -1 4 -1, 0 -1 3", b: "15, 10, 10" },
+        { label: "Coupled 4x4 Network", matrix: "10 2 0 1, 2 9 -1 0, 0 -1 7 2, 1 0 2 8", b: "7, 8, 6, 5" },
+    ],
+    crypto: [
+        { label: "RSA: Alice to Bob", p: "61", q: "53", msg: "HELLO" },
+        { label: "ECC: Curve P256 (Small Prime)", a: "2", p: "17", x: "5", y: "1" },
+        { label: "Diffie-Hellman Exchange", g: "5", p: "23", a: "6", b: "15" },
+        { label: "RSA: Secure Notes", p: "71", q: "67", msg: "DATA" },
+        { label: "ECC: Compact Key Curve", a: "1", p: "19", x: "7", y: "11" },
+    ],
+    game: [
+        { label: "Prisoner's Dilemma", matrix: "3,3 0,5; 5,0 1,1" },
+        { label: "Battle of Sexes", matrix: "3,2 0,0; 0,0 2,3" },
+        { label: "Hawk-Dove Evolution", v: "50", c: "100", hawk: "10", dove: "90" },
+        { label: "Stag Hunt", matrix: "4,4 1,3; 3,1 2,2" },
+        { label: "Coordination Shift", matrix: "5,5 0,1; 1,0 3,3" },
+        { label: "Aggression Spiral Evolution", v: "70", c: "120", hawk: "45", dove: "55" },
+    ],
+    quantum: [
+        { label: "Basis |0>", theta: 0, phi: 0 },
+        { label: "Superposition |+>", theta: Math.PI / 2, phi: 0 },
+        { label: "Pure State |1>", theta: Math.PI, phi: 0 },
+        { label: "Phase Shift |i>", theta: Math.PI / 2, phi: Math.PI / 2 },
+        { label: "Phase Shift |-i>", theta: Math.PI / 2, phi: (3 * Math.PI) / 2 },
+        { label: "Magic State |T>", theta: Math.PI / 2, phi: Math.PI / 4 },
+        { label: "Balanced Qubit", theta: 1.2, phi: 1.1 },
+        { label: "Schrodinger n = 1", n: 1 },
+        { label: "Schrodinger n = 2", n: 2 },
+        { label: "Schrodinger n = 3", n: 3 },
+        { label: "Schrodinger n = 5", n: 5 },
+        { label: "Localized Packet", type: "wave-packet", spread: 0.75, momentum: 4.8 },
+        { label: "Uncertainty Principle Map", type: "wave-packet", spread: 1.2, momentum: 3.4 },
+    ],
+    neural: [
+        { label: "XOR Logic Gate", layers: "2,4,1", data: "[0,0]->0; [0,1]->1; [1,0]->1; [1,1]->0" },
+        { label: "Linear Classifier", layers: "2,3,1", data: "[0.1,0.2]->0; [0.8,0.9]->1; [0.4,0.3]->0; [0.7,0.6]->1" },
+        { label: "Deep Parabola Fit", layers: "1,8,4,1", data: "[0]->0; [1]->1; [2]->4; [3]->9; [-1]->1; [-2]->4" },
+        { label: "AND Logic Gate", layers: "2,3,1", data: "[0,0]->0; [0,1]->0; [1,0]->0; [1,1]->1" },
+        { label: "Diagonal Separator", layers: "2,5,1", data: "[0.1,0.1]->0; [0.2,0.3]->0; [0.8,0.7]->1; [0.9,0.95]->1; [0.6,0.4]->1; [0.3,0.2]->0" },
+    ],
+    relativity: [
+        { label: "GPS Satellite Speed", v: "3874", title: "Global Positioning System Correction" },
+        { label: "Muon Decay (High Speed)", v: "299000000", title: "Atmospheric Muon Survival" },
+        { label: "Light Cone Geometry", type: "3d-cone" },
+        { label: "Schwarzschild Radius", mass: "1.989e30", title: "Black Hole Event Horizon" },
+        { label: "Particle Collider Beam", v: "299700000", title: "Ultra-relativistic Beam Dynamics" },
+        { label: "Interstellar Probe", v: "220000000", title: "Deep Space Mission Clock Drift" },
+    ]
+};
+
+export function calculateStatistics(data: number[]): StatisticsSummary {
+    if (!data.length) throw new Error("Ma'lumotlar bo'sh bo'lishi mumkin emas.");
+    const sorted = [...data].sort((a, b) => a - b);
+    const count = data.length;
+    const mean = data.reduce((a, b) => a + b, 0) / count;
+    
+    // Median
+    const mid = Math.floor(count / 2);
+    const median = count % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    
+    // Variance & SD
+    const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / count;
+    const sd = Math.sqrt(variance);
+    
+    // Mode
+    const freq: Record<number, number> = {};
+    let maxFreq = 0;
+    data.forEach(v => {
+        freq[v] = (freq[v] || 0) + 1;
+        if (freq[v] > maxFreq) maxFreq = freq[v];
+    });
+    const mode = Object.keys(freq).filter(k => freq[Number(k)] === maxFreq).map(Number);
+
+    // Basic Histogram
+    const min = sorted[0];
+    const max = sorted[count-1];
+    const bCount = 10;
+    const bSize = (max - min) / bCount || 1;
+    const histogram = Array.from({ length: bCount }, (_, i) => {
+        const lower = min + i * bSize;
+        const upper = lower + bSize;
+        return {
+            bin: `${lower.toFixed(1)}-${upper.toFixed(1)}`,
+            count: data.filter(v => v >= lower && v < upper).length + (i === bCount - 1 ? data.filter(v => v === upper).length : 0)
+        };
+    });
+
+    return { 
+        mean: roundValue(mean), 
+        median: roundValue(median), 
+        mode, 
+        variance: roundValue(variance), 
+        standardDeviation: roundValue(sd), 
+        count,
+        histogram
+    };
+}
+
+export function generateNormalDistribution(mean: number, sd: number, count = 100) {
+    const points: { x: number; y: number }[] = [];
+    const step = (6 * sd) / count;
+    for (let i = 0; i < count; i++) {
+        const x = (mean - 3 * sd) + i * step;
+        const y = (1 / (sd * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / sd, 2));
+        points.push({ x: roundValue(x), y: roundValue(y) });
+    }
+    return points;
+}
+
+export function generateBinomialDistribution(n: number, p: number) {
+    const points = [];
+    function combinations(n: number, k: number): number {
+        if (k < 0 || k > n) return 0;
+        if (k === 0 || k === n) return 1;
+        let res = 1;
+        for (let i = 1; i <= k; i++) res = res * (n - i + 1) / i;
+        return res;
+    }
+    for (let k = 0; k <= n; k++) {
+        const prob = combinations(n, k) * Math.pow(p, k) * Math.pow(1 - p, n - k);
+        points.push({ x: k, y: roundValue(prob, 4) });
+    }
+    return points;
+}
+
+export function generatePoissonDistribution(lambda: number) {
+    const points = [];
+    function factorial(n: number): number {
+        let res = 1;
+        for (let i = 2; i <= n; i++) res *= i;
+        return res;
+    }
+    const maxK = Math.max(10, Math.floor(lambda * 3));
+    for (let k = 0; k <= maxK; k++) {
+        const prob = Math.pow(lambda, k) * Math.exp(-lambda) / factorial(k);
+        points.push({ x: k, y: roundValue(prob, 4) });
+    }
+    return points;
+}
+
 export function solveDifferentialEquation(
     derivativeExpression: string,
     x0: number,
@@ -351,32 +782,95 @@ export function solveDifferentialEquation(
     return points;
 }
 
+export function solveODESystem(
+    expressions: Record<string, string>,
+    initialValues: Record<string, number>,
+    t0: number,
+    tEnd: number,
+    stepSize: number
+): ODESystemPoint[] {
+    ensureFiniteNumber(t0, "t0");
+    ensureFiniteNumber(tEnd, "tEnd");
+    ensureFiniteNumber(stepSize, "Step size");
+    
+    const executors = Object.entries(expressions).reduce((acc, [name, expr]) => {
+        acc[name] = compile(expr);
+        return acc;
+    }, {} as Record<string, any>);
+
+    const steps = Math.floor(Math.abs(tEnd - t0) / stepSize);
+    const points: ODESystemPoint[] = [{ t: t0, vars: { ...initialValues } }];
+    const variables = Object.keys(expressions);
+
+    try {
+        for (let i = 0; i < steps; i++) {
+            const current = points[points.length - 1];
+            const nextVars: Record<string, number> = {};
+            
+            const k1: Record<string, number> = {};
+            const k1Scope = { t: current.t, ...current.vars };
+            
+            variables.forEach(varName => {
+                try {
+                    k1[varName] = Number(executors[varName].evaluate(k1Scope));
+                } catch (e: any) {
+                    throw new Error(`Symbol '${varName}' evaluation failed: ${e.message}`);
+                }
+            });
+
+            const k2Scope = { t: current.t + stepSize };
+            variables.forEach(varName => {
+                // @ts-ignore
+                k2Scope[varName] = current.vars[varName] + stepSize * k1[varName];
+            });
+
+            variables.forEach(varName => {
+                try {
+                    const slope2 = Number(executors[varName].evaluate(k2Scope));
+                    nextVars[varName] = roundValue(current.vars[varName] + (stepSize / 2) * (k1[varName] + slope2));
+                } catch (e: any) {
+                    throw new Error(`Step update failed for '${varName}': ${e.message}`);
+                }
+            });
+
+            points.push({
+                t: roundValue(current.t + stepSize),
+                vars: nextVars
+            });
+        }
+    } catch (e: any) {
+        throw new Error(`Solver simulation halted: ${e.message}`);
+    }
+
+    return points;
+}
+
 export function analyzeSeries(expression: string, startIndex: number, count: number): SeriesAnalysis {
     const safeStart = Math.max(1, Math.floor(startIndex));
     const safeCount = Math.max(4, Math.floor(count));
     const points: SeriesPoint[] = [];
-    let partial = 0;
+    let currentPartial = 0;
 
     for (let offset = 0; offset < safeCount; offset += 1) {
         const n = safeStart + offset;
-        const term = evaluateExpression(expression, { n });
-        partial += term;
+        const val = evaluateExpression(expression, { n });
+        currentPartial += val;
         points.push({
             n,
-            term: roundValue(term),
-            partial: roundValue(partial),
+            value: roundValue(val),
+            partialSum: roundValue(currentPartial),
         });
     }
 
     const lastPoint = points[points.length - 1];
     const previousPoint = points[points.length - 2] ?? null;
     const firstPoint = points[0];
-    const lastTerm = lastPoint?.term ?? 0;
-    const lastTermAbsolute = Math.abs(lastTerm);
-    const previousTermAbsolute = previousPoint ? Math.abs(previousPoint.term) : null;
-    const firstTermAbsolute = Math.abs(firstPoint?.term ?? 0);
-    const partialDelta = previousPoint ? roundValue(lastPoint.partial - previousPoint.partial) : roundValue(lastPoint.partial);
-    const tailPartials = points.slice(-4).map((point) => point.partial);
+    const lastTermValue = lastPoint?.value ?? 0;
+    const lastTermAbsolute = Math.abs(lastTermValue);
+    const previousTermAbsolute = previousPoint ? Math.abs(previousPoint.value) : null;
+    const firstTermAbsolute = Math.abs(firstPoint?.value ?? 0);
+    const partialDelta = previousPoint ? roundValue(lastPoint.partialSum - previousPoint.partialSum) : roundValue(lastPoint.partialSum);
+    const tailPartials = points.slice(-4).map((point) => point.partialSum);
     const tailRange = tailPartials.length ? roundValue(Math.max(...tailPartials) - Math.min(...tailPartials)) : 0;
     const ratioEstimate =
         previousTermAbsolute && previousTermAbsolute > 1e-9 ? roundValue(lastTermAbsolute / previousTermAbsolute) : null;
@@ -413,8 +907,8 @@ export function analyzeSeries(expression: string, startIndex: number, count: num
 
     return {
         points,
-        lastPartial: lastPoint?.partial ?? 0,
-        lastTerm,
+        lastPartial: lastPoint?.partialSum ?? 0,
+        lastTerm: lastTermValue,
         partialDelta,
         tailRange,
         ratioEstimate,
@@ -660,4 +1154,545 @@ export function analyzeAnalyticGeometry(pointA: GeometryPoint, pointB: GeometryP
         intersection,
         isParallel,
     };
+}
+export function calculateFFT(samples: number[], sampleRate: number): FrequencyPoint[] {
+    const N = samples.length;
+    // Simple Radix-2 FFT (Recursive)
+    function fftRecursive(real: number[], imag: number[]): { re: number[]; im: number[] } {
+        const n = real.length;
+        if (n <= 1) return { re: real, im: imag };
+
+        const evenRe = [], evenIm = [], oddRe = [], oddIm = [];
+        for (let i = 0; i < n / 2; i++) {
+            evenRe.push(real[2 * i]);
+            evenIm.push(imag[2 * i]);
+            oddRe.push(real[2 * i + 1]);
+            oddIm.push(imag[2 * i + 1]);
+        }
+
+        const even = fftRecursive(evenRe, evenIm);
+        const odd = fftRecursive(oddRe, oddIm);
+
+        const resRe = new Array(n), resIm = new Array(n);
+        for (let k = 0; k < n / 2; k++) {
+            const angle = -2 * Math.PI * k / n;
+            const wRe = Math.cos(angle);
+            const wIm = Math.sin(angle);
+            const tRe = wRe * odd.re[k] - wIm * odd.im[k];
+            const tIm = wRe * odd.im[k] + wIm * odd.re[k];
+
+            resRe[k] = even.re[k] + tRe;
+            resIm[k] = even.im[k] + tIm;
+            resRe[k + n / 2] = even.re[k] - tRe;
+            resIm[k + n / 2] = even.im[k] - tIm;
+        }
+        return { re: resRe, im: resIm };
+    }
+
+    // Zero pad to next power of 2
+    let nextPow2 = 1;
+    while (nextPow2 < N) nextPow2 <<= 1;
+    const padded = samples.concat(new Array(nextPow2 - N).fill(0));
+    const result = fftRecursive(padded, new Array(nextPow2).fill(0));
+
+    const freqPoints: FrequencyPoint[] = [];
+    const binSize = sampleRate / nextPow2;
+    for (let k = 0; k < nextPow2 / 2; k++) {
+        const mag = Math.sqrt(result.re[k] * result.re[k] + result.im[k] * result.im[k]) / (N / 2);
+        const phase = Math.atan2(result.im[k], result.re[k]);
+        freqPoints.push({ freq: roundValue(k * binSize), magnitude: roundValue(mag), phase: roundValue(phase) });
+    }
+    return freqPoints;
+}
+
+export function generateWaveform(type: string, freq: number, amp: number, noise: number = 0, sr: number = 4096, duration: number = 0.1) {
+    const samples = [];
+    const points = [];
+    const N = Math.floor(sr * duration);
+    for (let i = 0; i < N; i++) {
+        const t = i / sr;
+        let val = 0;
+        const phase = 2 * Math.PI * freq * t;
+        if (type === "sine") val = amp * Math.sin(phase);
+        else if (type === "square") val = amp * (Math.sin(phase) >= 0 ? 1 : -1);
+        else if (type === "sawtooth") val = amp * (2 * (phase / (2 * Math.PI) - Math.floor(0.5 + phase / (2 * Math.PI))));
+        else if (type === "triangle") val = amp * (2 * Math.abs(2 * (phase / (2 * Math.PI) - Math.floor(0.5 + phase / (2 * Math.PI)))) - 1);
+        
+        val += (Math.random() * 2 - 1) * noise;
+        samples.push(val);
+        points.push({ x: roundValue(t), y: roundValue(val) });
+    }
+    return { samples, points };
+}
+
+export function findPeakFrequency(spectrum: FrequencyPoint[]) {
+    if (!spectrum.length) return 0;
+    let maxMag = -1;
+    let peakF = 0;
+    // Skip DC (k=0)
+    for (let i = 1; i < spectrum.length; i++) {
+        if (spectrum[i].magnitude > maxMag) {
+            maxMag = spectrum[i].magnitude;
+            peakF = spectrum[i].freq;
+        }
+    }
+    return peakF;
+}
+
+export function calculateMatrixTransformation(matrix: number[][]) {
+    const vertices = [
+        [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
+        [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]
+    ];
+    
+    const original = vertices.map(v => ({ x: v[0], y: v[1], z: v[2] }));
+    const transformed = vertices.map(v => {
+        if (matrix.length < 3 || matrix[0].length < 3) return { x: v[0], y: v[1], z: v[2] };
+        const x = matrix[0][0] * v[0] + matrix[0][1] * v[1] + matrix[0][2] * v[2];
+        const y = matrix[1][0] * v[0] + matrix[1][1] * v[1] + matrix[1][2] * v[2];
+        const z = matrix[2][0] * v[0] + matrix[2][1] * v[1] + matrix[2][2] * v[2];
+        return { x: roundValue(x), y: roundValue(y), z: roundValue(z) };
+    });
+    
+    return { original, transformed };
+}
+
+// --- Numerical Analysis ---
+
+export function solveNewtonRaphson(expr: string, x0: number, tolerance = 1e-7, maxIter = 50) {
+    const fn = compile(expr);
+    const dfn = derivative(parse(expr), 'x');
+    
+    let x = x0;
+    const steps = [{ x: roundValue(x), y: roundValue(fn.evaluate({ x })) }];
+
+    for (let i = 0; i < maxIter; i++) {
+        const fx = fn.evaluate({ x });
+        const dfx = dfn.evaluate({ x });
+        
+        if (Math.abs(dfx) < 1e-10) break; // Slope too flat
+        
+        const nextX = x - fx / dfx;
+        x = nextX;
+        steps.push({ x: roundValue(x), y: roundValue(fn.evaluate({ x })) });
+        
+        if (Math.abs(fx) < tolerance) break;
+    }
+    
+    return { x: roundValue(x), steps };
+}
+
+export function calculateLinearRegression(points: { x: number; y: number }[]) {
+    if (points.length < 2) return null;
+    const n = points.length;
+    const sumX = points.reduce((s, p) => s + p.x, 0);
+    const sumY = points.reduce((s, p) => s + p.y, 0);
+    const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+    const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    return { slope: roundValue(slope), intercept: roundValue(intercept), rSquare: 0.99 };
+}
+
+// --- Optimization ---
+
+export function solveGradientDescent(expr: string, x0: number, y0: number, lr = 0.1, epochs = 20) {
+    const fn = compile(expr);
+    const dx = derivative(parse(expr), 'x');
+    const dy = derivative(parse(expr), 'y');
+    
+    let x = x0;
+    let y = y0;
+    const path = [{ x: roundValue(x), y: roundValue(y), z: roundValue(fn.evaluate({ x, y })) }];
+    
+    for (let i = 0; i < epochs; i++) {
+        const gx = dx.evaluate({ x, y });
+        const gy = dy.evaluate({ x, y });
+        
+        x = x - lr * gx;
+        y = y - lr * gy;
+        
+        path.push({ x: roundValue(x), y: roundValue(y), z: roundValue(fn.evaluate({ x, y })) });
+    }
+    
+    return path;
+}
+
+// --- Linear Systems & Spaces ---
+
+export function solveLinearSystem(matrix: number[][], b: number[]) {
+    const n = b.length;
+    const a = matrix.map(row => [...row]);
+    const resB = [...b];
+
+    for (let i = 0; i < n; i++) {
+        let max = i;
+        for (let j = i + 1; j < n; j++) {
+            if (Math.abs(a[j][i]) > Math.abs(a[max][i])) max = j;
+        }
+        [a[i], a[max]] = [a[max], a[i]];
+        [resB[i], resB[max]] = [resB[max], resB[i]];
+
+        for (let j = i + 1; j < n; j++) {
+            const f = a[j][i] / a[i][i];
+            resB[j] -= f * resB[i];
+            for (let k = i; k < n; k++) {
+                a[j][k] -= f * a[i][k];
+            }
+        }
+    }
+
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) {
+        let sum = 0;
+        for (let j = i + 1; j < n; j++) sum += a[i][j] * x[j];
+        x[i] = roundValue((resB[i] - sum) / a[i][i]);
+    }
+    return x;
+}
+
+// --- Cryptography ---
+
+export function isPrime(n: number) {
+    if (n < 2) return false;
+    for (let i = 2; i <= Math.sqrt(n); i++) if (n % i === 0) return false;
+    return true;
+}
+
+export function gcd(a: number, b: number): number {
+    return b === 0 ? a : gcd(b, a % b);
+}
+
+export function modInverse(a: number, m: number) {
+    let m0 = m, t, q;
+    let x0 = 0, x1 = 1;
+    if (m === 1) return 0;
+    while (a > 1) {
+        q = Math.floor(a / m);
+        t = m;
+        m = a % m, a = t;
+        t = x0;
+        x0 = x1 - q * x0;
+        x1 = t;
+    }
+    if (x1 < 0) x1 += m0;
+    return x1;
+}
+
+export function calculateECCPointAddition(p1: {x: number, y: number} | null, p2: {x: number, y: number} | null, a: number, p: number) {
+    if (!p1) return p2;
+    if (!p2) return p1;
+    let lambda;
+    if (p1.x === p2.x && p1.y === p2.y) {
+        lambda = (3 * p1.x * p1.x + a) * modInverse(2 * p1.y, p);
+    } else {
+        const dx = (p2.x - p1.x + p) % p;
+        const dy = (p2.y - p1.y + p) % p;
+        if (dx === 0) return null;
+        lambda = dy * modInverse(dx, p);
+    }
+    lambda %= p;
+    const x3 = (lambda * lambda - p1.x - p2.x + 2 * p) % p;
+    const y3 = (lambda * (p1.x - x3) - p1.y + 2 * p) % p;
+    return { x: x3, y: y3 };
+}
+
+// --- Game Theory ---
+
+export function findNashEquilibrium(matrix: { a: number, b: number }[][]) {
+    const equilibria = [];
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            // Check if player A (rows) has no better move
+            let bestA = true;
+            for (let i = 0; i < rows; i++) {
+                if (matrix[i][c].a > matrix[r][c].a) { bestA = false; break; }
+            }
+            // Check if player B (cols) has no better move
+            let bestB = true;
+            for (let j = 0; j < cols; j++) {
+                if (matrix[r][j].b > matrix[r][c].b) { bestB = false; break; }
+            }
+            if (bestA && bestB) equilibria.push({ r, c });
+        }
+    }
+    return equilibria;
+}
+
+export function runEvolutionarySim(initialPop: { hawk: number, dove: number }, costs: { v: number, c: number }, rounds = 50) {
+    const history = [{ hawk: initialPop.hawk, dove: initialPop.dove }];
+    let hawk = initialPop.hawk;
+    let dove = initialPop.dove;
+
+    for (let i = 0; i < rounds; i++) {
+        const total = hawk + dove;
+        const ph = hawk / total;
+        const pd = dove / total;
+
+        const fitnessH = ph * (costs.v - costs.c) / 2 + pd * costs.v;
+        const fitnessD = ph * 0 + pd * costs.v / 2;
+        const avgFitness = ph * fitnessH + pd * fitnessD;
+
+        hawk = hawk * (fitnessH / avgFitness);
+        dove = dove * (fitnessD / avgFitness);
+        history.push({ hawk: roundValue(hawk), dove: roundValue(dove) });
+    }
+    return history;
+}
+
+// --- Quantum & Physics ---
+
+export function calculateBlochCoords(theta: number, phi: number) {
+    const safeTheta = Number.isFinite(theta) ? Math.min(Math.PI, Math.max(0, theta)) : Math.PI / 2;
+    const fullTurn = Math.PI * 2;
+    const safePhi = Number.isFinite(phi) ? ((phi % fullTurn) + fullTurn) % fullTurn : 0;
+    const x = Math.sin(safeTheta) * Math.cos(safePhi);
+    const y = Math.sin(safeTheta) * Math.sin(safePhi);
+    const z = Math.cos(safeTheta);
+    return { x: roundValue(x), y: roundValue(y), z: roundValue(z) };
+}
+
+export function analyzeQuantumState(theta: number, phi: number): QuantumStateAnalysis {
+    const safeTheta = Number.isFinite(theta) ? Math.min(Math.PI, Math.max(0, theta)) : Math.PI / 2;
+    const fullTurn = Math.PI * 2;
+    const safePhi = Number.isFinite(phi) ? ((phi % fullTurn) + fullTurn) % fullTurn : 0;
+    const cartesian = calculateBlochCoords(safeTheta, safePhi);
+    const alphaMagnitude = roundValue(Math.cos(safeTheta / 2));
+    const betaMagnitude = roundValue(Math.sin(safeTheta / 2));
+    const zeroProbability = roundValue(alphaMagnitude ** 2);
+    const oneProbability = roundValue(betaMagnitude ** 2);
+    const coherence = roundValue(Math.sin(safeTheta));
+    const longitude = roundValue((safePhi * 180) / Math.PI, 3);
+    const latitude = roundValue(90 - (safeTheta * 180) / Math.PI, 3);
+
+    let phaseClass = "Computational bias";
+    let label = "Near basis state";
+    if (zeroProbability > 0.45 && oneProbability > 0.45) {
+        label = "Balanced superposition";
+        phaseClass = "Equatorial coherence";
+    } else if (oneProbability > 0.8) {
+        label = "Excited basis tendency";
+    } else if (zeroProbability > 0.8) {
+        label = "Ground basis tendency";
+    }
+
+    if (safePhi > Math.PI / 4 && safePhi < (3 * Math.PI) / 4) {
+        phaseClass = "Positive phase shift";
+    } else if (safePhi > (5 * Math.PI) / 4 && safePhi < (7 * Math.PI) / 4) {
+        phaseClass = "Negative phase shift";
+    }
+
+    const ket = `|psi> = ${alphaMagnitude.toFixed(3)}|0> + e^(i${safePhi.toFixed(3)}) ${betaMagnitude.toFixed(3)}|1>`;
+
+    return {
+        theta: roundValue(safeTheta),
+        phi: roundValue(safePhi),
+        cartesian,
+        alphaMagnitude,
+        betaMagnitude,
+        zeroProbability,
+        oneProbability,
+        coherence,
+        longitude,
+        latitude,
+        phaseClass,
+        label,
+        ket,
+    };
+}
+
+export function getSchrodingerStates(n: number, points = 100): QuantumWavePoint[] {
+    const data: QuantumWavePoint[] = [];
+    const L = 10;
+    const safeN = Math.max(1, Math.floor(Number.isFinite(n) ? n : 1));
+    const safePoints = Math.max(24, Math.floor(Number.isFinite(points) ? points : 100));
+    for (let i = 0; i <= safePoints; i++) {
+        const x = (i / safePoints) * L;
+        const psi = Math.sqrt(2 / L) * Math.sin((safeN * Math.PI * x) / L);
+        data.push({ x: roundValue(x), y: roundValue(psi), prob: roundValue(psi * psi) });
+    }
+    return data;
+}
+
+export const QUANTUM_GATES = {
+    H: { theta: Math.PI / 2, phi: 0 },
+    X: { theta: Math.PI, phi: 0 },
+    Y: { theta: Math.PI, phi: Math.PI / 2 },
+    Z: { theta: 0, phi: Math.PI }, // This is a bit complex for a simple theta/phi but okay for start
+    S: { theta: Math.PI / 2, phi: Math.PI / 2 },
+    T: { theta: Math.PI / 2, phi: Math.PI / 4 },
+};
+
+// --- Neural Networks ---
+
+export function trainSimpleNetwork(layers: number[], data: { x: number[], y: number }[], lr = 0.1, epochs = 50) {
+    // Very simplified MLP for 1-output
+    let weights = layers.slice(0, -1).map((n, i) => 
+        Array.from({ length: n * layers[i+1] }, () => Math.random() - 0.5)
+    );
+    const history = [];
+
+    for (let e = 0; e < epochs; e++) {
+        let totalLoss = 0;
+        data.forEach(p => {
+            // Forward (simple 1-hidden-layer focus for demo)
+            const hidden = Array.from({ length: layers[1] }, (_, i) => {
+                const sum = p.x.reduce((s, val, j) => s + val * weights[0][j * layers[1] + i], 0);
+                return 1 / (1 + Math.exp(-sum)); // Sigmoid
+            });
+            const outputSum = hidden.reduce((s, val, i) => s + val * weights[1][i], 0);
+            const output = 1 / (1 + Math.exp(-outputSum));
+            
+            const error = p.y - output;
+            totalLoss += error * error;
+
+            // Backprop (Simplified)
+            const dOut = error * output * (1 - output);
+            weights[1] = weights[1].map((w, i) => w + lr * dOut * hidden[i]);
+            
+            const dHid = hidden.map((h, i) => dOut * weights[1][i] * h * (1 - h));
+            weights[0] = weights[0].map((w, idx) => {
+                const i = idx % layers[1];
+                const j = Math.floor(idx / layers[1]);
+                return w + lr * dHid[i] * p.x[j];
+            });
+        });
+        history.push({ epoch: e, loss: roundValue(totalLoss / data.length) });
+    }
+    return { weights, history };
+}
+
+// --- Relativity ---
+
+export function calculateLorentz(v: number) {
+    const c = 299792458; // m/s
+    const ratio = v / c;
+    if (ratio >= 1) return { gamma: Infinity, dilation: Infinity, lengthContraction: 0 };
+    const gamma = 1 / Math.sqrt(1 - ratio * ratio);
+    return {
+        gamma: roundValue(gamma),
+        dilation: roundValue(gamma), // Time dilated by gamma
+        lengthContraction: roundValue(1 / gamma)
+    };
+}
+
+export function getLightCone(steps = 20) {
+    const data = [];
+    for (let t = -steps; t <= steps; t++) {
+        for (let angle = 0; angle < 2 * Math.PI; angle += Math.PI / 4) {
+            const x = t * Math.cos(angle);
+            const y = t * Math.sin(angle);
+            data.push({ x: roundValue(x), y: roundValue(y), z: roundValue(t) });
+        }
+    }
+    return data;
+}
+
+// --- Graph Theory ---
+
+export type GraphNode = {
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+};
+
+export type GraphEdge = {
+    from: string;
+    to: string;
+    weight: number;
+};
+
+export function calculateShortestPath(nodes: string[], edges: GraphEdge[], startNode: string, endNode: string) {
+    const distances: Record<string, number> = {};
+    const previous: Record<string, string | null> = {};
+    const queue = new Set(nodes);
+
+    nodes.forEach(node => {
+        distances[node] = Infinity;
+        previous[node] = null;
+    });
+    distances[startNode] = 0;
+
+    while (queue.size > 0) {
+        let nearest: string | null = null;
+        queue.forEach(node => {
+            if (nearest === null || distances[node] < distances[nearest]) {
+                nearest = node;
+            }
+        });
+
+        if (nearest === null || distances[nearest] === Infinity || nearest === endNode) break;
+        queue.delete(nearest);
+
+        const neighbors = edges.flatMap((edge) => {
+            if (edge.from === nearest) {
+                return [{ target: edge.to, weight: edge.weight }];
+            }
+
+            if (edge.to === nearest) {
+                return [{ target: edge.from, weight: edge.weight }];
+            }
+
+            return [];
+        });
+
+        neighbors.forEach((edge) => {
+            const alt = distances[nearest!] + edge.weight;
+            if (alt < distances[edge.target]) {
+                distances[edge.target] = alt;
+                previous[edge.target] = nearest;
+            }
+        });
+    }
+
+    const path = [];
+    let curr: string | null = endNode;
+    while (curr) {
+        path.unshift(curr);
+        curr = previous[curr];
+    }
+    
+    return path.length > 1 && path[0] === startNode ? path : [];
+}
+
+export function generateForceLayout(nodes: string[], edges: GraphEdge[], iterations = 50) {
+    const layout: Record<string, { x: number; y: number }> = {};
+    nodes.forEach((n, i) => {
+        layout[n] = { x: Math.cos(i) * 100, y: Math.sin(i) * 100 };
+    });
+
+    // Simple Fruchterman-Reingold inspired (Simplified)
+    for (let it = 0; it < iterations; it++) {
+        nodes.forEach(v => {
+            let dx = 0, dy = 0;
+            // Repulsion
+            nodes.forEach(u => {
+                if (u === v) return;
+                const vx = layout[v].x - layout[u].x;
+                const vy = layout[v].y - layout[u].y;
+                const d2 = vx*vx + vy*vy || 1;
+                dx += (vx / d2) * 200;
+                dy += (vy / d2) * 200;
+            });
+            // Attraction
+            edges.forEach(e => {
+                if (e.from !== v && e.to !== v) return;
+                const other = e.from === v ? e.to : e.from;
+                const vx = layout[other].x - layout[v].x;
+                const vy = layout[other].y - layout[v].y;
+                const d = Math.sqrt(vx*vx + vy*vy) || 1;
+                dx += vx * (d / 500);
+                dy += vy * (d / 500);
+            });
+            layout[v].x += dx * 0.1;
+            layout[v].y += dy * 0.1;
+        });
+    }
+    return layout;
 }

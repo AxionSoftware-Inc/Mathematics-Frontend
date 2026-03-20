@@ -27,7 +27,22 @@ import { ArticleRichContent } from "@/components/article-rich-content";
 import { MathKeyboard } from "@/components/math-keyboard";
 import { CitationManager } from "@/components/citation-manager";
 import { WriterLiveTargetsPanel } from "@/components/live-writer-bridge/writer-live-targets-panel";
-import { blockToTarget, createBroadcastChannel, createWaitingWriterBridgeBlock, createWriterId, extractWriterBridgeBlocks, replaceWriterBridgeBlock, serializeWriterBridgeBlock, type LabPublishBroadcast } from "@/lib/live-writer-bridge";
+import {
+    LIVE_WRITER_TARGET_TTL_MS,
+    blockToTarget,
+    createBroadcastChannel,
+    createLiveWriterPublishAck,
+    createWaitingWriterBridgeBlock,
+    createWriterId,
+    extractWriterBridgeBlocks,
+    removeStoredWriterTargetSession,
+    replaceWriterBridgeBlock,
+    serializeWriterBridgeBlock,
+    upsertStoredWriterTargetSession,
+    type LabPublishBroadcast,
+    type WriterTargetsRequest,
+} from "@/lib/live-writer-bridge";
+import { writerTemplates, type WriterTemplate, type WriterTemplateIcon } from "@/lib/writer-templates";
 
 export type PaperFormData = {
     title: string;
@@ -97,32 +112,16 @@ const blockPresets: BlockPreset[] = [
     },
 ];
 
-const starterTemplates: StarterTemplate[] = [
-    {
-        label: "Research",
-        description: "To'liq ilmiy maqola strukturasini tayyorlaydi.",
-        title: "Tadqiqot maqolasi sarlavhasi",
-        abstract: "Maqolaning maqsadi, metodologiyasi va asosiy natijalari haqida qisqa annotatsiya yozing.",
-        content:
-            "# Kirish\n\nMavzuning dolzarbligi va tadqiqot savolini bayon qiling.\n\n## Metodologiya\n\nQo'llangan usullar va dalillash yo'lini yozing.\n\n## Natijalar\n\nAsosiy topilmalarni ketma-ket keltiring.\n\n## Muhokama\n\nNatijalarni tahlil qiling va taqqoslang.\n\n## Xulosa\n\nYakuniy xulosalar va keyingi ishlar yo'nalishi.\n",
-    },
-    {
-        label: "Lecture",
-        description: "Darslik yoki lecture note ko'rinishidagi skeleton.",
-        title: "Mavzu nomi",
-        abstract: "Ushbu hujjat dars mazmuni va asosiy g'oyalarni qisqacha ifodalaydi.",
-        content:
-            "# Asosiy g'oya\n\nNazariy tushunchani intuitiv kiriting.\n\n## Muhim ta'riflar\n\n> **Ta'rif.**\n\n## Misollar\n\n1. Birinchi misol.\n2. Ikkinchi misol.\n\n## Mashqlar\n\n1. Mustaqil ishlash uchun topshiriq.\n",
-    },
-    {
-        label: "Proof",
-        description: "Isbotga yo'naltirilgan ixcham format.",
-        title: "Teorema va isbot",
-        abstract: "Bu hujjatda bitta markaziy teorema va uning isboti ko'rsatiladi.",
-        content:
-            "# Muammo qo'yilishi\n\nIsbot qilinishi kerak bo'lgan bayonotni yozing.\n\n## Tayanch lemmlar\n\n> **Lemma 1.**\n\n## Asosiy isbot\n\n> **Isbot.** Bosqichma-bosqich isbot.\n\n## Natija\n\nIsbotdan kelib chiqadigan xulosa.\n",
-    },
-];
+const templateIconMap: Record<WriterTemplateIcon, typeof Sigma> = {
+    "book-open": BookText,
+    "briefcase": FileStack,
+    flask: Sparkles,
+    "graduation-cap": Layers2,
+    newspaper: ScanText,
+    "scroll-text": Heading,
+    sparkles: Sparkles,
+    sigma: Sigma,
+};
 
 function splitCommaValues(value: string) {
     return value
@@ -246,7 +245,7 @@ export function PaperEditorWorkspace({
         });
     }
 
-    function applyTemplate(template: StarterTemplate) {
+    function applyTemplate(template: WriterTemplate) {
         const shouldReplace =
             !formData.content.trim() ||
             window.confirm("Hozirgi matn o'rniga tanlangan professional andoza qo'yilsinmi?");
@@ -257,9 +256,10 @@ export function PaperEditorWorkspace({
 
         onChange({
             ...formData,
-            title: template.title,
-            abstract: template.abstract,
-            content: template.content,
+            title: template.titleTemplate,
+            abstract: template.abstractTemplate,
+            content: template.contentTemplate,
+            keywords: template.keywords,
         });
     }
 
@@ -277,13 +277,33 @@ export function PaperEditorWorkspace({
                 return;
             }
 
+            const acknowledgedAt = new Date().toISOString();
+            const nextBlock = {
+                ...message.payload,
+                sync: {
+                    revision: message.revision,
+                    pushedAt: message.publishedAt,
+                    acknowledgedAt,
+                    sourceLabel: message.sourceLabel,
+                },
+            };
+
             startTransition(() => {
                 const current = latestFormDataRef.current;
                 onChange({
                     ...current,
-                    content: replaceWriterBridgeBlock(current.content, message.payload),
+                    content: replaceWriterBridgeBlock(current.content, nextBlock),
                 });
             });
+
+            channel.postMessage(
+                createLiveWriterPublishAck({
+                    message,
+                    acknowledgedAt,
+                    documentTitle: latestFormDataRef.current.title || "Nomsiz maqola",
+                    blockTitle: nextBlock.title,
+                }),
+            );
         };
 
         channel.addEventListener("message", handleMessage as EventListener);
@@ -302,18 +322,37 @@ export function PaperEditorWorkspace({
         }
 
         const broadcastTargets = () => {
-            channel.postMessage({
+            const payload = {
                 type: "writer-targets",
                 writerId: writerIdRef.current,
                 documentTitle: formData.title || "Nomsiz maqola",
                 targets: liveBridgeTargets,
+            } as const;
+
+            channel.postMessage(payload);
+            upsertStoredWriterTargetSession({
+                writerId: payload.writerId,
+                documentTitle: payload.documentTitle,
+                lastSeen: Date.now(),
+                targets: payload.targets,
             });
         };
 
-        broadcastTargets();
-        const intervalId = window.setInterval(broadcastTargets, 1500);
+        const handleRequest = (event: MessageEvent<WriterTargetsRequest>) => {
+            if (event.data?.type === "writer-targets-request") {
+                broadcastTargets();
+            }
+        };
 
-        return () => window.clearInterval(intervalId);
+        channel.addEventListener("message", handleRequest as EventListener);
+        broadcastTargets();
+        const intervalId = window.setInterval(broadcastTargets, Math.floor(LIVE_WRITER_TARGET_TTL_MS / 4));
+
+        return () => {
+            channel.removeEventListener("message", handleRequest as EventListener);
+            window.clearInterval(intervalId);
+            removeStoredWriterTargetSession(writerIdRef.current);
+        };
     }, [formData.title, liveBridgeTargets]);
 
     const statusTone =
@@ -460,9 +499,18 @@ export function PaperEditorWorkspace({
                             <span className={`rounded-full border px-3 py-1.5 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border/60 bg-background/60"}`}>
                                 {saveStatusLabel}
                             </span>
+                            <div className="ml-auto hidden items-center gap-2 lg:flex">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+                                    Powered by
+                                </span>
+                                <span className="font-playfair text-xs font-black tracking-tight">
+                                    MathSphere AI
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
+
 
                 <div className="flex w-full flex-1 flex-col overflow-hidden lg:flex-row print:w-full print:block print:overflow-visible">
                     <aside className="w-full shrink-0 overflow-y-auto border-b border-border/60 bg-background/40 p-4 backdrop-blur-sm lg:w-[360px] lg:border-b-0 lg:border-r print:hidden">
@@ -569,19 +617,36 @@ export function PaperEditorWorkspace({
                                 </div>
                                 <div className="mt-1 text-xl font-black">Professional andozalar</div>
                                 <div className="mt-4 space-y-3">
-                                    {starterTemplates.map((template) => (
+                                    {writerTemplates.map((template) => {
+                                        const Icon = templateIconMap[template.icon];
+                                        return (
                                         <button
-                                            key={template.label}
+                                            key={template.id}
                                             type="button"
                                             onClick={() => applyTemplate(template)}
                                             className="w-full rounded-2xl border border-border/60 bg-muted/10 px-4 py-4 text-left transition-colors hover:border-teal-500/30 hover:bg-teal-500/5"
                                         >
-                                            <div className="text-sm font-black">{template.label}</div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex min-w-0 items-start gap-3">
+                                                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${template.accentClassName}`}>
+                                                        <Icon className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-sm font-black">{template.title}</div>
+                                                        <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                            {template.shortDescription}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                                    {template.category}
+                                                </div>
+                                            </div>
                                             <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
                                                 {template.description}
                                             </div>
                                         </button>
-                                    ))}
+                                    )})}
                                 </div>
                             </div>
 

@@ -4,6 +4,14 @@ import { Link2, Plus, RadioTower } from "lucide-react";
 
 import { type WriterBridgeTarget } from "@/lib/live-writer-bridge";
 
+function formatSyncTime(value?: string) {
+    if (!value) {
+        return "--";
+    }
+
+    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 export function WriterLiveTargetsPanel({
     targets,
     onInsertTarget,
@@ -29,7 +37,7 @@ export function WriterLiveTargetsPanel({
             </div>
 
             <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                Laboratoriya bilan live ishlash uchun avval target block qo&apos;shiladi. Keyin laboratoriya shu block ichiga natijani darrov update qiladi.
+                Laboratoriya bilan live ishlash uchun avval target block qo&apos;shiladi. Keyin laboratoriya shu block ichiga natijani darrov update qiladi. Target state vaqtincha saqlanadi va writer qayta broadcast qiladi.
             </div>
 
             <div className="mt-4 space-y-2">
@@ -40,6 +48,9 @@ export function WriterLiveTargetsPanel({
                                 <div className="min-w-0">
                                     <div className="truncate text-sm font-black">{target.title}</div>
                                     <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{target.id}</div>
+                                    <div className="mt-2 text-[11px] text-muted-foreground">
+                                        rev {target.revision ?? 0} | push {formatSyncTime(target.lastPublishedAt)} | ack {formatSyncTime(target.lastAcknowledgedAt)}
+                                    </div>
                                 </div>
                                 <div className="rounded-full border border-border/60 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                                     {target.status}

@@ -8,7 +8,7 @@ import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { analyzeSeries, analyzeTaylorApproximation, estimateLimit } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, queueWriterImport, type LabPublishBroadcast, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { publishToLiveWriterTarget, queueWriterImport, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type NotebookCellType = "markdown" | "series" | "limit" | "taylor";
@@ -108,7 +108,12 @@ function formatMetric(value: number | null | undefined, digits = 6) {
 
 function summarizeCell(cell: NotebookCell) {
     if (cell.type === "markdown") {
-        return { metrics: [{ label: "Words", value: String(cell.content.trim().split(/\s+/).filter(Boolean).length) }], notes: ["Markdown note cell"] };
+        return {
+            metrics: [{ label: "Words", value: String(cell.content.trim().split(/\s+/).filter(Boolean).length) }],
+            notes: ["Markdown note cell"],
+            // Markdown export must stay defined because notebook export composes every cell result.
+            markdown: `### ${cell.title}\n\n${cell.content}`,
+        };
     }
     if (cell.type === "series") {
         const analysis = analyzeSeries(cell.expression, Number(cell.start), Number(cell.count));
@@ -120,8 +125,8 @@ function summarizeCell(cell: NotebookCell) {
             ],
             notes: [analysis.commentary],
             plotSeries: [
-                { label: "a_n", color: "#2563eb", points: analysis.points.map((point) => ({ x: point.n, y: point.term })) },
-                { label: "S_n", color: "#f59e0b", points: analysis.points.map((point) => ({ x: point.n, y: point.partial })) },
+                { label: "a_n", color: "#2563eb", points: analysis.points.map((point) => ({ x: point.n, y: point.value })) },
+                { label: "S_n", color: "#f59e0b", points: analysis.points.map((point) => ({ x: point.n, y: point.partialSum })) },
             ],
             markdown: `### ${cell.title}\n- Type: series\n- Expression: \`${cell.expression}\`\n- Verdict: ${analysis.diagnosticLabel}\n- Partial sum: ${formatMetric(analysis.lastPartial, 6)}\n- Commentary: ${analysis.commentary}`,
         };
@@ -161,7 +166,10 @@ function summarizeCell(cell: NotebookCell) {
 }
 
 function compileNotebookMarkdown(title: string, cells: NotebookCell[]) {
-    const sections = cells.map((cell) => summarizeCell(cell).markdown);
+    // Filter keeps export resilient even if a future cell summary omits markdown by mistake.
+    const sections = cells
+        .map((cell) => summarizeCell(cell).markdown)
+        .filter((section): section is string => typeof section === "string" && section.length > 0);
     return `# ${title}\n\n${sections.join("\n\n")}`;
 }
 
@@ -396,18 +404,14 @@ export function NotebookStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (!selectedTarget || !cells.length) {
             return;
         }
-        const channel = createBroadcastChannel();
-        if (!channel) {
-            return;
-        }
-        const message: LabPublishBroadcast = {
-            type: "lab-publish",
+
+        publishToLiveWriterTarget({
             writerId: selectedTarget.writerId,
             targetId: selectedTarget.id,
+            sourceLabel: "Notebook Studio",
+            documentTitle: selectedTarget.documentTitle,
             payload: buildNotebookLivePayload(selectedTarget.id, title, cells, activeCellId),
-        };
-        channel.postMessage(message);
-        channel.close();
+        });
     }
 
     return (

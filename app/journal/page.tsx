@@ -7,6 +7,8 @@ import { ArrowRight, CalendarDays, Clock3, FileText, Newspaper, Search, Sparkles
 
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchPublic, getMediaUrl } from "@/lib/api";
+import { WriteTypeSelector } from "@/components/write-type-selector";
+
 
 type Article = {
     id: number | string;
@@ -38,6 +40,8 @@ export default function JournalPage() {
     const [loading, setLoading] = React.useState(true);
     const [query, setQuery] = React.useState("");
     const [activeCategory, setActiveCategory] = React.useState("All");
+    const [isWriteSelectorOpen, setIsWriteSelectorOpen] = React.useState(false);
+
 
     React.useEffect(() => {
         const getArticles = async () => {
@@ -101,10 +105,14 @@ export default function JournalPage() {
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-3">
-                                <Link href="/write" className="site-button-primary">
+                                <button 
+                                    onClick={() => setIsWriteSelectorOpen(true)} 
+                                    className="site-button-primary cursor-pointer"
+                                >
                                     Maqola yozishni boshlash
                                     <ArrowRight className="h-4 w-4" />
-                                </Link>
+                                </button>
+
                                 <Link href="/library" className="site-button-secondary">
                                     Kutubxona bilan bog'lash
                                 </Link>
@@ -302,6 +310,11 @@ export default function JournalPage() {
                     )}
                 </SiteContainer>
             </SiteSection>
+            <WriteTypeSelector 
+                isOpen={isWriteSelectorOpen} 
+                onClose={() => setIsWriteSelectorOpen(false)} 
+            />
         </div>
     );
 }
+

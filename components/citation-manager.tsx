@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { BookMarked, Search, Loader2, PlusCircle, ExternalLink, Quote, ChevronDown, Copy, CheckCircle2 } from "lucide-react";
+import {
+    BookMarked,
+    CheckCircle2,
+    ChevronDown,
+    Copy,
+    ExternalLink,
+    Loader2,
+    PlusCircle,
+    Quote,
+    Search,
+} from "lucide-react";
 
 export type CitationResult = {
     DOI: string;
@@ -20,6 +30,7 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
     const [error, setError] = useState("");
     const [format, setFormat] = useState<"APA" | "IEEE" | "Harvard" | "Chicago">("APA");
     const [copiedDOI, setCopiedDOI] = useState<string | null>(null);
+    const [rows, setRows] = useState<10 | 20 | 30>(10);
 
     const searchCitations = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,9 +38,11 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
 
         setIsLoading(true);
         setError("");
-        
+
         try {
-            const res = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(query)}&select=author,title,container-title,issued,DOI,is-referenced-by-count,publisher&rows=15`);
+            const res = await fetch(
+                `https://api.crossref.org/works?query=${encodeURIComponent(query)}&select=author,title,container-title,issued,DOI,is-referenced-by-count,publisher&rows=${rows}`,
+            );
             if (!res.ok) throw new Error("Qidiruv xizmatida xatolik yuz berdi");
             const data = await res.json();
             setResults(data.message.items || []);
@@ -42,16 +55,15 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
 
     const formatCitation = (item: CitationResult) => {
         const title = item.title?.[0] || "Nomsiz maqola";
-        
-        // Advanced author formatting based on selected style
+
         let authorsStr = "Noma'lum muallif";
         if (item.author && item.author.length > 0) {
-            const mapped = item.author.map(a => `${a.family || ''} ${a.given ? a.given[0] + '.' : ''}`.trim());
+            const mapped = item.author.map((author) => `${author.family || ""} ${author.given ? author.given[0] + "." : ""}`.trim());
             if (format === "IEEE") {
                 if (mapped.length > 3) {
-                    authorsStr = `${item.author[0].given ? item.author[0].given[0] + '. ' : ''}${item.author[0].family}, et al.`;
+                    authorsStr = `${item.author[0].given ? item.author[0].given[0] + ". " : ""}${item.author[0].family}, et al.`;
                 } else {
-                    authorsStr = item.author.map(a => `${a.given ? a.given[0] + '. ' : ''}${a.family}`).join(", ");
+                    authorsStr = item.author.map((author) => `${author.given ? author.given[0] + ". " : ""}${author.family}`).join(", ");
                 }
             } else if (format === "APA") {
                 if (mapped.length > 20) {
@@ -61,19 +73,16 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
                 } else {
                     authorsStr = mapped[0];
                 }
+            } else if (mapped.length > 3) {
+                authorsStr = `${mapped[0]} et al.`;
             } else {
-                // Harvard/Chicago generalized
-                if (mapped.length > 3) {
-                    authorsStr = `${mapped[0]} et al.`;
-                } else {
-                    authorsStr = mapped.join(", ");
-                }
+                authorsStr = mapped.join(", ");
             }
         }
 
         const journal = item["container-title"]?.[0] || item.publisher || "";
         const year = item.issued?.["date-parts"]?.[0]?.[0] || "n.d.";
-        
+
         if (format === "IEEE") {
             return `${authorsStr}, "${title}," ${journal ? `*${journal}*` : ""}, ${year}. [Online]. Available: https://doi.org/${item.DOI}`;
         }
@@ -83,19 +92,19 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
         if (format === "Chicago") {
             return `${authorsStr}. "${title}." ${journal ? `*${journal}*` : ""} (${year}). https://doi.org/${item.DOI}.`;
         }
-        
-        // Default APA
+
         return `${authorsStr} (${year}). ${title}. ${journal ? `*${journal}*` : ""}. https://doi.org/${item.DOI}`;
     };
 
     const getBibTeX = (item: CitationResult) => {
-        const refName = (item.author?.[0]?.family ? item.author[0].family.replace(/\s+/g, '') : "Ref") + (item.issued?.["date-parts"]?.[0]?.[0] || "");
-        const finalRef = refName.length > 0 ? refName : (item.DOI.split('/')[1] || "ref");
-        const authors = item.author?.map(a => `${a.family || ''}, ${a.given || ''}`.trim()).join(" and ") || "Unknown";
+        const refName =
+            (item.author?.[0]?.family ? item.author[0].family.replace(/\s+/g, "") : "Ref") + (item.issued?.["date-parts"]?.[0]?.[0] || "");
+        const finalRef = refName.length > 0 ? refName : item.DOI.split("/")[1] || "ref";
+        const authors = item.author?.map((author) => `${author.family || ""}, ${author.given || ""}`.trim()).join(" and ") || "Unknown";
         const title = item.title?.[0] || "";
         const journal = item["container-title"]?.[0] || item.publisher || "";
         const year = item.issued?.["date-parts"]?.[0]?.[0] || "";
-        
+
         return `@article{${finalRef},
   title={${title}},
   author={${authors}},
@@ -114,8 +123,9 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
 
     const handleInsert = (item: CitationResult) => {
         const formatted = formatCitation(item);
-        const refName = (item.author?.[0]?.family ? item.author[0].family.replace(/\s+/g, '') : "Ref") + (item.issued?.["date-parts"]?.[0]?.[0] || "");
-        const finalRef = refName.length > 0 ? refName : (item.DOI.split('/')[1] || "ref");
+        const refName =
+            (item.author?.[0]?.family ? item.author[0].family.replace(/\s+/g, "") : "Ref") + (item.issued?.["date-parts"]?.[0]?.[0] || "");
+        const finalRef = refName.length > 0 ? refName : item.DOI.split("/")[1] || "ref";
         onInsert(formatted, finalRef);
     };
 
@@ -123,9 +133,7 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
         <div className="rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
                 <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
-                        Crossref Global DB
-                    </div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">Crossref Global DB</div>
                     <div className="mt-1 flex items-center gap-2 text-xl font-black text-indigo-500">
                         <Quote className="h-5 w-5" />
                         Iqtiboslar
@@ -134,7 +142,7 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
                 <div className="relative">
                     <select
                         value={format}
-                        onChange={(e) => setFormat(e.target.value as any)}
+                        onChange={(e) => setFormat(e.target.value as "APA" | "IEEE" | "Harvard" | "Chicago")}
                         className="appearance-none rounded-xl border border-border/60 bg-muted/20 pl-3 pr-8 py-1.5 text-xs font-bold uppercase tracking-wider text-foreground outline-none transition-colors focus:border-indigo-500/40"
                     >
                         <option value="APA">APA Style</option>
@@ -142,7 +150,25 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
                         <option value="Harvard">Harvard</option>
                         <option value="Chicago">Chicago</option>
                     </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                </div>
+            </div>
+
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-xs leading-5 text-muted-foreground">
+                    Default `Top 10` odatda eng qulay balans. Kerak bo&apos;lsa natijani 20 yoki 30 tagacha kengaytirish mumkin.
+                </div>
+                <div className="relative shrink-0">
+                    <select
+                        value={rows}
+                        onChange={(e) => setRows(Number(e.target.value) as 10 | 20 | 30)}
+                        className="appearance-none rounded-xl border border-border/60 bg-muted/20 pl-3 pr-8 py-1.5 text-xs font-bold uppercase tracking-wider text-foreground outline-none transition-colors focus:border-indigo-500/40"
+                    >
+                        <option value={10}>Top 10</option>
+                        <option value={20}>Top 20</option>
+                        <option value={30}>Top 30</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 </div>
             </div>
 
@@ -163,39 +189,58 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
                 </button>
             </form>
 
-            {error && <div className="mb-4 text-xs font-semibold text-destructive">{error}</div>}
+            {error ? <div className="mb-4 text-xs font-semibold text-destructive">{error}</div> : null}
 
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    <BookMarked className="h-3.5 w-3.5" />
+                    {results.length} natija
+                </div>
+                <div className="text-[11px] font-semibold text-muted-foreground">DOI, muallif yoki sarlavha bilan qidiring</div>
+            </div>
+
+            <div className="max-h-[400px] space-y-3 overflow-y-auto pr-1 scrollbar-thin">
                 {results.map((item) => (
                     <div key={item.DOI} className="rounded-2xl border border-border/60 bg-muted/10 p-3 transition-colors hover:border-indigo-500/30">
-                        <div className="text-xs font-bold leading-snug line-clamp-2" title={item.title?.[0]}>
+                        <div className="line-clamp-2 text-xs font-bold leading-snug" title={item.title?.[0]}>
                             {item.title?.[0] || "Nomsiz maqola"}
                         </div>
-                        <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">
-                            {item.author?.map(a => `${a.family || ''}`).join(", ")} • {item.issued?.["date-parts"]?.[0]?.[0]}
+                        <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+                            {[item.author?.map((author) => `${author.family || ""}`).join(", "), item.issued?.["date-parts"]?.[0]?.[0]]
+                                .filter(Boolean)
+                                .join(" • ")}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                            {item["is-referenced-by-count"] !== undefined && item["is-referenced-by-count"] > 0 && (
+                            {item["is-referenced-by-count"] !== undefined && item["is-referenced-by-count"] > 0 ? (
                                 <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500">
                                     Cited by {item["is-referenced-by-count"]}
                                 </span>
-                            )}
-                            {item.publisher && (
-                                <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground max-w-[120px] truncate" title={item.publisher}>
+                            ) : null}
+                            {item.publisher ? (
+                                <span
+                                    className="max-w-[120px] truncate rounded-md bg-muted/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground"
+                                    title={item.publisher}
+                                >
                                     {item.publisher}
                                 </span>
-                            )}
+                            ) : null}
                         </div>
-                        
+
                         <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-3">
                             <div className="flex items-center gap-2">
-                                <a href={`https://doi.org/${item.DOI}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground hover:text-indigo-500 transition-colors">
-                                    <ExternalLink className="h-3.5 w-3.5" /> DOI
+                                <a
+                                    href={`https://doi.org/${item.DOI}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-indigo-500"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    DOI
                                 </a>
                                 <button
                                     type="button"
                                     onClick={() => copyBibtex(item)}
-                                    className="ml-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground hover:text-indigo-500 transition-colors"
+                                    className="ml-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-indigo-500"
                                     title="BibTeX formatida nusxalash"
                                 >
                                     {copiedDOI === item.DOI ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -205,19 +250,20 @@ export function CitationManager({ onInsert }: { onInsert: (citation: string, inl
                             <button
                                 type="button"
                                 onClick={() => handleInsert(item)}
-                                className="flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 transition-colors hover:bg-indigo-500/20 active:scale-95"
+                                className="flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600 transition-colors hover:bg-indigo-500/20 active:scale-95 dark:text-indigo-400"
                             >
-                                <PlusCircle className="h-3.5 w-3.5" /> Qo'shish
+                                <PlusCircle className="h-3.5 w-3.5" />
+                                Qo&apos;shish
                             </button>
                         </div>
                     </div>
                 ))}
 
-                {results.length === 0 && !isLoading && !error && (
+                {results.length === 0 && !isLoading && !error ? (
                     <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-4 text-center text-sm text-muted-foreground">
-                        Jahon miqyosidagi ilmiy jurnallardan o'zingizga kerakli maqolalarni qidiring (Crossref tarmog'i so'rovlar bepul!)
+                        Jahon miqyosidagi ilmiy jurnallardan o&apos;zingizga kerakli maqolalarni qidiring. Crossref so&apos;rovlari bepul va tez ishlaydi.
                     </div>
-                )}
+                ) : null}
             </div>
         </div>
     );

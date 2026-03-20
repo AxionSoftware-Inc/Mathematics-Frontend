@@ -48,12 +48,6 @@ async function fetchWithTimeout(endpoint: string, options: ApiFetchOptions = {},
         
         // Fix potential double /api/ from env + endpoint concatenation
         fullUrl = fullUrl.replace("/api/api/", "/api/");
-
-        // Append project filter for quantum-uz by default for GET requests
-        if (method === "GET" && !fullUrl.includes("project=")) {
-            const separator = fullUrl.includes("?") ? "&" : "?";
-            fullUrl = `${fullUrl}${separator}project=quantum-uz`;
-        }
         
         return await fetch(fullUrl, {
             ...requestOptions,
