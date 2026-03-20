@@ -8,7 +8,13 @@ import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { analyzeSeries, analyzeTaylorApproximation, estimateLimit } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { publishToLiveWriterTarget, queueWriterImport, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import {
+    createLaboratoryWriterDraftHref,
+    findLiveWriterTargetBySelection,
+    publishToLiveWriterTarget,
+    queueWriterImport,
+    type WriterBridgeBlockData,
+} from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type NotebookCellType = "markdown" | "series" | "limit" | "taylor";
@@ -386,7 +392,7 @@ export function NotebookStudioModule({ module }: { module: LaboratoryModuleMeta 
     }
 
     function sendToWriter() {
-        queueWriterImport({
+        const requestId = queueWriterImport({
             version: 1,
             markdown: compileNotebookMarkdown(title, cells),
             block: buildNotebookLivePayload(`import-notebook-${Date.now()}`, title, cells, activeCellId),
@@ -396,11 +402,11 @@ export function NotebookStudioModule({ module }: { module: LaboratoryModuleMeta 
         });
         setExportState("sent");
         setGuideMode(null);
-        window.location.assign("/write/new?source=laboratory");
+        window.location.assign(createLaboratoryWriterDraftHref(requestId));
     }
 
     function pushLiveResult() {
-        const selectedTarget = liveTargets.find((target) => target.id === selectedLiveTargetId);
+        const selectedTarget = findLiveWriterTargetBySelection(liveTargets, selectedLiveTargetId);
         if (!selectedTarget || !cells.length) {
             return;
         }

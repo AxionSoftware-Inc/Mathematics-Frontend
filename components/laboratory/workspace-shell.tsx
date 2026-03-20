@@ -1,20 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, FlaskConical, Settings2, Info } from "lucide-react";
 
 import { LaboratoryModuleIcon } from "@/components/laboratory/module-icon";
 import { laboratoryModuleRegistry } from "@/components/laboratory/module-registry";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
+import { LabEngineProvider } from "@/components/laboratory/lab-engine";
 
 function modeLabel(mode: LaboratoryModuleMeta["computation_mode"]) {
-    if (mode === "hybrid") {
-        return "Gibrid";
-    }
-    if (mode === "server") {
-        return "Server";
-    }
-    return "Lokal";
+    if (mode === "hybrid") return "Hybrid Engine";
+    if (mode === "server") return "Server Cluster";
+    return "Local Runtime";
 }
 
 function capabilityLabel(value: string) {
@@ -63,10 +60,7 @@ function capabilityLabel(value: string) {
         "3D Cost landscapes": "3D xarajat sirtlari",
         "Learning rate analysis": "O'rganish qadamini tahlil qilish",
         "Convergence logging": "Konvergentsiya jurnali",
-        "Modulli laboratoriya ish joyi": "Modulli laboratoriya ish joyi",
-        "Moslashuvchan arxitektura": "Moslashuvchan arxitektura",
     };
-
     return labels[value] || value;
 }
 
@@ -81,111 +75,142 @@ export function LaboratoryWorkspaceShell({
     const ModuleComponent = definition?.component;
 
     return (
-        <div className="space-y-4">
-            <div className="site-panel-strong p-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex min-w-0 items-start gap-4">
-                        <Link
-                            href="/laboratory"
-                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background/50 text-muted-foreground transition hover:text-foreground hover:bg-muted/50"
-                        >
-                            <ArrowLeft className="h-5 w-5" />
-                        </Link>
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                            <LaboratoryModuleIcon name={module.icon_name} className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-accent">Laboratoriya moduli</div>
-                            <div className="mt-1 truncate font-serif text-2xl font-black leading-none">{module.title}</div>
-                            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground line-clamp-2">
-                                {module.description || module.summary}
-                            </p>
-                        </div>
-                    </div>
-
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="rounded-full border border-border bg-background/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            {module.category}
-                        </div>
-                        <div className="rounded-full border border-border bg-background/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            {modeLabel(module.computation_mode)}
-                        </div>
-                        <div className="rounded-full border border-border bg-background/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            {module.estimated_minutes || 10} daqiqa
-                        </div>
-                        <div className={`rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest ${definition ? "border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400" : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
-                            {definition ? "Interfeys tayyor" : "Interfeys ulanmagan"}
-                        </div>
-                    </div>
-                </div>
-
-
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-border/50 pt-4">
-                    {(definition?.capabilities || ["Modulli laboratoriya ish joyi", "Moslashuvchan arxitektura"]).map((capability) => (
-                        <div key={capability} className="rounded-full border border-border/60 bg-muted/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            {capabilityLabel(capability)}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
-                <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
-                    <div className="site-outline-card overflow-hidden">
-                        <div className="border-b border-border/50 bg-muted/10 px-4 py-3">
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Navigatsiya</div>
-                            <div className="font-serif text-lg font-bold">Modullar</div>
-                        </div>
-                        <div className="p-2 space-y-1 bg-background/30">
-                            {modules.map((entry) => {
-                                const active = entry.slug === module.slug;
-                                return (
-                                    <Link
-                                        key={entry.slug}
-                                        href={`/laboratory/${entry.slug}`}
-                                        className={`group block rounded-xl border border-transparent px-3 py-2.5 transition-colors ${
-                                            active ? "bg-accent/10 border-accent/20" : "hover:bg-muted/50 hover:border-border/50"
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`rounded-lg p-2 transition-colors ${active ? "bg-accent text-background" : "bg-muted text-muted-foreground group-hover:text-foreground"}`}>
-                                                <LaboratoryModuleIcon name={entry.icon_name} className="h-4 w-4" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className={`truncate text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>{entry.title}</div>
-                                                <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                                                    {entry.summary}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </aside>
-
-
-                <div className="space-y-4 min-w-0">
-                    {ModuleComponent ? (
-                        <ModuleComponent module={module} />
-                    ) : (
-                        <div className="site-panel-strong p-8 flex flex-col items-center justify-center text-center min-h-[400px]">
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-2">Interfeys ulanmagan</div>
-                            <h2 className="font-serif text-3xl font-black max-w-lg">Bu modul registrda bor, lekin frontend komponenti hali tayyor emas.</h2>
-                            <p className="mt-4 text-sm leading-relaxed text-muted-foreground max-w-md mx-auto">
-                                Arxitektura modullarni kengaytirish uchun tayyor, lekin hozircha bu bo&apos;limga ko&apos;rinadigan ish joyi ulanmagan.
-                            </p>
-                            <Link href="/laboratory" className="site-button-primary mt-8">
-                                Boshqa modulga o&apos;tish
-                                <ArrowRight className="h-4 w-4" />
+        <LabEngineProvider>
+            <div className="space-y-6">
+                {/* HIGH-END HEADER PANEL */}
+                <div className="site-panel-strong relative overflow-hidden p-6 ring-1 ring-white/10 shadow-[0_40px_100px_-40px_rgba(15,23,42,0.4)]">
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-emerald-500/5 transition-opacity duration-1000 group-hover:opacity-100" />
+                    <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent/10 blur-[80px]" />
+                    
+                    <div className="relative flex flex-wrap items-start justify-between gap-6">
+                        <div className="flex min-w-0 items-start gap-6">
+                            <Link
+                                href="/laboratory"
+                                className="group flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl transition-all hover:bg-white/10 active:scale-95"
+                            >
+                                <ArrowLeft className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
                             </Link>
+                            
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/20">
+                                <LaboratoryModuleIcon name={module.icon_name} className="h-6 w-6 text-white" />
+                            </div>
+                            
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-accent/80">Module Workspace</span>
+                                    <div className="h-px w-8 bg-accent/20" />
+                                    <span className={`text-[10px] font-bold uppercase tracking-[0.12em] ${definition ? "text-emerald-500" : "text-amber-500"}`}>
+                                        {definition ? "Engine Ready" : "UI Pending"}
+                                    </span>
+                                </div>
+                                <h1 className="mt-2 truncate font-serif text-3xl font-black tracking-tight text-foreground">{module.title}</h1>
+                                <p className="mt-3 max-w-4xl text-sm italic leading-relaxed text-muted-foreground/80">
+                                    {module.description || module.summary}
+                                </p>
+                            </div>
                         </div>
-                    )}
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex h-10 items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-4 backdrop-blur-md">
+                                <FlaskConical className="h-3.5 w-3.5 text-accent" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{module.category}</span>
+                            </div>
+                            <div className="flex h-10 items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-4 backdrop-blur-md">
+                                <Settings2 className="h-3.5 w-3.5 text-accent" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{modeLabel(module.computation_mode)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-2 border-t border-white/5 pt-6">
+                        {(definition?.capabilities || ["Standard Lab Instance", "Unified Geometry Engine"]).map((capability) => (
+                            <div key={capability} className="flex items-center gap-2 rounded-full border border-white/5 bg-white/5 px-3.5 py-1.5 transition-colors hover:bg-white/10">
+                                <div className="h-1 w-1 rounded-full bg-accent" />
+                                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">{capabilityLabel(capability)}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
+                <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+                    {/* ENHANCED SIDEBAR */}
+                    <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                        <div className="site-panel-strong overflow-hidden ring-1 ring-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)]">
+                            <div className="flex items-center justify-between border-b border-white/5 bg-white/5 px-5 py-4">
+                                <div className="flex items-center gap-2">
+                                    <Info className="h-4 w-4 text-accent" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground/70">Navigation</span>
+                                </div>
+                            </div>
+                            
+                            <div className="max-h-[70vh] overflow-y-auto p-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+                                <div className="space-y-1.5">
+                                    {modules.map((entry) => {
+                                        const active = entry.slug === module.slug;
+                                        return (
+                                            <Link
+                                                key={entry.slug}
+                                                href={`/laboratory/${entry.slug}`}
+                                                className={`group relative block overflow-hidden rounded-xl border transition-all duration-300 ${
+                                                    active 
+                                                        ? "border-accent/30 bg-accent/10 shadow-lg shadow-accent/5 ring-1 ring-accent/20" 
+                                                        : "border-white/5 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                                                }`}
+                                            >
+                                                {active && <div className="absolute left-0 top-0 h-full w-1 bg-accent" />}
+                                                <div className="flex items-center gap-4 p-3">
+                                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-500 ease-spring ${
+                                                        active 
+                                                            ? "bg-accent text-white rotate-3 scale-110" 
+                                                            : "bg-white/5 text-muted-foreground group-hover:text-accent group-hover:rotate-6 group-hover:scale-105"
+                                                    }`}>
+                                                        <LaboratoryModuleIcon name={entry.icon_name} className="h-5 w-5" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className={`truncate text-sm font-black italic tracking-tight ${active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>
+                                                            {entry.title}
+                                                        </div>
+                                                        <div className="mt-0.5 line-clamp-1 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                                                            {entry.category}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* MAIN WORKSPACE VIEW */}
+                    <main className="min-w-0 animate-in fade-in slide-in-from-bottom-6 duration-1000 ease-out">
+                        {ModuleComponent ? (
+                            <ModuleComponent module={module} />
+                        ) : (
+                            <div className="site-panel-strong flex min-h-[500px] flex-col items-center justify-center p-12 text-center ring-1 ring-white/10 shadow-[0_50px_100px_-40px_rgba(0,0,0,0.4)]">
+                                <div className="relative mb-8">
+                                    <div className="absolute inset-0 animate-ping rounded-full bg-amber-500/20 duration-[2000ms]" />
+                                    <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-500 shadow-[inset_0_4px_12px_rgba(245,158,11,0.1)]">
+                                        <Info className="h-10 w-10" />
+                                    </div>
+                                </div>
+                                <h2 className="font-serif text-3xl font-black italic leading-tight text-foreground">
+                                    Module Bridge Available
+                                </h2>
+                                <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground/80">
+                                    System registry confirms this module is active. However, the advanced visual analytics panel for 
+                                    <span className="text-accent font-bold"> {module.title}</span> is still in development phase.
+                                </p>
+                                <Link href="/laboratory" className="mt-10 inline-flex items-center gap-3 rounded-2xl bg-foreground px-8 py-3 text-[10px] font-black uppercase tracking-[0.24em] text-background transition-all hover:scale-[1.03] active:scale-95 shadow-xl shadow-slate-900/20">
+                                    Laboratory Control
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </div>
+                        )}
+                    </main>
+                </div>
             </div>
-        </div>
+        </LabEngineProvider>
     );
 }

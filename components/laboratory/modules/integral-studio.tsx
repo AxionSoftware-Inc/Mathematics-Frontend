@@ -9,7 +9,13 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { approximateIntegral, DoubleIntegralSummary, TripleIntegralSummary, approximateDoubleIntegral, approximateTripleIntegral, type IntegralSummary, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
-import { publishToLiveWriterTarget, queueWriterImport, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import {
+    createLaboratoryWriterDraftHref,
+    findLiveWriterTargetBySelection,
+    publishToLiveWriterTarget,
+    queueWriterImport,
+    type WriterBridgeBlockData,
+} from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 const exportGuides = {
@@ -313,17 +319,17 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                             }}
                             onSend={() => {
                                 if (!summary) return;
-                                queueWriterImport({
+                                const requestId = queueWriterImport({
                                     version: 1, 
                                     markdown: `## Integral Studio Result\n\nResult: ${summary.value || summary.simpson}`,
                                     block: buildIntegralLivePayload({ targetId: `int-${Date.now()}`, expression, lower: Number(lower), upper: Number(upper), segments: Number(segments), summary: mode === "single" ? summary : { ...summary, simpson: summary.value, midpoint: summary.value, trapezoid: summary.value } }),
                                     title: "Integral Analysis", abstract: "Exported from laboratory.", keywords: "integral"
                                 });
                                 setExportState("sent");
-                                window.location.assign("/write/new?source=laboratory");
+                                window.location.assign(createLaboratoryWriterDraftHref(requestId));
                             }}
                             onPush={() => {
-                                const target = liveTargets.find(t => t.id === selectedLiveTargetId);
+                                const target = findLiveWriterTargetBySelection(liveTargets, selectedLiveTargetId);
                                 if (!target || !summary) return;
                                 publishToLiveWriterTarget({
                                     writerId: target.writerId,

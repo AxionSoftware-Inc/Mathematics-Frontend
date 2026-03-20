@@ -187,6 +187,58 @@ export type QuantumStateAnalysis = {
     ket: string;
 };
 
+export type PlotPoint3D = {
+    x: number;
+    y: number;
+    z: number;
+    value?: number;
+};
+
+export type ParametricSurfaceGrid = {
+    x: number[][];
+    y: number[][];
+    z: number[][];
+};
+
+export type OptimizationLandscape = {
+    path: PlotPoint3D[];
+    surfaceSamples: PlotPoint3D[];
+    xRange: [number, number];
+    yRange: [number, number];
+    zRange: [number, number];
+};
+
+export type MatrixBasisVector = {
+    label: string;
+    color: string;
+    original: PlotPoint3D[];
+    transformed: PlotPoint3D[];
+};
+
+export type MatrixTransformation3D = {
+    original: PlotPoint3D[];
+    transformed: PlotPoint3D[];
+    edges: Array<[number, number]>;
+    basisVectors: MatrixBasisVector[];
+    determinant: number | null;
+};
+
+export type BlochSphereGeometry = {
+    surface: ParametricSurfaceGrid;
+    equator: PlotPoint3D[];
+    meridians: PlotPoint3D[][];
+    axes: Array<{ label: string; color: string; points: PlotPoint3D[] }>;
+    poles: PlotPoint3D[];
+};
+
+export type LightConeGeometry = {
+    futureSurface: ParametricSurfaceGrid;
+    pastSurface: ParametricSurfaceGrid;
+    axis: PlotPoint3D[];
+    nullRays: PlotPoint3D[][];
+    boundaryLoops: PlotPoint3D[][];
+};
+
 export type GeometryIntersection = GeometryPoint | null;
 
 export type GeometryAnalysis = {
@@ -206,6 +258,35 @@ function ensureFiniteNumber(value: number, label: string) {
 
 function roundValue(value: number, digits = 6) {
     return Number(value.toFixed(digits));
+}
+
+function createParametricSurfaceGrid(
+    rowCount: number,
+    columnCount: number,
+    mapper: (rowIndex: number, columnIndex: number) => PlotPoint3D,
+): ParametricSurfaceGrid {
+    const x: number[][] = [];
+    const y: number[][] = [];
+    const z: number[][] = [];
+
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+        const xRow: number[] = [];
+        const yRow: number[] = [];
+        const zRow: number[] = [];
+
+        for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+            const point = mapper(rowIndex, columnIndex);
+            xRow.push(roundValue(point.x));
+            yRow.push(roundValue(point.y));
+            zRow.push(roundValue(point.z));
+        }
+
+        x.push(xRow);
+        y.push(yRow);
+        z.push(zRow);
+    }
+
+    return { x, y, z };
 }
 
 function factorial(value: number) {
@@ -462,10 +543,9 @@ export function approximateDoubleIntegral(
             const y = yMin + (j + 0.5) * dy;
             const z = Number(executor.evaluate({ x, y }));
             totalVolume += z * dx * dy;
-            
-            // Limit samples for performance visualization
-            if (i % Math.ceil(nx / 10) === 0 && j % Math.ceil(ny / 10) === 0) {
-                samples.push({ x, y, z: roundValue(z) });
+
+            if (Number.isFinite(z)) {
+                samples.push({ x: roundValue(x), y: roundValue(y), z: roundValue(z) });
             }
         }
     }
@@ -523,8 +603,9 @@ export const LABORATORY_PRESETS = {
     integral: [
         { label: "Gaussian Bell", mode: "single", expr: "exp(-x^2)", lower: "-3", upper: "3" },
         { label: "Double Paraboloid", mode: "double", expr: "x^2 + y^2", x: "[-2, 2]", y: "[-2, 2]" },
+        { label: "Wave Interference Surface", mode: "double", expr: "sin(x) * cos(y) + 0.25 * x", x: "[-6.28, 6.28]", y: "[-6.28, 6.28]" },
         { label: "Sphere Volume (Triple)", mode: "triple", expr: "1", x: "[-1, 1]", y: "[-1, 1]", z: "[-1, 1]" },
-        { label: "Sin-Wave Surface", mode: "double", expr: "sin(x) * cos(y)", x: "[0, 6.28]", y: "[0, 6.28]" },
+        { label: "Gaussian Ridge", mode: "double", expr: "exp(-(x^2 + y^2)/4) * (x^2 - y^2)", x: "[-4, 4]", y: "[-4, 4]" },
     ],
     differential: [
         { label: "Logistic Growth", mode: "single", expr: "0.5 * y * (1 - y/10)", x0: "0", y0: "1" },
@@ -544,7 +625,8 @@ export const LABORATORY_PRESETS = {
     matrix: [
         { label: "Identity Matrix", A: "1 0 0\n0 1 0\n0 0 1", op: "determinant" },
         { label: "Rotation 45 deg (X-axis)", A: "1 0 0\n0 0.707 -0.707\n0 0.707 0.707", op: "transpose", type: "transformation" },
-        { label: "Shear Transformation", A: "1 0.5 0\n0 1 0\n0 0 1", op: "transpose", type: "transformation" },
+        { label: "Compound Rotation", A: "0.707 -0.5 0.5\n0.707 0.5 -0.5\n0 0.707 0.707", op: "transpose", type: "transformation" },
+        { label: "Shear Transformation", A: "1 0.5 0.2\n0 1 0.3\n0 0 1", op: "transpose", type: "transformation" },
         { label: "Non-uniform Scaling", A: "2 0 0\n0 0.5 0\n0 0 1.5", op: "transpose", type: "transformation" },
         { label: "Hilbert 3x3", A: "1 0.5 0.33\n0.5 0.33 0.25\n0.33 0.25 0.2", op: "eigenvalues" },
     ],
@@ -596,6 +678,7 @@ export const LABORATORY_PRESETS = {
         { label: "Beale's Funnel", expr: "(1.5-x+x*y)^2+(2.25-x+x*y^2)^2+(2.625-x+x*y^3)^2", x0: "3.0", y0: "0.5", lr: "0.001" },
         { label: "Saddle Ridge", expr: "x^2 - y^2 + 0.2*x*y", x0: "2.5", y0: "-2.5", lr: "0.05" },
         { label: "Bohachevsky Bowl", expr: "x^2 + 2*y^2 - 0.3*cos(3*pi*x) - 0.4*cos(4*pi*y) + 0.7", x0: "1.5", y0: "-1.25", lr: "0.02" },
+        { label: "Himmelblau Multi-Basin", expr: "(x^2 + y - 11)^2 + (x + y^2 - 7)^2", x0: "-3.5", y0: "3.0", lr: "0.006" },
     ],
     linear: [
         { label: "3x3 System (Standard)", matrix: "2 1 -1, -3 -1 2, -2 1 2", b: "8, -11, -3" },
@@ -627,6 +710,7 @@ export const LABORATORY_PRESETS = {
         { label: "Phase Shift |-i>", theta: Math.PI / 2, phi: (3 * Math.PI) / 2 },
         { label: "Magic State |T>", theta: Math.PI / 2, phi: Math.PI / 4 },
         { label: "Balanced Qubit", theta: 1.2, phi: 1.1 },
+        { label: "Clifford Orbit", theta: 0.955317, phi: 2.356194 },
         { label: "Schrodinger n = 1", n: 1 },
         { label: "Schrodinger n = 2", n: 2 },
         { label: "Schrodinger n = 3", n: 3 },
@@ -648,6 +732,7 @@ export const LABORATORY_PRESETS = {
         { label: "Schwarzschild Radius", mass: "1.989e30", title: "Black Hole Event Horizon" },
         { label: "Particle Collider Beam", v: "299700000", title: "Ultra-relativistic Beam Dynamics" },
         { label: "Interstellar Probe", v: "220000000", title: "Deep Space Mission Clock Drift" },
+        { label: "Twin Paradox Cruise", v: "250000000", title: "Long-range relativistic twin mission" },
     ]
 };
 
@@ -1239,22 +1324,53 @@ export function findPeakFrequency(spectrum: FrequencyPoint[]) {
     return peakF;
 }
 
-export function calculateMatrixTransformation(matrix: number[][]) {
+export function calculateMatrixTransformation(matrix: number[][]): MatrixTransformation3D {
     const vertices = [
-        [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
-        [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]
+        [-1, -1, -1],
+        [1, -1, -1],
+        [1, 1, -1],
+        [-1, 1, -1],
+        [-1, -1, 1],
+        [1, -1, 1],
+        [1, 1, 1],
+        [-1, 1, 1],
     ];
-    
-    const original = vertices.map(v => ({ x: v[0], y: v[1], z: v[2] }));
-    const transformed = vertices.map(v => {
-        if (matrix.length < 3 || matrix[0].length < 3) return { x: v[0], y: v[1], z: v[2] };
-        const x = matrix[0][0] * v[0] + matrix[0][1] * v[1] + matrix[0][2] * v[2];
-        const y = matrix[1][0] * v[0] + matrix[1][1] * v[1] + matrix[1][2] * v[2];
-        const z = matrix[2][0] * v[0] + matrix[2][1] * v[1] + matrix[2][2] * v[2];
-        return { x: roundValue(x), y: roundValue(y), z: roundValue(z) };
-    });
-    
-    return { original, transformed };
+    const edges: Array<[number, number]> = [
+        [0, 1], [1, 2], [2, 3], [3, 0],
+        [4, 5], [5, 6], [6, 7], [7, 4],
+        [0, 4], [1, 5], [2, 6], [3, 7],
+    ];
+
+    const transformPoint = ([vx, vy, vz]: number[]): PlotPoint3D => {
+        if (matrix.length < 3 || matrix[0].length < 3) {
+            return { x: vx, y: vy, z: vz };
+        }
+
+        return {
+            x: roundValue(matrix[0][0] * vx + matrix[0][1] * vy + matrix[0][2] * vz),
+            y: roundValue(matrix[1][0] * vx + matrix[1][1] * vy + matrix[1][2] * vz),
+            z: roundValue(matrix[2][0] * vx + matrix[2][1] * vy + matrix[2][2] * vz),
+        };
+    };
+
+    let determinant: number | null = null;
+    try {
+        determinant = matrix.length === 3 && matrix[0]?.length === 3 ? roundValue(Number(det(matrix))) : null;
+    } catch {
+        determinant = null;
+    }
+
+    return {
+        original: vertices.map(([x, y, z]) => ({ x, y, z })),
+        transformed: vertices.map(transformPoint),
+        edges,
+        determinant,
+        basisVectors: [
+            { label: "e1", color: "#2563eb", original: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }], transformed: [{ x: 0, y: 0, z: 0 }, transformPoint([1, 0, 0])] },
+            { label: "e2", color: "#f59e0b", original: [{ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }], transformed: [{ x: 0, y: 0, z: 0 }, transformPoint([0, 1, 0])] },
+            { label: "e3", color: "#10b981", original: [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }], transformed: [{ x: 0, y: 0, z: 0 }, transformPoint([0, 0, 1])] },
+        ],
+    };
 }
 
 // --- Numerical Analysis ---
@@ -1318,6 +1434,51 @@ export function solveGradientDescent(expr: string, x0: number, y0: number, lr = 
     }
     
     return path;
+}
+
+export function buildOptimizationLandscape(expr: string, path: PlotPoint3D[], resolution = 34): OptimizationLandscape {
+    const cleanPath = path.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
+    const executor = compile(expr);
+    const xs = cleanPath.map((point) => point.x);
+    const ys = cleanPath.map((point) => point.y);
+    const minX = Math.min(...xs, -1.5);
+    const maxX = Math.max(...xs, 1.5);
+    const minY = Math.min(...ys, -1.5);
+    const maxY = Math.max(...ys, 1.5);
+    const xPadding = Math.max((maxX - minX) * 0.4, 1.25);
+    const yPadding = Math.max((maxY - minY) * 0.4, 1.25);
+    const xRange: [number, number] = [roundValue(minX - xPadding), roundValue(maxX + xPadding)];
+    const yRange: [number, number] = [roundValue(minY - yPadding), roundValue(maxY + yPadding)];
+    const surfaceSamples: PlotPoint3D[] = [];
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
+
+    for (let rowIndex = 0; rowIndex < resolution; rowIndex += 1) {
+        const y = yRange[0] + ((yRange[1] - yRange[0]) * rowIndex) / Math.max(1, resolution - 1);
+        for (let columnIndex = 0; columnIndex < resolution; columnIndex += 1) {
+            const x = xRange[0] + ((xRange[1] - xRange[0]) * columnIndex) / Math.max(1, resolution - 1);
+            const z = Number(executor.evaluate({ x, y }));
+            if (!Number.isFinite(z) || Math.abs(z) > 1_000_000) {
+                continue;
+            }
+
+            const point = { x: roundValue(x), y: roundValue(y), z: roundValue(z) };
+            surfaceSamples.push(point);
+            minZ = Math.min(minZ, point.z);
+            maxZ = Math.max(maxZ, point.z);
+        }
+    }
+
+    return {
+        path: cleanPath,
+        surfaceSamples,
+        xRange,
+        yRange,
+        zRange: [
+            Number.isFinite(minZ) ? roundValue(minZ) : 0,
+            Number.isFinite(maxZ) ? roundValue(maxZ) : 0,
+        ],
+    };
 }
 
 // --- Linear Systems & Spaces ---
@@ -1506,6 +1667,46 @@ export function analyzeQuantumState(theta: number, phi: number): QuantumStateAna
     };
 }
 
+export function buildBlochSphereGeometry(latitudeSteps = 24, longitudeSteps = 48): BlochSphereGeometry {
+    const safeLatitudeSteps = Math.max(8, Math.floor(latitudeSteps));
+    const safeLongitudeSteps = Math.max(12, Math.floor(longitudeSteps));
+
+    return {
+        surface: createParametricSurfaceGrid(safeLatitudeSteps + 1, safeLongitudeSteps + 1, (latitudeIndex, longitudeIndex) => {
+            const theta = (latitudeIndex / safeLatitudeSteps) * Math.PI;
+            const phi = (longitudeIndex / safeLongitudeSteps) * Math.PI * 2;
+            return {
+                x: Math.sin(theta) * Math.cos(phi),
+                y: Math.sin(theta) * Math.sin(phi),
+                z: Math.cos(theta),
+            };
+        }),
+        equator: Array.from({ length: safeLongitudeSteps + 1 }, (_, index) => {
+            const angle = (index / safeLongitudeSteps) * Math.PI * 2;
+            return { x: roundValue(Math.cos(angle)), y: roundValue(Math.sin(angle)), z: 0 };
+        }),
+        meridians: [0, Math.PI / 2, Math.PI / 4].map((phi) =>
+            Array.from({ length: safeLatitudeSteps + 1 }, (_, index) => {
+                const theta = (index / safeLatitudeSteps) * Math.PI;
+                return {
+                    x: roundValue(Math.sin(theta) * Math.cos(phi)),
+                    y: roundValue(Math.sin(theta) * Math.sin(phi)),
+                    z: roundValue(Math.cos(theta)),
+                };
+            }),
+        ),
+        axes: [
+            { label: "X axis", color: "#2563eb", points: [{ x: -1.2, y: 0, z: 0 }, { x: 1.2, y: 0, z: 0 }] },
+            { label: "Y axis", color: "#f59e0b", points: [{ x: 0, y: -1.2, z: 0 }, { x: 0, y: 1.2, z: 0 }] },
+            { label: "Z axis", color: "#10b981", points: [{ x: 0, y: 0, z: -1.2 }, { x: 0, y: 0, z: 1.2 }] },
+        ],
+        poles: [
+            { x: 0, y: 0, z: 1 },
+            { x: 0, y: 0, z: -1 },
+        ],
+    };
+}
+
 export function getSchrodingerStates(n: number, points = 100): QuantumWavePoint[] {
     const data: QuantumWavePoint[] = [];
     const L = 10;
@@ -1578,6 +1779,47 @@ export function calculateLorentz(v: number) {
         gamma: roundValue(gamma),
         dilation: roundValue(gamma), // Time dilated by gamma
         lengthContraction: roundValue(1 / gamma)
+    };
+}
+
+export function getLightConeGeometry(radius = 12, radialSteps = 18, angularSteps = 36): LightConeGeometry {
+    const safeRadius = Math.max(2, Math.abs(radius));
+    const safeRadialSteps = Math.max(6, Math.floor(radialSteps));
+    const safeAngularSteps = Math.max(12, Math.floor(angularSteps));
+    const rayAngles = [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4];
+
+    return {
+        futureSurface: createParametricSurfaceGrid(safeRadialSteps + 1, safeAngularSteps + 1, (radialIndex, angularIndex) => {
+            const t = (radialIndex / safeRadialSteps) * safeRadius;
+            const phi = (angularIndex / safeAngularSteps) * Math.PI * 2;
+            return { x: t * Math.cos(phi), y: t * Math.sin(phi), z: t };
+        }),
+        pastSurface: createParametricSurfaceGrid(safeRadialSteps + 1, safeAngularSteps + 1, (radialIndex, angularIndex) => {
+            const t = (radialIndex / safeRadialSteps) * safeRadius;
+            const phi = (angularIndex / safeAngularSteps) * Math.PI * 2;
+            return { x: t * Math.cos(phi), y: t * Math.sin(phi), z: -t };
+        }),
+        axis: [{ x: 0, y: 0, z: -safeRadius * 1.1 }, { x: 0, y: 0, z: safeRadius * 1.1 }],
+        nullRays: rayAngles.flatMap((angle) => [
+            Array.from({ length: safeRadialSteps + 1 }, (_, index) => {
+                const t = (index / safeRadialSteps) * safeRadius;
+                return { x: roundValue(t * Math.cos(angle)), y: roundValue(t * Math.sin(angle)), z: roundValue(t) };
+            }),
+            Array.from({ length: safeRadialSteps + 1 }, (_, index) => {
+                const t = (index / safeRadialSteps) * safeRadius;
+                return { x: roundValue(t * Math.cos(angle)), y: roundValue(t * Math.sin(angle)), z: roundValue(-t) };
+            }),
+        ]),
+        boundaryLoops: [1, -1].map((direction) =>
+            Array.from({ length: safeAngularSteps + 1 }, (_, index) => {
+                const phi = (index / safeAngularSteps) * Math.PI * 2;
+                return {
+                    x: roundValue(safeRadius * Math.cos(phi)),
+                    y: roundValue(safeRadius * Math.sin(phi)),
+                    z: roundValue(direction * safeRadius),
+                };
+            }),
+        ),
     };
 }
 

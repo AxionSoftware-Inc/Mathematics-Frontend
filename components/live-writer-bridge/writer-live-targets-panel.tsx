@@ -47,6 +47,9 @@ export function WriterLiveTargetsPanel({
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="truncate text-sm font-black">{target.title}</div>
+                                    <div className="mt-1 truncate text-[11px] text-muted-foreground">
+                                        {target.sectionPath || "Document root"}
+                                    </div>
                                     <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{target.id}</div>
                                     <div className="mt-2 text-[11px] text-muted-foreground">
                                         rev {target.revision ?? 0} | push {formatSyncTime(target.lastPublishedAt)} | ack {formatSyncTime(target.lastAcknowledgedAt)}

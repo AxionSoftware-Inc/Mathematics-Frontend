@@ -4,8 +4,8 @@ import React from "react";
 import { Timer, Plus, Activity, Zap, Sparkles, Hash, MousePointer2, TrendingUp, Target, BarChart2, Radio, Atom, Globe, Compass } from "lucide-react";
 
 import { LaboratoryNotebookToolbar, useLaboratoryNotebook } from "@/components/laboratory/laboratory-notebook";
-import { calculateLorentz, getLightCone, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
-import { ScientificPlot } from "@/components/laboratory/scientific-plot";
+import { calculateLorentz, getLightConeGeometry, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
+import { buildParametricSurfaceData, ScientificPlot } from "@/components/laboratory/scientific-plot";
 import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
@@ -36,9 +36,49 @@ export function RelativityLabModule({ module }: { module: LaboratoryModuleMeta }
         return calculateLorentz(Number(v));
     }, [v]);
 
-    const coneData = React.useMemo(() => {
-        return getLightCone(15);
-    }, []);
+    const coneGeometry = React.useMemo(() => getLightConeGeometry(12), []);
+    const coneTraces = React.useMemo(() => {
+        return [
+            ...buildParametricSurfaceData(coneGeometry.futureSurface, {
+                label: "Future cone",
+                colorscale: "Turbo",
+                opacity: 0.34,
+            }),
+            ...buildParametricSurfaceData(coneGeometry.pastSurface, {
+                label: "Past cone",
+                colorscale: "Teal",
+                opacity: 0.3,
+            }),
+            {
+                type: "scatter3d",
+                mode: "lines",
+                x: coneGeometry.axis.map((point) => point.x),
+                y: coneGeometry.axis.map((point) => point.y),
+                z: coneGeometry.axis.map((point) => point.z),
+                line: { color: "#0f172a", width: 7 },
+                name: "Time axis",
+            },
+            ...coneGeometry.nullRays.map((ray, index) => ({
+                type: "scatter3d",
+                mode: "lines",
+                x: ray.map((point) => point.x),
+                y: ray.map((point) => point.y),
+                z: ray.map((point) => point.z),
+                line: { color: "rgba(245,158,11,0.88)", width: index % 2 === 0 ? 5 : 4 },
+                name: `Null ray ${index + 1}`,
+                showlegend: index < 2,
+            })),
+            ...coneGeometry.boundaryLoops.map((loop, index) => ({
+                type: "scatter3d",
+                mode: "lines",
+                x: loop.map((point) => point.x),
+                y: loop.map((point) => point.y),
+                z: loop.map((point) => point.z),
+                line: { color: index === 0 ? "#ef4444" : "#2563eb", width: 4, dash: "dot" },
+                name: index === 0 ? "Future boundary" : "Past boundary",
+            })),
+        ];
+    }, [coneGeometry]);
 
     const applyPreset = (p: any) => {
         if (p.type === "3d-cone") {
@@ -131,11 +171,16 @@ export function RelativityLabModule({ module }: { module: LaboratoryModuleMeta }
                     {mode === "cone" && notebook.hasBlock("cone") && (
                         <div className="site-panel-strong p-6 space-y-4 min-h-[500px]">
                             <div className="site-eyebrow text-accent">3D Light Cone Representation</div>
+                            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                                Future va past cone endi haqiqiy surface sifatida chiziladi. Null raylar va vaqt o&apos;qi bilan spacetime sabab-oqibat tuzilishi aniq ko&apos;rinadi.
+                            </p>
                             <div className="w-full h-[450px]">
                                 <ScientificPlot 
                                     type="scatter3d" 
-                                    data={coneData} 
+                                    data={coneTraces} 
                                     title="Future and Past Spacetime Geometry"
+                                    insights={["future cone", "past cone", "null rays"]}
+                                    snapshotFileName="relativity-light-cone"
                                 />
                             </div>
                         </div>

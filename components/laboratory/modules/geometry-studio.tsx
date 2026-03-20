@@ -8,7 +8,7 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { analyzeAnalyticGeometry, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { createBroadcastChannel, queueWriterImport } from "@/lib/live-writer-bridge";
+import { createBroadcastChannel, createLaboratoryWriterDraftHref, queueWriterImport } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type PointKey = "ax" | "ay" | "bx" | "by" | "cx" | "cy" | "dx" | "dy";
@@ -170,9 +170,9 @@ export function GeometryStudioModule({ module }: { module: LaboratoryModuleMeta 
                                 setExportState("copied");
                             }}
                             onSend={() => {
-                                queueWriterImport({ version: 1, markdown: "Geometry analysis", block: {} as any, title: "Geometry Report", abstract: "Exported results.", keywords: "geometry" });
+                                const requestId = queueWriterImport({ version: 1, markdown: "Geometry analysis", block: {} as any, title: "Geometry Report", abstract: "Exported results.", keywords: "geometry" });
                                 setExportState("sent");
-                                window.location.assign("/write/new?source=laboratory");
+                                window.location.assign(createLaboratoryWriterDraftHref(requestId));
                             }}
                             onPush={() => { }}
                         />

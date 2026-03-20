@@ -9,7 +9,13 @@ import { LaboratoryNotebookToolbar, useLaboratoryNotebook } from "@/components/l
 import { solveDifferentialEquation, solveODESystem, type DifferentialPoint, type ODESystemPoint, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import { publishToLiveWriterTarget, queueWriterImport, type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import {
+    createLaboratoryWriterDraftHref,
+    findLiveWriterTargetBySelection,
+    publishToLiveWriterTarget,
+    queueWriterImport,
+    type WriterBridgeBlockData,
+} from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type DifferentialBlockId = "setup" | "table" | "plot" | "bridge";
@@ -358,7 +364,7 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
             systemPoints,
         });
 
-        queueWriterImport({
+        const requestId = queueWriterImport({
             version: 1,
             markdown: buildDifferentialMarkdown({
                 solverMode,
@@ -381,7 +387,7 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
         });
         setExportState("sent");
         setGuideMode(null);
-        window.location.assign("/write/new?source=laboratory");
+        window.location.assign(createLaboratoryWriterDraftHref(requestId));
     }
 
     function pushLiveResult() {
@@ -389,7 +395,7 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
             return;
         }
 
-        const target = liveTargets.find((entry) => entry.id === selectedLiveTargetId);
+        const target = findLiveWriterTargetBySelection(liveTargets, selectedLiveTargetId);
         if (!target) {
             return;
         }

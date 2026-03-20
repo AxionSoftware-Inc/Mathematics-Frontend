@@ -64,9 +64,12 @@ export type WriterBridgeTarget = {
     lastPublishedAt?: string;
     lastAcknowledgedAt?: string;
     sourceLabel?: string;
+    sectionLabel?: string;
+    sectionPath?: string;
 };
 
 export type WriterImportPayload = {
+    requestId?: string;
     version: typeof LIVE_WRITER_EXPORT_VERSION;
     markdown: string;
     block?: WriterBridgeBlockData;
@@ -79,6 +82,7 @@ export type WriterTargetsBroadcast = {
     type: "writer-targets";
     writerId: string;
     documentTitle: string;
+    documentId?: string;
     targets: WriterBridgeTarget[];
 };
 
@@ -110,6 +114,7 @@ export type LabPublishAckBroadcast = {
 export type StoredWriterTargetSession = {
     writerId: string;
     documentTitle: string;
+    documentId?: string;
     lastSeen: number;
     targets: WriterBridgeTarget[];
 };
@@ -117,6 +122,7 @@ export type StoredWriterTargetSession = {
 export type StoredWriterTarget = WriterBridgeTarget & {
     writerId: string;
     documentTitle: string;
+    documentId?: string;
     lastSeen: number;
 };
 
@@ -160,8 +166,35 @@ export function createWriterId() {
     return buildId();
 }
 
+export function createWriterImportRequestId() {
+    return buildId();
+}
+
 function buildTargetSyncKey(writerId: string, targetId: string) {
     return `${writerId}::${targetId}`;
+}
+
+function buildWriterImportStorageKey(requestId: string) {
+    return `${LIVE_WRITER_EXPORT_KEY}::${requestId}`;
+}
+
+export function buildLiveWriterTargetSelectionId(writerId: string, targetId: string) {
+    return `${writerId}::${targetId}`;
+}
+
+export function getLiveWriterTargetSelectionId(target: { writerId: string; id: string }) {
+    return buildLiveWriterTargetSelectionId(target.writerId, target.id);
+}
+
+export function findLiveWriterTargetBySelection<T extends { writerId: string; id: string }>(
+    targets: T[],
+    selectionId: string,
+) {
+    return targets.find((target) => getLiveWriterTargetSelectionId(target) === selectionId) ?? null;
+}
+
+export function createLaboratoryWriterDraftHref(requestId: string) {
+    return `/write/new?source=laboratory&importId=${encodeURIComponent(requestId)}`;
 }
 
 function notifyLiveWriterSyncChanged() {
@@ -224,6 +257,7 @@ export function flattenStoredWriterTargets(now = Date.now(), ttlMs = LIVE_WRITER
             ...target,
             writerId: session.writerId,
             documentTitle: session.documentTitle,
+            documentId: session.documentId,
             lastSeen: session.lastSeen,
         })),
     ) as StoredWriterTarget[];
@@ -431,6 +465,72 @@ export function extractWriterBridgeBlocks(content: string) {
     return blocks;
 }
 
+function buildWriterSectionSnapshot(headings: string[]) {
+    const sectionPath = headings.filter(Boolean).join(" > ");
+    return {
+        sectionLabel: headings.filter(Boolean).slice(-1)[0],
+        sectionPath: sectionPath || undefined,
+    };
+}
+
+export function extractWriterBridgeTargets(content: string) {
+    const targets: WriterBridgeTarget[] = [];
+    const headings: string[] = [];
+    const lines = content.split(/\r?\n/);
+    let fenceMode: "generic" | "lab-result" | null = null;
+    let labBlockBuffer: string[] = [];
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+
+        if (fenceMode === "lab-result") {
+            if (trimmed === "```") {
+                const parsed = parseWriterBridgeBlock(labBlockBuffer.join("\n"));
+                if (parsed) {
+                    // Each live block inherits the nearest heading path so lab users can target an exact section.
+                    targets.push(blockToTarget(parsed, buildWriterSectionSnapshot(headings)));
+                }
+                fenceMode = null;
+                labBlockBuffer = [];
+                continue;
+            }
+
+            labBlockBuffer.push(line);
+            continue;
+        }
+
+        if (fenceMode === "generic") {
+            if (trimmed.startsWith("```")) {
+                fenceMode = null;
+            }
+            continue;
+        }
+
+        if (trimmed === "```lab-result") {
+            fenceMode = "lab-result";
+            labBlockBuffer = [];
+            continue;
+        }
+
+        if (trimmed.startsWith("```")) {
+            fenceMode = "generic";
+            continue;
+        }
+
+        const headingMatch = /^(#{1,6})\s+(.+?)\s*$/.exec(trimmed);
+        if (!headingMatch) {
+            continue;
+        }
+
+        const level = headingMatch[1].length;
+        const title = headingMatch[2].trim();
+        headings[level - 1] = title;
+        headings.length = level;
+    }
+
+    return targets;
+}
+
 export function replaceWriterBridgeBlock(content: string, nextBlock: WriterBridgeBlockData) {
     let replaced = false;
 
@@ -452,7 +552,10 @@ export function replaceWriterBridgeBlock(content: string, nextBlock: WriterBridg
     return `${suffix}\n\n${serializeWriterBridgeBlock(nextBlock)}\n`;
 }
 
-export function blockToTarget(block: WriterBridgeBlockData): WriterBridgeTarget {
+export function blockToTarget(
+    block: WriterBridgeBlockData,
+    context: Pick<WriterBridgeTarget, "sectionLabel" | "sectionPath"> = {},
+): WriterBridgeTarget {
     return {
         id: block.id,
         title: block.title,
@@ -462,12 +565,14 @@ export function blockToTarget(block: WriterBridgeBlockData): WriterBridgeTarget 
         lastPublishedAt: block.sync?.pushedAt,
         lastAcknowledgedAt: block.sync?.acknowledgedAt,
         sourceLabel: block.sync?.sourceLabel,
+        sectionLabel: context.sectionLabel,
+        sectionPath: context.sectionPath,
     };
 }
 
 export function queueWriterImport(payload: WriterImportPayload | string) {
     if (typeof window === "undefined") {
-        return;
+        return "";
     }
 
     const normalizedPayload: WriterImportPayload =
@@ -478,15 +583,27 @@ export function queueWriterImport(payload: WriterImportPayload | string) {
               }
             : payload;
 
-    window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, JSON.stringify(normalizedPayload));
+    const requestId = normalizedPayload.requestId || createWriterImportRequestId();
+    const payloadWithRequestId = {
+        ...normalizedPayload,
+        requestId,
+    } satisfies WriterImportPayload;
+
+    // A dedicated request id prevents a stale /write/new tab from consuming another export.
+    window.localStorage.setItem(buildWriterImportStorageKey(requestId), JSON.stringify(payloadWithRequestId));
+    window.localStorage.setItem(LIVE_WRITER_EXPORT_KEY, JSON.stringify(payloadWithRequestId));
+
+    return requestId;
 }
 
-export function readQueuedWriterImport(): WriterImportPayload | null {
+export function readQueuedWriterImport(requestId?: string): WriterImportPayload | null {
     if (typeof window === "undefined") {
         return null;
     }
 
-    const raw = window.localStorage.getItem(LIVE_WRITER_EXPORT_KEY);
+    const raw = requestId
+        ? window.localStorage.getItem(buildWriterImportStorageKey(requestId))
+        : window.localStorage.getItem(LIVE_WRITER_EXPORT_KEY);
     if (!raw) {
         return null;
     }
@@ -506,5 +623,20 @@ export function readQueuedWriterImport(): WriterImportPayload | null {
             version: LIVE_WRITER_EXPORT_VERSION,
             markdown: raw,
         };
+    }
+}
+
+export function removeQueuedWriterImport(requestId?: string) {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    if (requestId) {
+        window.localStorage.removeItem(buildWriterImportStorageKey(requestId));
+    }
+
+    const legacyPayload = readQueuedWriterImport();
+    if (!requestId || legacyPayload?.requestId === requestId) {
+        window.localStorage.removeItem(LIVE_WRITER_EXPORT_KEY);
     }
 }

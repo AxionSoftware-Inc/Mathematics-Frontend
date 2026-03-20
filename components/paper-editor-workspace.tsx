@@ -14,6 +14,8 @@ import {
     Heading,
     Layers2,
     Loader2,
+    PanelLeftClose,
+    PanelLeftOpen,
     PencilLine,
     Printer,
     Save,
@@ -29,12 +31,11 @@ import { CitationManager } from "@/components/citation-manager";
 import { WriterLiveTargetsPanel } from "@/components/live-writer-bridge/writer-live-targets-panel";
 import {
     LIVE_WRITER_TARGET_TTL_MS,
-    blockToTarget,
     createBroadcastChannel,
     createLiveWriterPublishAck,
     createWaitingWriterBridgeBlock,
     createWriterId,
-    extractWriterBridgeBlocks,
+    extractWriterBridgeTargets,
     removeStoredWriterTargetSession,
     replaceWriterBridgeBlock,
     serializeWriterBridgeBlock,
@@ -59,14 +60,6 @@ type BlockPreset = {
     label: string;
     icon: typeof Sigma;
     snippet: string;
-};
-
-type StarterTemplate = {
-    label: string;
-    description: string;
-    title: string;
-    abstract: string;
-    content: string;
 };
 
 const blockPresets: BlockPreset[] = [
@@ -138,6 +131,7 @@ export function PaperEditorWorkspace({
     errorMessage,
     backHref = "/write",
     mode = "new",
+    documentId,
 }: {
     formData: PaperFormData;
     onChange: (next: PaperFormData) => void;
@@ -146,10 +140,16 @@ export function PaperEditorWorkspace({
     errorMessage: string;
     backHref?: string;
     mode?: "new" | "edit";
+    documentId?: string;
 }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">("split");
+    const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">(() =>
+        typeof window !== "undefined" && window.innerWidth < 1280 ? "edit" : "split",
+    );
     const [showMeta, setShowMeta] = useState(true);
+    const [showInspector, setShowInspector] = useState(() =>
+        typeof window !== "undefined" ? window.innerWidth >= 1280 : true,
+    );
     const writerIdRef = useRef(createWriterId());
     const channelRef = useRef<BroadcastChannel | null>(null);
     const latestFormDataRef = useRef(formData);
@@ -167,7 +167,7 @@ export function PaperEditorWorkspace({
     }));
     const equations = (deferredContent.match(/\$\$[\s\S]*?\$\$|\$[^$\n]+\$/g) || []).length;
     const codeBlocks = Math.floor((deferredContent.match(/```/g) || []).length / 2);
-    const liveBridgeTargets = extractWriterBridgeBlocks(formData.content).map(blockToTarget);
+    const liveBridgeTargets = extractWriterBridgeTargets(formData.content);
     const authorList = splitCommaValues(formData.authors);
     const keywordList = splitCommaValues(formData.keywords);
     const completionItems = [
@@ -179,6 +179,14 @@ export function PaperEditorWorkspace({
         headings.length >= 3,
     ];
     const completion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
+    const checklistItems = [
+        { label: "Sarlavha", done: Boolean(formData.title.trim()) },
+        { label: "Annotatsiya", done: Boolean(formData.abstract.trim()) },
+        { label: "Mualliflar", done: Boolean(formData.authors.trim()) },
+        { label: "Kalit so'zlar", done: Boolean(formData.keywords.trim()) },
+        { label: "Kamida 250 so'z", done: words >= 250 },
+        { label: "Kamida 3 bo'lim", done: headings.length >= 3 },
+    ];
 
     useEffect(() => {
         latestFormDataRef.current = formData;
@@ -320,12 +328,14 @@ export function PaperEditorWorkspace({
         if (!channel) {
             return;
         }
+        const writerId = writerIdRef.current;
 
         const broadcastTargets = () => {
             const payload = {
                 type: "writer-targets",
-                writerId: writerIdRef.current,
+                writerId,
                 documentTitle: formData.title || "Nomsiz maqola",
+                documentId,
                 targets: liveBridgeTargets,
             } as const;
 
@@ -333,6 +343,7 @@ export function PaperEditorWorkspace({
             upsertStoredWriterTargetSession({
                 writerId: payload.writerId,
                 documentTitle: payload.documentTitle,
+                documentId: payload.documentId,
                 lastSeen: Date.now(),
                 targets: payload.targets,
             });
@@ -351,9 +362,9 @@ export function PaperEditorWorkspace({
         return () => {
             channel.removeEventListener("message", handleRequest as EventListener);
             window.clearInterval(intervalId);
-            removeStoredWriterTargetSession(writerIdRef.current);
+            removeStoredWriterTargetSession(writerId);
         };
-    }, [formData.title, liveBridgeTargets]);
+    }, [documentId, formData.title, liveBridgeTargets]);
 
     const statusTone =
         formData.status === "published"
@@ -427,6 +438,15 @@ export function PaperEditorWorkspace({
                                     <option value="draft">Qoralama</option>
                                     <option value="published">Nashrga tayyor</option>
                                 </select>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInspector((value) => !value)}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border/60 bg-background/60 px-5 text-sm font-bold shadow-sm transition-all hover:bg-muted/80"
+                                >
+                                    {showInspector ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+                                    {showInspector ? "Panelni yopish" : "Panelni ochish"}
+                                </button>
 
                                 <div className="inline-flex rounded-full border border-border/60 bg-background/60 p-1">
                                     <button
@@ -513,6 +533,7 @@ export function PaperEditorWorkspace({
 
 
                 <div className="flex w-full flex-1 flex-col overflow-hidden lg:flex-row print:w-full print:block print:overflow-visible">
+                    {showInspector && (
                     <aside className="w-full shrink-0 overflow-y-auto border-b border-border/60 bg-background/40 p-4 backdrop-blur-sm lg:w-[360px] lg:border-b-0 lg:border-r print:hidden">
                         <div className="space-y-4">
                             <CitationManager onInsert={handleInsertCitation} />
@@ -551,6 +572,37 @@ export function PaperEditorWorkspace({
                                         <div className="text-xs text-muted-foreground">Code blok</div>
                                         <div className="mt-1 text-lg font-black">{codeBlocks}</div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <div>
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                            Completion Checklist
+                                        </div>
+                                        <div className="mt-1 text-xl font-black">Nimalar tayyor</div>
+                                    </div>
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                </div>
+                                <div className="space-y-2">
+                                    {checklistItems.map((item) => (
+                                        <div
+                                            key={item.label}
+                                            className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
+                                                item.done
+                                                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                                    : "border-border/60 bg-muted/10 text-muted-foreground"
+                                            }`}
+                                        >
+                                            <span>{item.label}</span>
+                                            {item.done ? (
+                                                <CheckCircle2 className="h-4 w-4" />
+                                            ) : (
+                                                <CircleDashed className="h-4 w-4" />
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
@@ -675,10 +727,54 @@ export function PaperEditorWorkspace({
                             </div>
                         </div>
                     </aside>
+                    )}
 
                     <div className={`flex-1 overflow-hidden ${viewMode === "split" ? "grid lg:grid-cols-2" : "grid grid-cols-1"} print:block print:overflow-visible`}>
                         {(viewMode === "edit" || viewMode === "split") && (
                             <section className="flex min-h-0 flex-col border-b border-border/60 bg-background/35 lg:border-b-0 lg:border-r print:hidden">
+                                {mode === "new" && (
+                                    <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.08),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.4),transparent)] px-4 py-4 md:px-6">
+                                        <div className="rounded-[1.8rem] border border-border/60 bg-background/80 p-4 md:p-5">
+                                            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                                                <div>
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                                                        Quick Start
+                                                    </div>
+                                                    <div className="mt-1 text-xl font-black">Yangi draft uchun qulay start paneli</div>
+                                                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                                                        Sarlavha va metadata tayyorlang, keyin quyidagi tezkor bloklar bilan
+                                                        maqolani tez oching. Keng ekranlarda preview yonma-yon ko&apos;rinadi,
+                                                        ixcham ekranda esa yozishga fokus qilinadi.
+                                                    </p>
+                                                </div>
+                                                <div className="grid gap-2 sm:grid-cols-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertSnippet("\n## Kirish\n\nBu yerda mavzuning motivatsiyasi va maqsadini yozing.\n")}
+                                                        className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/20"
+                                                    >
+                                                        Kirish qo&apos;shish
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertSnippet("\n> **Teorema.** Bayonot.\n>\n> **Isbot.** Qadamlar shu yerda.\n")}
+                                                        className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/20"
+                                                    >
+                                                        Teorema bloki
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowInspector(true)}
+                                                        className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/20"
+                                                    >
+                                                        Metadata paneli
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-3 bg-muted/5">
                                     {blockPresets.map((preset) => (
                                         <button
@@ -704,12 +800,17 @@ export function PaperEditorWorkspace({
                                     </div>
                                 </div>
 
+                                <div className="border-b border-border/60 bg-background/50 px-5 py-3 text-xs text-muted-foreground md:px-8">
+                                    Markdown, LaTeX, `plot2d`, `plot3d` va Python bloklari shu editor ichida ishlaydi.
+                                    Matnni yozayotgan paytda preview avtomatik yangilanadi.
+                                </div>
+
                                 <textarea
                                     ref={textareaRef}
                                     value={formData.content}
                                     onChange={(event) => setField("content", event.target.value)}
                                     className="min-h-0 flex-1 resize-none bg-transparent px-5 py-6 font-mono text-[15px] leading-7 text-foreground outline-none md:px-8"
-                                    placeholder="Ilmiy maqolani yozishni boshlang..."
+                                    placeholder="Ilmiy maqolani yozishni boshlang... Bu yerda bo'limlar, formulalar, teoremalar va grafik bloklarini yozishingiz mumkin."
                                     spellCheck={false}
                                 />
                             </section>

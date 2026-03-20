@@ -4,8 +4,8 @@ import React from "react";
 import { Focus, Plus, Activity, Zap, Sparkles, Hash, MousePointer2, TrendingDown, Target, BarChart2 } from "lucide-react";
 
 import { LaboratoryNotebookToolbar, useLaboratoryNotebook } from "@/components/laboratory/laboratory-notebook";
-import { solveGradientDescent, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
-import { ScientificPlot } from "@/components/laboratory/scientific-plot";
+import { buildOptimizationLandscape, solveGradientDescent, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
+import { buildScatter3DTrajectoryData, buildSurfaceData, ScientificPlot } from "@/components/laboratory/scientific-plot";
 import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
@@ -40,6 +40,18 @@ export function OptimizationStudioModule({ module }: { module: LaboratoryModuleM
             return solveGradientDescent(expr, Number(x0), Number(y0), Number(lr), Number(epochs));
         } catch { return null; }
     }, [expr, x0, y0, lr, epochs]);
+
+    const optimizationLandscape = React.useMemo(() => {
+        if (!optimizationResult) {
+            return null;
+        }
+
+        try {
+            return buildOptimizationLandscape(expr, optimizationResult);
+        } catch {
+            return null;
+        }
+    }, [expr, optimizationResult]);
 
     const applyPreset = (p: any) => {
         setExpr(p.expr);
@@ -88,14 +100,27 @@ export function OptimizationStudioModule({ module }: { module: LaboratoryModuleM
                         </div>
                     )}
 
-                    {notebook.hasBlock("surface") && optimizationResult && (
+                    {notebook.hasBlock("surface") && optimizationResult && optimizationLandscape && (
                         <div className="site-panel-strong p-6 space-y-4 min-h-[500px]">
                             <div className="site-eyebrow text-accent">Optimization Path (3D Landscape)</div>
+                            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                                Cost surface va gradient descent yo&apos;li bitta sahnada ko&apos;rinadi, shu sabab minimizatsiya jarayoni ancha tushunarli bo&apos;ladi.
+                            </p>
                             <div className="w-full h-[450px]">
                                 <ScientificPlot 
                                     type="scatter3d" 
-                                    data={optimizationResult} 
+                                    data={[
+                                        ...buildSurfaceData(optimizationLandscape.surfaceSamples, { label: "Loss surface", colorscale: "Turbo" }),
+                                        ...buildScatter3DTrajectoryData(optimizationLandscape.path, {
+                                            label: "Gradient descent path",
+                                            lineColor: "#0f766e",
+                                            startColor: "#ef4444",
+                                            endColor: "#f59e0b",
+                                        }),
+                                    ]} 
                                     title={`Path to Minima (η=${lr})`}
+                                    insights={["surface landscape", "descent trajectory", "camera presets"]}
+                                    snapshotFileName="optimization-landscape"
                                 />
                             </div>
                         </div>

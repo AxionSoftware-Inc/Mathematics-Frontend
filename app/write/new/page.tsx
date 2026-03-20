@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 
@@ -8,17 +8,19 @@ import {
     PaperEditorWorkspace,
     type PaperFormData,
 } from "@/components/paper-editor-workspace";
-import { LIVE_WRITER_EXPORT_KEY, readQueuedWriterImport, serializeWriterBridgeBlock } from "@/lib/live-writer-bridge";
+import { readQueuedWriterImport, removeQueuedWriterImport, serializeWriterBridgeBlock } from "@/lib/live-writer-bridge";
 import { createDraftFromTemplate, getDefaultWriterTemplate, getWriterTemplate, getWriterTemplatePreset } from "@/lib/writer-templates";
 
 
-export default function NewPaperPage() {
+function NewPaperPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const importedFromLaboratory = useRef(false);
 
     const presetId = searchParams.get("preset");
     const templateId = searchParams.get("template");
+    const source = searchParams.get("source");
+    const importId = searchParams.get("importId") || undefined;
     const selectedPreset = getWriterTemplatePreset(presetId);
     const addOnIds = (searchParams.get("addons") || "")
         .split(",")
@@ -37,18 +39,17 @@ export default function NewPaperPage() {
             return;
         }
 
-        const searchParams = new URLSearchParams(window.location.search);
-        if (searchParams.get("source") !== "laboratory") {
+        if (source !== "laboratory") {
             return;
         }
 
-        const laboratoryExport = readQueuedWriterImport();
+        const laboratoryExport = readQueuedWriterImport(importId);
         if (!laboratoryExport) {
             return;
         }
 
         importedFromLaboratory.current = true;
-        window.localStorage.removeItem(LIVE_WRITER_EXPORT_KEY);
+        removeQueuedWriterImport(importId);
         const timer = window.setTimeout(() => {
             const importedSections = [
                 laboratoryExport.block ? serializeWriterBridgeBlock(laboratoryExport.block) : "",
@@ -71,7 +72,7 @@ export default function NewPaperPage() {
         }, 0);
 
         return () => window.clearTimeout(timer);
-    }, []);
+    }, [importId, source]);
 
     async function handleSubmit() {
         setStatus("submitting");
@@ -111,6 +112,23 @@ export default function NewPaperPage() {
             saveState={status}
             errorMessage={errorMessage}
             mode="new"
+            documentId="new-draft"
         />
+    );
+}
+
+function NewPaperPageFallback() {
+    return (
+        <div className="flex h-screen flex-col items-center justify-center bg-background text-muted-foreground">
+            <p>Writer yuklanmoqda...</p>
+        </div>
+    );
+}
+
+export default function NewPaperPage() {
+    return (
+        <Suspense fallback={<NewPaperPageFallback />}>
+            <NewPaperPageContent />
+        </Suspense>
     );
 }

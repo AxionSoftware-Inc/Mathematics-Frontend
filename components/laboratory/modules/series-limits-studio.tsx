@@ -7,7 +7,7 @@ import { LaboratoryNotebookEmptyState, LaboratoryNotebookToolbar, useLaboratoryN
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { analyzeSeries, type SeriesPoint, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
-import { queueWriterImport } from "@/lib/live-writer-bridge";
+import { createLaboratoryWriterDraftHref, queueWriterImport } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type SeriesBlockId = "setup" | "analysis" | "bridge";
@@ -155,9 +155,9 @@ export function SeriesLimitsStudioModule({ module }: { module: LaboratoryModuleM
                                 setExportState("copied");
                             }}
                             onSend={() => {
-                                queueWriterImport({ version: 1, markdown: "Series analysis", block: { } as any, title: "Series Report", abstract: "Exported series result.", keywords: "series, calc" });
+                                const requestId = queueWriterImport({ version: 1, markdown: "Series analysis", block: { } as any, title: "Series Report", abstract: "Exported series result.", keywords: "series, calc" });
                                 setExportState("sent");
-                                window.location.assign("/write/new?source=laboratory");
+                                window.location.assign(createLaboratoryWriterDraftHref(requestId));
                             }}
                             onPush={() => { }}
                         />

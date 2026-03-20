@@ -103,6 +103,7 @@ export default function EditPaperPage() {
             saveState={status}
             errorMessage={errorMessage}
             mode="edit"
+            documentId={id}
         />
     );
 }

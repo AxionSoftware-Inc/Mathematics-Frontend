@@ -1,254 +1,386 @@
 "use client";
 
 import React from "react";
-import dynamic from "next/dynamic";
-import { Loader2 } from "lucide-react";
-import type { Config, Data, Layout } from "plotly.js";
-import type { PlotParams } from "react-plotly.js";
+import type { Data, Layout } from "plotly.js";
 
-const Plot = dynamic<PlotParams>(() => import("react-plotly.js"), {
-    ssr: false,
-    loading: () => (
-        <div className="flex h-[400px] flex-col items-center justify-center rounded-[1.75rem] border-2 border-dashed border-border/40 bg-muted/5 p-12">
-            <Loader2 className="mb-4 h-10 w-10 animate-spin text-accent" />
-            <div className="text-xs font-black uppercase tracking-[0.28em] text-muted-foreground">Initializing engine...</div>
-        </div>
-    ),
-});
+import { UnifiedPlotRenderer } from "./unified-plot-renderer";
+
+export type ScientificPlotType = "surface" | "scatter3d" | "scatter2d" | "mesh3d" | "volume";
+
+export type PlotPointLike = {
+    x: number;
+    y: number;
+    z?: number;
+    value?: number;
+};
+
+export type ParametricSurface = {
+    x: number[][];
+    y: number[][];
+    z: number[][];
+};
 
 type ScientificPlotProps = {
-    type: "surface" | "scatter3d" | "scatter2d";
+    type: ScientificPlotType;
     data: Array<Record<string, unknown>>;
     title?: string;
     height?: number;
     className?: string;
     layoutOverrides?: Partial<Layout>;
-    configOverrides?: Partial<Config>;
+    configOverrides?: Record<string, unknown>;
+    insights?: string[];
+    snapshotFileName?: string;
 };
 
-type PlotPointLike = {
-    x: number;
-    y: number;
-    z?: number;
-};
+function isFinitePoint(value: unknown) {
+    return typeof value === "number" && Number.isFinite(value);
+}
 
-function mergeIfObject(base: Record<string, unknown>, value: unknown) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        return base;
+function roundKey(value: number) {
+    return value.toFixed(6);
+}
+
+function isPlotlyTraceArray(data: Array<Record<string, unknown>>) {
+    return data.every((item) => item && typeof item === "object" && "type" in item);
+}
+
+export function buildScatter3DTrajectoryData(
+    points: PlotPointLike[],
+    options: {
+        label?: string;
+        lineColor?: string;
+        startColor?: string;
+        endColor?: string;
+    } = {},
+) {
+    const cleanPoints = points.filter((point) => isFinitePoint(point.x) && isFinitePoint(point.y) && isFinitePoint(point.z));
+    if (!cleanPoints.length) {
+        return [] as Data[];
     }
 
-    return {
-        ...base,
-        ...value,
-    };
+    const label = options.label || "Trajectory";
+    const firstPoint = cleanPoints[0];
+    const lastPoint = cleanPoints[cleanPoints.length - 1];
+
+    const traces: Data[] = [
+        {
+            type: "scatter3d",
+            mode: cleanPoints.length > 1 ? "lines" : "markers",
+            name: label,
+            x: cleanPoints.map((point) => point.x),
+            y: cleanPoints.map((point) => point.y),
+            z: cleanPoints.map((point) => point.z as number),
+            line: {
+                width: 6,
+                color: options.lineColor || "#2563eb",
+            },
+            marker: {
+                size: 4,
+                color: options.lineColor || "#2563eb",
+                opacity: 0.82,
+            },
+            hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+        } as Data,
+    ];
+
+    if (cleanPoints.length > 1) {
+        traces.push(
+            {
+                type: "scatter3d",
+                mode: "markers",
+                name: `${label} start`,
+                x: [firstPoint.x],
+                y: [firstPoint.y],
+                z: [firstPoint.z as number],
+                marker: {
+                    size: 6,
+                    color: options.startColor || "#14b8a6",
+                    line: { width: 1.5, color: "rgba(255,255,255,0.85)" },
+                },
+                hovertemplate: "Start<br>x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+            } as Data,
+            {
+                type: "scatter3d",
+                mode: "markers",
+                name: `${label} end`,
+                x: [lastPoint.x],
+                y: [lastPoint.y],
+                z: [lastPoint.z as number],
+                marker: {
+                    size: 7,
+                    color: options.endColor || "#f59e0b",
+                    line: { width: 1.5, color: "rgba(255,255,255,0.85)" },
+                },
+                hovertemplate: "End<br>x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+            } as Data,
+        );
+    }
+
+    return traces;
+}
+
+export function buildPointCloudData(
+    points: PlotPointLike[],
+    options: {
+        label?: string;
+        colorscale?: string;
+    } = {},
+) {
+    const cleanPoints = points.filter((point) => isFinitePoint(point.x) && isFinitePoint(point.y) && isFinitePoint(point.z));
+    if (!cleanPoints.length) {
+        return [] as Data[];
+    }
+
+    const markerValues = cleanPoints.map((point) => point.value ?? point.z ?? 0);
+    const markerSize = cleanPoints.length > 900 ? 2 : cleanPoints.length > 300 ? 3 : 4.5;
+
+    return [
+        {
+            type: "scatter3d",
+            mode: "markers",
+            name: options.label || "Point cloud",
+            x: cleanPoints.map((point) => point.x),
+            y: cleanPoints.map((point) => point.y),
+            z: cleanPoints.map((point) => point.z as number),
+            marker: {
+                size: markerSize,
+                color: markerValues,
+                colorscale: options.colorscale || "Plasma",
+                opacity: cleanPoints.length > 500 ? 0.42 : 0.62,
+                showscale: false,
+                line: { width: 0 },
+            },
+            hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<br>value=%{marker.color:.4f}<extra></extra>",
+        } as Data,
+    ];
+}
+
+export function buildWireframe3DData(
+    points: PlotPointLike[],
+    edges: Array<[number, number]>,
+    options: {
+        label?: string;
+        lineColor?: string;
+        markerColor?: string;
+    } = {},
+) {
+    const cleanPoints = points.filter((point) => isFinitePoint(point.x) && isFinitePoint(point.y) && isFinitePoint(point.z));
+    if (!cleanPoints.length) {
+        return [] as Data[];
+    }
+
+    const edgeX: Array<number | null> = [];
+    const edgeY: Array<number | null> = [];
+    const edgeZ: Array<number | null> = [];
+
+    edges.forEach(([fromIndex, toIndex]) => {
+        const from = cleanPoints[fromIndex];
+        const to = cleanPoints[toIndex];
+        if (!from || !to) {
+            return;
+        }
+
+        edgeX.push(from.x, to.x, null);
+        edgeY.push(from.y, to.y, null);
+        edgeZ.push(from.z as number, to.z as number, null);
+    });
+
+    return [
+        {
+            type: "scatter3d",
+            mode: "lines",
+            name: options.label || "Wireframe",
+            x: edgeX,
+            y: edgeY,
+            z: edgeZ,
+            line: {
+                width: 5,
+                color: options.lineColor || "#2563eb",
+            },
+            hoverinfo: "skip",
+        } as Data,
+        {
+            type: "scatter3d",
+            mode: "markers",
+            name: `${options.label || "Wireframe"} vertices`,
+            x: cleanPoints.map((point) => point.x),
+            y: cleanPoints.map((point) => point.y),
+            z: cleanPoints.map((point) => point.z as number),
+            marker: {
+                size: 4.5,
+                color: options.markerColor || options.lineColor || "#2563eb",
+                opacity: 0.88,
+            },
+            hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+        } as Data,
+    ];
+}
+
+export function buildSurfaceData(
+    samples: Array<{ x: number; y: number; z: number }>,
+    options: {
+        label?: string;
+        colorscale?: string;
+    } = {},
+) {
+    const cleanSamples = samples.filter((sample) => isFinitePoint(sample.x) && isFinitePoint(sample.y) && isFinitePoint(sample.z));
+    if (!cleanSamples.length) {
+        return [] as Data[];
+    }
+
+    const xValues = [...new Set(cleanSamples.map((sample) => roundKey(sample.x)))].map(Number).sort((left, right) => left - right);
+    const yValues = [...new Set(cleanSamples.map((sample) => roundKey(sample.y)))].map(Number).sort((left, right) => left - right);
+    const sampleMap = new Map(cleanSamples.map((sample) => [`${roundKey(sample.x)}::${roundKey(sample.y)}`, sample.z] as const));
+
+    const zGrid = yValues.map((y) =>
+        xValues.map((x) => {
+            const value = sampleMap.get(`${roundKey(x)}::${roundKey(y)}`);
+            return typeof value === "number" ? value : null;
+        }),
+    );
+
+    const hasFullGrid = zGrid.every((row) => row.every((value) => typeof value === "number"));
+    if (hasFullGrid && xValues.length > 1 && yValues.length > 1) {
+        return [
+            {
+                type: "surface",
+                name: options.label || "Surface",
+                x: xValues,
+                y: yValues,
+                z: zGrid,
+                colorscale: options.colorscale || "Viridis",
+                showscale: false,
+                opacity: 0.96,
+                contours: {
+                    z: {
+                        show: true,
+                        usecolormap: true,
+                        highlightwidth: 1,
+                        project: { z: true },
+                    },
+                },
+                hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+            } as Data,
+        ];
+    }
+
+    return [
+        {
+            type: "mesh3d",
+            name: options.label || "Surface approximation",
+            x: cleanSamples.map((sample) => sample.x),
+            y: cleanSamples.map((sample) => sample.y),
+            z: cleanSamples.map((sample) => sample.z),
+            intensity: cleanSamples.map((sample) => sample.z),
+            colorscale: options.colorscale || "Viridis",
+            showscale: false,
+            opacity: 0.82,
+            hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+        } as Data,
+    ];
+}
+
+export function buildParametricSurfaceData(
+    surface: ParametricSurface,
+    options: {
+        label?: string;
+        colorscale?: string;
+        opacity?: number;
+        showscale?: boolean;
+    } = {},
+) {
+    return [
+        {
+            type: "surface",
+            name: options.label || "Parametric surface",
+            x: surface.x,
+            y: surface.y,
+            z: surface.z,
+            colorscale: options.colorscale || "Viridis",
+            showscale: options.showscale ?? false,
+            opacity: options.opacity ?? 0.72,
+            hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+        } as Data,
+    ];
+}
+
+export function buildVolumeData(
+    samples: Array<{ x: number; y: number; z: number; value: number }>,
+    options: {
+        label?: string;
+        colorscale?: string;
+    } = {},
+) {
+    return buildPointCloudData(samples, {
+        label: options.label || "Volume density",
+        colorscale: options.colorscale || "Plasma",
+    });
 }
 
 export function ScientificPlot({
     type,
     data,
     title,
-    height = 450,
+    height = 460,
     className,
     layoutOverrides,
     configOverrides,
+    insights,
+    snapshotFileName,
 }: ScientificPlotProps) {
     const normalizedData = React.useMemo(() => {
-        if (!data || data.length === 0) return [];
+        if (!data.length) {
+            return [] as Data[];
+        }
 
-        if (data[0] && "type" in data[0]) return data as unknown as Data[];
+        if (isPlotlyTraceArray(data)) {
+            return data as Data[];
+        }
 
         const points = data as PlotPointLike[];
 
         if (type === "scatter3d") {
-            return [
-                {
-                    x: points.map((point) => point.x),
-                    y: points.map((point) => point.y),
-                    z: points.map((point) => point.z ?? 0),
-                    type: "scatter3d" as const,
-                    mode: "lines" as const,
-                    line: {
-                        width: 5,
-                        color: "#0f766e",
-                    },
-                    opacity: 0.94,
-                } satisfies Partial<Data> as Data,
-            ] satisfies Data[];
+            return buildScatter3DTrajectoryData(points);
         }
 
         if (type === "scatter2d") {
             return [
                 {
+                    type: "scatter",
+                    mode: "lines",
                     x: points.map((point) => point.x),
                     y: points.map((point) => point.y),
-                    type: "scatter" as const,
-                    mode: "lines" as const,
-                    line: {
-                        width: 3,
-                        color: "#1d4ed8",
-                    },
-                    opacity: 0.94,
-                } satisfies Partial<Data> as Data,
-            ] satisfies Data[];
+                    line: { width: 3, color: "#2563eb" },
+                    hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<extra></extra>",
+                } as Data,
+            ];
+        }
+
+        if (type === "surface") {
+            return buildSurfaceData(points as Array<{ x: number; y: number; z: number }>);
+        }
+
+        if (type === "volume") {
+            return buildVolumeData(points as Array<{ x: number; y: number; z: number; value: number }>);
+        }
+
+        if (type === "mesh3d") {
+            return buildPointCloudData(points, { label: "3D mesh points", colorscale: "Viridis" });
         }
 
         return data as Data[];
     }, [data, type]);
 
-    const showLegend = normalizedData.some((trace) => typeof trace?.name === "string" && trace.name.trim().length > 0);
-
-    const layout = React.useMemo(() => {
-        const baseSceneAxis = {
-            showbackground: false,
-            backgroundcolor: "transparent",
-            gridcolor: "rgba(148, 163, 184, 0.14)",
-            zerolinecolor: "rgba(148, 163, 184, 0.22)",
-            tickfont: { size: 10, color: "#71717a" },
-            titlefont: { size: 11, color: "#52525b" },
-        };
-
-        const baseLayout: Record<string, unknown> = {
-            title: title
-                ? {
-                      text: title,
-                      font: { family: "inherit", size: 13, color: "#111827" },
-                      x: 0.02,
-                  }
-                : undefined,
-            autosize: true,
-            height,
-            margin: { l: 8, r: 8, b: 8, t: title ? 52 : 8 },
-            paper_bgcolor: "transparent",
-            plot_bgcolor: "transparent",
-            font: { family: "inherit", color: "#52525b" },
-            showlegend: showLegend,
-            legend: {
-                orientation: "h",
-                x: 0,
-                y: 1.12,
-                font: { size: 11, color: "#52525b" },
-            },
-            scene: {
-                xaxis: {
-                    ...baseSceneAxis,
-                    title: "x",
-                },
-                yaxis: {
-                    ...baseSceneAxis,
-                    title: "y",
-                },
-                zaxis: {
-                    ...baseSceneAxis,
-                    title: "z",
-                },
-                aspectmode: "cube",
-                camera: {
-                    eye: { x: 1.45, y: 1.28, z: 1.24 },
-                },
-            },
-            xaxis: {
-                gridcolor: "rgba(148, 163, 184, 0.14)",
-                zerolinecolor: "rgba(148, 163, 184, 0.22)",
-                tickfont: { size: 10, color: "#71717a" },
-            },
-            yaxis: {
-                gridcolor: "rgba(148, 163, 184, 0.14)",
-                zerolinecolor: "rgba(148, 163, 184, 0.22)",
-                tickfont: { size: 10, color: "#71717a" },
-            },
-        };
-
-        const merged = {
-            ...baseLayout,
-            ...layoutOverrides,
-        } as Record<string, unknown>;
-
-        merged.scene = mergeIfObject(baseLayout.scene as Record<string, unknown>, layoutOverrides?.scene);
-        merged.xaxis = mergeIfObject(baseLayout.xaxis as Record<string, unknown>, layoutOverrides?.xaxis);
-        merged.yaxis = mergeIfObject(baseLayout.yaxis as Record<string, unknown>, layoutOverrides?.yaxis);
-
-        if ((merged.scene as Record<string, unknown>)?.xaxis) {
-            (merged.scene as Record<string, unknown>).xaxis = mergeIfObject(
-                ((baseLayout.scene as Record<string, unknown>).xaxis as Record<string, unknown>) || {},
-                (layoutOverrides?.scene as Record<string, unknown> | undefined)?.xaxis,
-            );
-        }
-
-        if ((merged.scene as Record<string, unknown>)?.yaxis) {
-            (merged.scene as Record<string, unknown>).yaxis = mergeIfObject(
-                ((baseLayout.scene as Record<string, unknown>).yaxis as Record<string, unknown>) || {},
-                (layoutOverrides?.scene as Record<string, unknown> | undefined)?.yaxis,
-            );
-        }
-
-        if ((merged.scene as Record<string, unknown>)?.zaxis) {
-            (merged.scene as Record<string, unknown>).zaxis = mergeIfObject(
-                ((baseLayout.scene as Record<string, unknown>).zaxis as Record<string, unknown>) || {},
-                (layoutOverrides?.scene as Record<string, unknown> | undefined)?.zaxis,
-            );
-        }
-
-        return merged;
-    }, [height, layoutOverrides, showLegend, title]);
-
-    const config = React.useMemo(
-        () => ({
-            displayModeBar: false,
-            responsive: true,
-            scrollZoom: false,
-            ...configOverrides,
-        }),
-        [configOverrides],
-    );
-
     return (
-        <div
-            className={`site-panel relative w-full overflow-hidden border-border/60 bg-background/40 p-2 shadow-[0_30px_80px_-48px_rgba(15,23,42,0.6)] transition-all duration-500 hover:shadow-[0_40px_90px_-50px_rgba(15,23,42,0.72)] ${
-                className || ""
-            }`}
-        >
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-20 rounded-full bg-[radial-gradient(circle,rgba(29,78,216,0.12),transparent_72%)] blur-2xl" />
-            <Plot
-                data={normalizedData as Data[]}
-                layout={layout as Partial<Layout>}
-                config={config}
-                useResizeHandler={true}
-                className="relative z-10 h-full w-full"
-            />
-        </div>
+        <UnifiedPlotRenderer
+            data={normalizedData}
+            title={title}
+            height={height}
+            className={className}
+            layout={layoutOverrides}
+            config={configOverrides}
+            insights={insights}
+            snapshotFileName={snapshotFileName}
+        />
     );
-}
-
-export function buildSurfaceData(samples: { x: number; y: number; z: number }[]) {
-    return [
-        {
-            x: samples.map((sample) => sample.x),
-            y: samples.map((sample) => sample.y),
-            z: samples.map((sample) => sample.z),
-            type: "mesh3d",
-            intensity: samples.map((sample) => sample.z),
-            colorscale: "Viridis",
-            opacity: 0.84,
-            showscale: false,
-        },
-    ];
-}
-
-export function buildVolumeData(samples: { x: number; y: number; z: number; value: number }[]) {
-    return [
-        {
-            x: samples.map((sample) => sample.x),
-            y: samples.map((sample) => sample.y),
-            z: samples.map((sample) => sample.z),
-            mode: "markers",
-            type: "scatter3d",
-            marker: {
-                size: 4,
-                color: samples.map((sample) => sample.value),
-                colorscale: "Plasma",
-                opacity: 0.64,
-                showscale: false,
-            },
-        },
-    ];
 }

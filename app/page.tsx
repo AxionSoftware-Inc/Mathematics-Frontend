@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, BrainCircuit, ChartSpline, GraduationCap, Newspaper, Sigma, Sparkles } from "lucide-react";
 
+import { SiteFlagshipShowcase } from "@/components/home/site-flagship-showcase";
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 
 const capabilities = [
@@ -112,6 +113,8 @@ export default function Home() {
                     </div>
                 </SiteContainer>
             </SiteSection>
+
+            <SiteFlagshipShowcase />
 
             <SiteSection>
                 <SiteContainer>

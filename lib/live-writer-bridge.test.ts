@@ -1,21 +1,26 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+    createLaboratoryWriterDraftHref,
     LIVE_WRITER_TARGET_SYNC_STORAGE_KEY,
     createLiveWriterPublishAck,
     createLiveWriterPublishMessage,
     LIVE_WRITER_TARGETS_STORAGE_KEY,
+    extractWriterBridgeTargets,
     flattenStoredWriterTargets,
     markStoredWriterTargetAcknowledged,
     markStoredWriterTargetPending,
+    queueWriterImport,
+    readQueuedWriterImport,
+    removeQueuedWriterImport,
     removeStoredWriterTargetSession,
     readStoredWriterTargetSyncs,
+    serializeWriterBridgeBlock,
     upsertStoredWriterTargetSession,
 } from "./live-writer-bridge";
 
 afterEach(() => {
-    window.localStorage.removeItem(LIVE_WRITER_TARGETS_STORAGE_KEY);
-    window.localStorage.removeItem(LIVE_WRITER_TARGET_SYNC_STORAGE_KEY);
+    window.localStorage.clear();
 });
 
 describe("live writer bridge storage", () => {
@@ -130,5 +135,46 @@ describe("live writer bridge storage", () => {
                 sourceLabel: "Notebook Studio",
             }),
         ]);
+    });
+
+    it("extracts writer targets with section context", () => {
+        const content = [
+            "# Main Article",
+            "",
+            "## Integral section",
+            "",
+            serializeWriterBridgeBlock({
+                id: "target-1",
+                status: "waiting",
+                moduleSlug: "live-writer-bridge",
+                kind: "placeholder",
+                title: "Integral result block",
+                summary: "waiting",
+                generatedAt: new Date("2026-03-20T09:00:00.000Z").toISOString(),
+                metrics: [],
+            }),
+        ].join("\n");
+
+        expect(extractWriterBridgeTargets(content)).toEqual([
+            expect.objectContaining({
+                id: "target-1",
+                title: "Integral result block",
+                sectionLabel: "Integral section",
+                sectionPath: "Main Article > Integral section",
+            }),
+        ]);
+    });
+
+    it("reads only the queued import requested by importId", () => {
+        const firstRequestId = queueWriterImport("First payload");
+        const secondRequestId = queueWriterImport("Second payload");
+
+        expect(createLaboratoryWriterDraftHref(secondRequestId)).toContain(`importId=${encodeURIComponent(secondRequestId)}`);
+        expect(readQueuedWriterImport(firstRequestId)?.markdown).toBe("First payload");
+        expect(readQueuedWriterImport(secondRequestId)?.markdown).toBe("Second payload");
+
+        removeQueuedWriterImport(firstRequestId);
+        expect(readQueuedWriterImport(firstRequestId)).toBeNull();
+        expect(readQueuedWriterImport(secondRequestId)?.markdown).toBe("Second payload");
     });
 });

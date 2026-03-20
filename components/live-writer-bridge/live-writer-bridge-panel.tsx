@@ -3,6 +3,7 @@
 import { Link2, Radio, SendHorizontal } from "lucide-react";
 
 import { type LiveWriterTargetOption } from "@/components/live-writer-bridge/use-live-writer-targets";
+import { findLiveWriterTargetBySelection, getLiveWriterTargetSelectionId } from "@/lib/live-writer-bridge";
 
 function formatTime(value: number | null) {
     if (!value) {
@@ -55,7 +56,7 @@ export function LiveWriterBridgePanel({
     onPush: () => void;
     disabled: boolean;
 }) {
-    const selectedTarget = targets.find((target) => target.id === selectedTargetId) ?? null;
+    const selectedTarget = findLiveWriterTargetBySelection(targets, selectedTargetId);
     const nextRevision = (selectedTarget?.lastRevision ?? 0) + 1;
 
     return (
@@ -76,12 +77,12 @@ export function LiveWriterBridgePanel({
             {targets.length ? (
                 <div className="mt-4 space-y-2">
                     {targets.map((target) => {
-                        const active = target.id === selectedTargetId;
+                        const active = getLiveWriterTargetSelectionId(target) === selectedTargetId;
                         return (
                             <button
                                 key={`${target.writerId}-${target.id}`}
                                 type="button"
-                                onClick={() => onSelectTarget(target.id)}
+                                onClick={() => onSelectTarget(getLiveWriterTargetSelectionId(target))}
                                 className={`w-full rounded-[1.25rem] border p-3 text-left transition ${active ? "border-foreground bg-foreground text-background" : "border-border bg-background/60 hover:border-foreground/40"}`}
                             >
                                 <div className="flex items-start justify-between gap-3">
@@ -89,6 +90,10 @@ export function LiveWriterBridgePanel({
                                         <div className="truncate text-sm font-black">{target.title}</div>
                                         <div className={`mt-1 truncate text-xs ${active ? "text-background/70" : "text-muted-foreground"}`}>
                                             {target.documentTitle}
+                                            {target.documentId ? ` · #${target.documentId}` : ""}
+                                        </div>
+                                        <div className={`mt-1 truncate text-[11px] ${active ? "text-background/70" : "text-muted-foreground"}`}>
+                                            {target.sectionPath || "Document root"}
                                         </div>
                                         <div className={`mt-1 text-[11px] ${active ? "text-background/70" : "text-muted-foreground"}`}>
                                             {target.connectionState === "online" ? "online" : "stale"} | seen {formatTime(target.lastSeen)}
@@ -131,6 +136,8 @@ export function LiveWriterBridgePanel({
                 <div className="mt-4 rounded-[1.25rem] border border-border bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
                     <div className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground">Selected sync session</div>
                     <div className="mt-2">
+                        Target: {selectedTarget.sectionPath || "Document root"}
+                        <br />
                         Next push: rev {nextRevision}
                         <br />
                         Source: {selectedTarget.sourceLabel || "Laboratory bridge"}

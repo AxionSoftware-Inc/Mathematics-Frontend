@@ -6,6 +6,7 @@ import {
     LIVE_WRITER_SELECTED_TARGET_KEY,
     LIVE_WRITER_SYNC_EVENT,
     LIVE_WRITER_TARGET_TTL_MS,
+    getLiveWriterTargetSelectionId,
     createBroadcastChannel,
     flattenStoredWriterTargets,
     markStoredWriterTargetAcknowledged,
@@ -18,6 +19,7 @@ import {
 export type LiveWriterTargetOption = WriterTargetsBroadcast["targets"][number] & {
     writerId: string;
     documentTitle: string;
+    documentId?: string;
     lastSeen: number;
     connectionState: "online" | "stale";
     syncState: "idle" | "pending" | "acknowledged";
@@ -129,9 +131,11 @@ export function useLiveWriterTargets() {
             return;
         }
 
-        const targetStillExists = liveTargets.some((target) => target.id === selectedLiveTargetId);
+        const targetStillExists = liveTargets.some(
+            (target) => getLiveWriterTargetSelectionId(target) === selectedLiveTargetId,
+        );
         if (!targetStillExists) {
-            setSelectedLiveTargetId(liveTargets[0].id);
+            setSelectedLiveTargetId(getLiveWriterTargetSelectionId(liveTargets[0]));
         }
     }, [liveTargets, selectedLiveTargetId, setSelectedLiveTargetId]);
 

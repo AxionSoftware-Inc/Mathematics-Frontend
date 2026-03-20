@@ -7,7 +7,7 @@ Bu hujjat laboratoriya va writer orasidagi ko'prik qanday ishlashini tushuntirad
 Hozir 3 ta oqim bor:
 
 1. `Markdown nusxa olish`
-2. `Writer'ga yuborish`
+2. `Yangi draftga yuborish`
 3. `Live bridge`
 
 ## Modul arxitekturasi
@@ -58,13 +58,14 @@ Qachon ishlatiladi:
 - mavjud maqola ochiq bo'lsa
 - qaysi joyga tushishini qo'lda boshqarmoqchi bo'lsangiz
 
-## 2. Writer'ga yuborish
+## 2. Yangi draftga yuborish
 
 Ishlash tartibi:
 
-1. Natija `localStorage` ga vaqtincha yoziladi.
-2. `write/new?source=laboratory` ochiladi.
-3. Writer yangi draft boshiga laboratoriya eksportini qo'shadi.
+1. Natija `requestId` bilan `localStorage` ga vaqtincha yoziladi.
+2. `write/new?source=laboratory&importId=...` ochiladi.
+3. Writer faqat o'sha `importId` ga mos payload'ni import qiladi.
+4. Writer yangi draft boshiga laboratoriya eksportini qo'shadi.
 
 Qachon ishlatiladi:
 
@@ -75,6 +76,12 @@ Key:
 
 - `mathsphere_laboratory_export`
 
+Muhim:
+
+- bu oqim mavjud maqolaga yozmaydi
+- bu oqim faqat yangi draft ochish uchun
+- mavjud maqolaning aynan kerakli qismiga yozish uchun `Live bridge` ishlatiladi
+
 ## 3. Live Bridge
 
 Bu endi ishlaydi.
@@ -84,13 +91,14 @@ Bu endi ishlaydi.
 1. Writer ichida `Live Lab Block` tugmasi bosiladi.
 2. Matn ichiga maxsus `lab-result` block qo'shiladi.
 3. Writer shu block'larni `BroadcastChannel` orqali laboratoriyaga broadcast qiladi.
+4. Har bir block qaysi heading ostida turgani aniqlanadi va target metadata sifatida uzatiladi.
 
 ### Laboratory tomoni
 
 1. Laboratoriya ochiq writer target'larini eshitadi.
 2. Agar writer oldinroq ochilgan bo'lsa, target'lar local storage orqali ham tiklanadi.
 3. Laboratoriya `writer-targets-request` xabari yuborib writer'dan qayta broadcast so'raydi.
-4. Foydalanuvchi kerakli target'ni tanlaydi.
+4. Foydalanuvchi kerakli `maqola + bo'lim + live block` target'ini tanlaydi.
 5. `Live push` bosilganda structured payload writer'ga yuboriladi.
 
 ### Update
@@ -99,6 +107,12 @@ Bu endi ishlaydi.
 2. Mos `targetId` topiladi.
 3. O'sha block avtomatik yangilanadi.
 4. Preview darrov yangi natijani ko'rsatadi.
+
+Target tanlash xavfsizligi:
+
+- tanlov endi faqat `targetId` bilan emas, `writerId::targetId` bilan saqlanadi
+- bir nechta writer ochiq bo'lsa ham laboratoriya qaysi maqoladagi qaysi block tanlanganini aniq biladi
+- yangi draft import'i ham `requestId` bilan bog'langan, shuning uchun payload tasodifiy boshqa tab tomonidan olinmaydi
 
 ## Block formati
 
@@ -168,12 +182,12 @@ standart bridge orqali ishlaydi
 
 ## Foydalanuvchi uchun ishlatish yo'li
 
-### Mavjud maqolaga live yuborish
+### Mavjud maqolaning aniq qismiga live yuborish
 
 1. Writer sahifasini oching
-2. `Live Lab Block` qo'shing
+2. Natija tushishi kerak bo'lgan bo'lim ostiga `Live Lab Block` qo'shing
 3. Laboratoriya sahifasini oching
-4. `Live Writer Bridge` panelida target'ni tanlang
+4. `Live Writer Bridge` panelida kerakli `maqola / bo'lim / block` target'ini tanlang
 5. `Live push` bosing
 6. Writer preview va content ichida natija darrov yangilanadi
 
@@ -184,7 +198,7 @@ standart bridge orqali ishlaydi
 
 ### Yangi qoralama
 
-1. `Writer'ga yuborish`
+1. `Yangi draftga yuborish`
 2. Yangi draft avtomatik ochiladi
 
 ## Texnik eslatmalar
