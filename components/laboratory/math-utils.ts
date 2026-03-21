@@ -194,6 +194,13 @@ export type PlotPoint3D = {
     value?: number;
 };
 
+export type ProofStep = {
+    id: string;
+    action: string;
+    result: string;
+    status: "completed" | "pending";
+};
+
 export type ParametricSurfaceGrid = {
     x: number[][];
     y: number[][];
@@ -601,21 +608,36 @@ export function approximateTripleIntegral(
 
 export const LABORATORY_PRESETS = {
     integral: [
-        { label: "Gaussian Bell", mode: "single", expr: "exp(-x^2)", lower: "-3", upper: "3" },
-        { label: "Double Paraboloid", mode: "double", expr: "x^2 + y^2", x: "[-2, 2]", y: "[-2, 2]" },
-        { label: "Wave Interference Surface", mode: "double", expr: "sin(x) * cos(y) + 0.25 * x", x: "[-6.28, 6.28]", y: "[-6.28, 6.28]" },
-        { label: "Sphere Volume (Triple)", mode: "triple", expr: "1", x: "[-1, 1]", y: "[-1, 1]", z: "[-1, 1]" },
-        { label: "Gaussian Ridge", mode: "double", expr: "exp(-(x^2 + y^2)/4) * (x^2 - y^2)", x: "[-4, 4]", y: "[-4, 4]" },
+        { label: "Gaussian Bell", mode: "single", expr: "exp(-x^2)", lower: "-3", upper: "3", segments: "96" },
+        { label: "Oscillatory Fresnel Window", mode: "single", expr: "sin(x^2)", lower: "0", upper: "6", segments: "140" },
+        { label: "Damped Wave Packet", mode: "single", expr: "exp(-0.2 * x^2) * cos(3 * x)", lower: "-5", upper: "5", segments: "160" },
+        { label: "Double Paraboloid", mode: "double", expr: "x^2 + y^2", x: "[-2, 2]", y: "[-2, 2]", nx: "28", ny: "28" },
+        { label: "Wave Interference Surface", mode: "double", expr: "sin(x) * cos(y) + 0.25 * x", x: "[-6.28, 6.28]", y: "[-6.28, 6.28]", nx: "34", ny: "34" },
+        { label: "Gaussian Ridge", mode: "double", expr: "exp(-(x^2 + y^2)/4) * (x^2 - y^2)", x: "[-4, 4]", y: "[-4, 4]", nx: "32", ny: "32" },
+        { label: "Saddle Surface", mode: "double", expr: "x^2 - y^2", x: "[-3, 3]", y: "[-3, 3]", nx: "30", ny: "30" },
+        { label: "Sphere Volume (Triple)", mode: "triple", expr: "1", x: "[-1, 1]", y: "[-1, 1]", z: "[-1, 1]", nx: "10", ny: "10", nz: "10" },
+        { label: "Radial Energy Cloud", mode: "triple", expr: "exp(-(x^2 + y^2 + z^2)/3)", x: "[-2, 2]", y: "[-2, 2]", z: "[-2, 2]", nx: "12", ny: "12", nz: "12" },
+        { label: "Wave Density Cube", mode: "triple", expr: "sin(x) * cos(y) * exp(-z^2/3)", x: "[-3.14, 3.14]", y: "[-3.14, 3.14]", z: "[-3, 3]", nx: "12", ny: "12", nz: "10" },
     ],
     differential: [
         { label: "Logistic Growth", mode: "single", expr: "0.5 * y * (1 - y/10)", x0: "0", y0: "1" },
+        { label: "Logistic Growth Near Capacity", mode: "single", expr: "0.5 * y * (1 - y/10)", x0: "0", y0: "8.5", step: "0.1", steps: "60" },
+        { label: "Exponential Decay", mode: "single", expr: "-0.8 * y", x0: "0", y0: "6", step: "0.1", steps: "60" },
+        { label: "Nonlinear Blow-up Window", mode: "single", expr: "y^2 - 0.4 * y", x0: "0", y0: "0.9", step: "0.03", steps: "80" },
+        { label: "Forced Response (1st Order)", mode: "single", expr: "-0.6 * y + sin(1.8 * x)", x0: "0", y0: "0", step: "0.08", steps: "180" },
         { label: "Van der Pol Oscillator", mode: "system", exprs: ["y", "-0.5 * (x^2 - 1) * y - x"], x0: "1", y0: "0" },
+        { label: "Simple Harmonic Oscillator", mode: "system", exprs: ["y", "-x"], x0: "1", y0: "0", step: "0.05", steps: "400" },
+        { label: "Spiral Sink", mode: "system", exprs: ["-0.25 * x - y", "x - 0.25 * y"], x0: "3", y0: "0.5", step: "0.05", steps: "320" },
+        { label: "Spiral Source", mode: "system", exprs: ["0.18 * x - y", "x + 0.18 * y"], x0: "0.8", y0: "0.3", step: "0.04", steps: "220" },
+        { label: "Saddle Field", mode: "system", exprs: ["x", "-1.4 * y"], x0: "0.6", y0: "1.8", step: "0.05", steps: "180" },
         { label: "Predator-Prey (Lotka-Volterra)", mode: "system", exprs: ["1.5*x - 1.0*x*y", "-3.0*y + 1.2*x*y"], x0: "10", y0: "5" },
         { label: "Lorenz Attractor (3D Chaos)", mode: "system", exprs: ["10 * (y - x)", "x * (28 - z) - y", "x * y - (8 / 3) * z"], x0: "1", y0: "1", z0: "1", step: "0.01", steps: "1500" },
         { label: "Rossler Attractor (Chaos)", mode: "system", exprs: ["-y - z", "x + 0.2 * y", "0.2 + z * (x - 5.7)"], x0: "0.1", y0: "0", z0: "0", step: "0.05", steps: "2000" },
+        { label: "Chen Attractor", mode: "system", exprs: ["35 * (y - x)", "(28 - 35) * x - x * z + 28 * y", "x * y - 3 * z"], x0: "0.2", y0: "0.1", z0: "0.4", step: "0.008", steps: "1800" },
         { label: "Brusselator (Chemical Oscillator)", mode: "system", exprs: ["1 + x^2 * y - 3.5 * x", "2.5 * x - x^2 * y"], x0: "1", y0: "1", step: "0.05", steps: "1000" },
         { label: "Duffing Oscillator (Chaos)", mode: "system", exprs: ["y", "x - x^3 - 0.1 * y + 0.3 * cos(1.2 * t)"], x0: "1", y0: "0", step: "0.1", steps: "500" },
         { label: "Thomas Cyclical Attractor", mode: "system", exprs: ["sin(y) - 0.2 * x", "sin(z) - 0.2 * y", "sin(x) - 0.2 * z"], x0: "0.1", y0: "0", z0: "0", step: "0.1", steps: "2000" },
+        { label: "Aizawa Attractor", mode: "system", exprs: ["(z - 0.7) * x - 3.5 * y", "3.5 * x + (z - 0.7) * y", "0.6 + 0.95 * z - (z^3)/3 - (x^2 + y^2) * (1 + 0.25 * z) + 0.1 * z * x^3"], x0: "0.1", y0: "0", z0: "0.2", step: "0.01", steps: "1600" },
     ],
     series: [
         { label: "Riemann Zeta (s=2)", expr: "1 / n^2", start: "1", terms: "50" },
@@ -636,9 +658,39 @@ export const LABORATORY_PRESETS = {
         { label: "Unit Triangle Delta", ax: "0", ay: "0", bx: "1", by: "0", cx: "0.5", cy: "0.866", dx: "0", dy: "0" },
     ],
     proof: [
-        { label: "Pythagorean Theorem", title: "Pifagor teoremasi", strategy: "direct", statement: "To'g'ri burchakli uchburchakda gipotenuza kvadrati katetlar kvadratlari yig'indisiga teng." },
-        { label: "Prime Infinity", title: "Tub sonlar cheksizligi", strategy: "contradiction", statement: "Tub sonlar to'plami cheksizdir." },
-        { label: "Square Root 2 Irrational", title: "sqrt(2) irratsional", strategy: "contradiction", statement: "2 ning kvadrat ildizi ratsional son emas." },
+        { 
+            label: "Pythagorean Theorem", 
+            title: "Pifagor teoremasi", 
+            strategy: "direct", 
+            statement: "To'g'ri burchakli uchburchakda gipotenuza kvadrati katetlar kvadratlari yig'indisiga teng.",
+            steps: [
+                { id: "1", action: "Assume triangle T with sides a, b, c", result: "Base geometry initialized.", status: "completed" },
+                { id: "2", action: "Square the legs: a^2 + b^2", result: "Calculating sum of squares.", status: "completed" },
+                { id: "3", action: "Show equality to c^2", result: "Logical connection confirmed.", status: "pending" }
+            ]
+        },
+        { 
+            label: "Prime Infinity", 
+            title: "Tub sonlar cheksizligi", 
+            strategy: "contradiction", 
+            statement: "Tub sonlar to'plami cheksizdir.",
+            steps: [
+                { id: "1", action: "Assume finite set P = {p1, p2, ..., pn}", result: "Contradiction basis.", status: "completed" },
+                { id: "2", action: "Construct Q = (p1*p2*...*pn) + 1", result: "A new candidate number.", status: "completed" },
+                { id: "3", action: "Prove Q is not divisible by any p_i", result: "Identifying contradiction.", status: "pending" }
+            ]
+        },
+        { 
+            label: "Square Root 2 Irrational", 
+            title: "sqrt(2) irratsional", 
+            strategy: "contradiction", 
+            statement: "2 ning kvadrat ildizi ratsional son emas.",
+            steps: [
+                { id: "1", action: "Assume sqrt(2) = p/q (irreducible)", result: "Assumption setup.", status: "completed" },
+                { id: "2", action: "Show p is even", result: "Step 1 of divisibility chain.", status: "completed" },
+                { id: "3", action: "Show q is even", result: "Common factor 2 found (Contradiction).", status: "pending" }
+            ]
+        },
     ],
     statistics: [
         { label: "Standard Normal", type: "normal", mean: "0", sd: "1" },

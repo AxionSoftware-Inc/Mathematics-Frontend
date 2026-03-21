@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useTransition } from "react";
-import { Activity, Atom, Orbit, Sparkles, Sigma, Waves, Zap, Info, Loader2 } from "lucide-react";
+import { Activity, Atom, Orbit, Sparkles, Sigma, Waves, Zap, Info, Loader2, Layers3, Box } from "lucide-react";
 
 import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
-import { LaboratoryNotebookToolbar, useLaboratoryNotebook } from "@/components/laboratory/laboratory-notebook";
+import { LaboratoryNotebookToolbar, useLaboratoryNotebook, LaboratoryNotebookEmptyState } from "@/components/laboratory/laboratory-notebook";
 import {
     LABORATORY_PRESETS,
     QUANTUM_GATES,
@@ -15,9 +15,42 @@ import {
 } from "@/components/laboratory/math-utils";
 import { buildParametricSurfaceData, ScientificPlot } from "@/components/laboratory/scientific-plot";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
+import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
+import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
+import { LaboratorySignalPanel, type LaboratorySignal } from "@/components/laboratory/laboratory-signal-panel";
+import { readStoredArray, writeStoredValue } from "@/components/laboratory/persisted-lab-state";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLabEngine } from "@/components/laboratory/lab-engine";
+import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { ArrowRight, Plus } from "lucide-react";
+
+const exportGuides = {
+    copy: {
+        badge: "Quantum export",
+        title: "Kvant holat natijasini nusxalash",
+        description: "Qubit yoki to'lqin funksiyasi hisoboti clipboard'ga ko'chadi.",
+        confirmLabel: "Nusxa olish",
+        steps: [
+            "Bloch sferadagi cartesian va sferik koordinatalar yoziladi.",
+            "Wave mode bo'lsa, energy level va peak density ko'rsatiladi.",
+            "Barcha ket-notation va ehtimolliklar markdown jadval holida bo'ladi.",
+        ],
+        note: "Maqola ichida kvant mexanik hisob-kitoblarni tezkor joylash uchun qulay.",
+    },
+    send: {
+        badge: "Writer import",
+        title: "Kvant natijasini writer'ga yuborish",
+        description: "Hisobotni yangi writer draft'iga import qiladi.",
+        confirmLabel: "Writer'ni ochish",
+        steps: [
+            "Kvant export local storage'ga yoziladi.",
+            "Yangi writer draft ochiladi.",
+            "Simulyatsiya parametrlari va natijalari draft boshiga qo'shiladi.",
+        ],
+        note: "Agar mavjud writer ichidagi live block'ga yubormoqchi bo'lsangiz, pastdagi Live Writer Bridge ishlatiladi.",
+    },
+} as const;
 
 type QuantumBlockId = "setup" | "bloch" | "wave" | "bridge";
 type QuantumPreset = (typeof LABORATORY_PRESETS.quantum)[number];
@@ -28,6 +61,43 @@ const quantumNotebookBlocks = [
     { id: "wave" as const, label: "Wave Density", description: "To'lqin funksiyasi va ehtimollik zichligi" },
     { id: "bridge" as const, label: "Cognitive Bridge", description: "Natijani writer oqimiga yuborish" },
 ];
+
+const QUANTUM_WORKFLOW_TEMPLATES = [
+    {
+        id: "superposition-audit",
+        title: "State Superposition Audit",
+        description: "Hadamard holati va faza superpozitsiyasining Bloch sferadagi tahlili.",
+        mode: "qubit" as const,
+        presetLabel: "Superposition |+>",
+        blocks: ["setup", "bloch"] as const,
+    },
+    {
+        id: "wave-packet-decoherence",
+        title: "Wave Packet Evolution",
+        description: "To'lqin paketining kengayishi va impuls lokalizatsiyasi tahlili.",
+        mode: "wave" as const,
+        presetLabel: "Localized Packet",
+        blocks: ["setup", "wave"] as const,
+    },
+] as const;
+
+type QntAnnotation = {
+    id: string;
+    title: string;
+    note: string;
+    anchor: string;
+    createdAt: string;
+};
+
+type QntSavedExperiment = {
+    id: string;
+    label: string;
+    savedAt: string;
+    theta: string;
+    phi: string;
+    mode: "qubit" | "wave";
+    n: string;
+};
 
 const quantumPresetDescriptions: Record<string, string> = {
     "Basis |0>": "Shimoliy qutbdagi klassik bazis holat. O'lchovda |0> deyarli aniq olinadi.",
@@ -45,9 +115,9 @@ const quantumPresetDescriptions: Record<string, string> = {
     "Uncertainty Principle Map": "To'lqin paketi ko'rinishida koordinata va impuls lokalizatsiyasi orasidagi trade-offni ko'rsatadi.",
 };
 
-function getConfigNumber(config: LaboratoryModuleMeta["config"], key: string, fallback: number) {
-    const value = config?.[key];
-    return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+function formatNumber(value: number, digits = 3) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "--";
+    return value.toFixed(digits);
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -59,10 +129,6 @@ function normalizePhi(value: number) {
     return ((value % fullTurn) + fullTurn) % fullTurn;
 }
 
-function formatNumber(value: number, digits = 3) {
-    return Number.isFinite(value) ? value.toFixed(digits) : "0.000";
-}
-
 function isAnglePreset(preset: QuantumPreset): preset is QuantumPreset & { theta: number; phi: number } {
     return typeof (preset as any).theta === "number";
 }
@@ -71,14 +137,114 @@ function isWavePacketPreset(preset: QuantumPreset): preset is QuantumPreset & { 
     return (preset as any).type === "wave-packet";
 }
 
+function buildQuantumMarkdown(params: {
+    mode: "qubit" | "wave";
+    theta: number;
+    phi: number;
+    qubitAnalysis: ReturnType<typeof analyzeQuantumState>;
+    waveMode: "state" | "packet";
+    n: number;
+    waveInsights: { normEstimate: number; peakDensity: number; peakAmplitude: number; nodes: number };
+}) {
+    const { mode, theta, phi, qubitAnalysis, waveMode, n, waveInsights } = params;
+
+    if (mode === "qubit") {
+        return `## Laboratory Export: Quantum Qubit Simulation
+        
+### State Vector (Bloch Sphere)
+- Ket Notation: \`${qubitAnalysis.ket}\`
+- Angles: Theta=${formatNumber(theta, 3)} rad, Phi=${formatNumber(phi, 3)} rad
+- Cartesian: [${formatNumber(qubitAnalysis.cartesian.x, 3)}, ${formatNumber(qubitAnalysis.cartesian.y, 3)}, ${formatNumber(qubitAnalysis.cartesian.z, 3)}]
+
+### Probabilities
+- |0⟩ (Zero State): ${formatNumber(qubitAnalysis.zeroProbability * 100, 2)}%
+- |1⟩ (One State): ${formatNumber(qubitAnalysis.oneProbability * 100, 2)}%
+- Coherence: ${formatNumber(qubitAnalysis.coherence, 4)}`;
+    }
+
+    return `## Laboratory Export: Quantum Wave Logic
+        
+### Configuration
+- Wave Mode: ${waveMode}
+- ${waveMode === "state" ? `Excitation Level (n): ${n}` : "Packet-based simulation"}
+
+### Diagnostics
+- Peak Amplitude: ${formatNumber(waveInsights.peakAmplitude, 4)}
+- Peak Density: ${formatNumber(waveInsights.peakDensity, 4)}
+- Nodes counted: ${waveInsights.nodes}
+- Norm Estimate: ${formatNumber(waveInsights.normEstimate, 6)}`;
+}
+
+function buildQuantumLivePayload(params: {
+    targetId: string;
+    mode: "qubit" | "wave";
+    theta: number;
+    phi: number;
+    qubitAnalysis: ReturnType<typeof analyzeQuantumState>;
+    waveMode: "state" | "packet";
+    n: number;
+    waveInsights: { normEstimate: number; peakDensity: number; peakAmplitude: number; nodes: number };
+}): WriterBridgeBlockData {
+    const { targetId, mode, theta, phi, qubitAnalysis, waveMode, n, waveInsights } = params;
+
+    if (mode === "qubit") {
+        return {
+            id: targetId,
+            status: "ready",
+            moduleSlug: "quantum-lab",
+            kind: "quantum-state",
+            title: `Quantum State: ${qubitAnalysis.ket}`,
+            summary: "Single qubit state representation on Bloch sphere.",
+            generatedAt: new Date().toISOString(),
+            metrics: [
+                { label: "Theta", value: formatNumber(theta, 3) },
+                { label: "Phi", value: formatNumber(phi, 3) },
+                { label: "Prob |0>", value: formatNumber(qubitAnalysis.zeroProbability, 4) },
+                { label: "Prob |1>", value: formatNumber(qubitAnalysis.oneProbability, 4) },
+            ],
+            notes: [`State: ${qubitAnalysis.ket}`, `Coherence: ${formatNumber(qubitAnalysis.coherence, 4)}`],
+        };
+    }
+
+    return {
+        id: targetId,
+        status: "ready",
+        moduleSlug: "quantum-lab",
+        kind: "quantum-wave",
+        title: `Quantum Wave Function (n=${n})`,
+        summary: "Relativistic probability density and wave mechanics.",
+        generatedAt: new Date().toISOString(),
+        metrics: [
+            { label: "n-level", value: String(n) },
+            { label: "Peak Psi", value: formatNumber(waveInsights.peakAmplitude, 4) },
+            { label: "Peak Density", value: formatNumber(waveInsights.peakDensity, 4) },
+            { label: "Norm", value: formatNumber(waveInsights.normEstimate, 4) },
+        ],
+        notes: [`Wave mode: ${waveMode}`, `Spatial nodes: ${waveInsights.nodes}`],
+    };
+}
+
 export function QuantumLabModule({ module }: { module: LaboratoryModuleMeta }) {
     const [mode, setMode] = React.useState<"qubit" | "wave">("qubit");
     const [waveMode, setWaveMode] = React.useState<"state" | "packet">("state");
-    const [theta, setTheta] = React.useState(() => clamp(getConfigNumber(module.config, "defaultTheta", Math.PI / 2), 0, Math.PI));
-    const [phi, setPhi] = React.useState(() => normalizePhi(getConfigNumber(module.config, "defaultPhi", 0)));
+    const [theta, setTheta] = React.useState(() => clamp(Number(module.config?.defaultTheta ?? Math.PI / 2), 0, Math.PI));
+    const [phi, setPhi] = React.useState(() => normalizePhi(Number(module.config?.defaultPhi ?? 0)));
     const [n, setN] = React.useState(3);
     const [packetSpread, setPacketSpread] = React.useState(1.2);
     const [packetMomentum, setPacketMomentum] = React.useState(3.4);
+    const [exportState, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
+    const [guideMode, setGuideMode] = React.useState<"copy" | "send" | null>(null);
+
+    const [annotationTitle, setAnnotationTitle] = React.useState("");
+    const [annotationNote, setAnnotationNote] = React.useState("");
+    const [experimentLabel, setExperimentLabel] = React.useState("");
+    const [activeTemplateId, setActiveTemplateId] = React.useState<string | null>(null);
+    const [annotations, setAnnotations] = React.useState<QntAnnotation[]>(() =>
+        readStoredArray<QntAnnotation>("mathsphere-lab-qnt-annotations"),
+    );
+    const [savedExperiments, setSavedExperiments] = React.useState<QntSavedExperiment[]>(() =>
+        readStoredArray<QntSavedExperiment>("mathsphere-lab-qnt-experiments"),
+    );
     const [isPending, startTransition] = useTransition();
 
     const { setCalculating } = useLabEngine();
@@ -118,7 +284,7 @@ export function QuantumLabModule({ module }: { module: LaboratoryModuleMeta }) {
         const normEstimate = currentWaveData.reduce((sum, point) => sum + point.prob * step, 0);
         const peakDensity = Math.max(...currentWaveData.map((point) => point.prob));
         const peakAmplitude = Math.max(...currentWaveData.map((point) => Math.abs(point.y)));
-        const nodes = waveMode === "state" ? Math.max(0, n - 1) : 0; // Simplified nodes for packet
+        const nodes = waveMode === "state" ? Math.max(0, n - 1) : 0;
 
         return { normEstimate, peakDensity, peakAmplitude, nodes };
     }, [currentWaveData, n, waveMode]);
@@ -139,19 +305,40 @@ export function QuantumLabModule({ module }: { module: LaboratoryModuleMeta }) {
                 setMode("qubit");
                 setTheta(clamp(preset.theta, 0, Math.PI));
                 setPhi(normalizePhi(preset.phi || 0));
-                return;
+            } else {
+                setMode("wave");
+                if (isWavePacketPreset(preset)) {
+                    setWaveMode("packet");
+                    setPacketSpread(clamp(preset.spread ?? 1.2, 0.35, 2.4));
+                    setPacketMomentum(clamp(preset.momentum ?? 3.4, 1, 7.5));
+                } else {
+                    setWaveMode("state");
+                    setN(Math.max(1, preset.n || 3));
+                }
             }
-            setMode("wave");
-            if (isWavePacketPreset(preset)) {
-                setWaveMode("packet");
-                setPacketSpread(clamp(preset.spread ?? 1.2, 0.35, 2.4));
-                setPacketMomentum(clamp(preset.momentum ?? 3.4, 1, 7.5));
-                return;
-            }
-            setWaveMode("state");
-            setN(Math.max(1, preset.n || 3));
+            setActiveTemplateId(null);
         });
     };
+
+    const applyWorkflowTemplate = (templateId: string) => {
+        const template = QUANTUM_WORKFLOW_TEMPLATES.find((item) => item.id === templateId);
+        if (!template) return;
+
+        const preset = LABORATORY_PRESETS.quantum.find((item) => item.label === template.presetLabel);
+        if (preset) applyPreset(preset);
+        
+        setMode(template.mode);
+        notebook.setBlocks(template.blocks);
+        setActiveTemplateId(template.id);
+    };
+
+    React.useEffect(() => {
+        writeStoredValue("mathsphere-lab-qnt-annotations", annotations);
+    }, [annotations]);
+
+    React.useEffect(() => {
+        writeStoredValue("mathsphere-lab-qnt-experiments", savedExperiments);
+    }, [savedExperiments]);
 
     const buildBlochTraces = (point: { x: number; y: number; z: number }) => {
         return [
@@ -210,8 +397,94 @@ export function QuantumLabModule({ module }: { module: LaboratoryModuleMeta }) {
         ];
     };
 
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: true,
+        sourceLabel: "Quantum Lab",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        setGuideMode,
+        buildMarkdown: () => buildQuantumMarkdown({ mode, theta, phi, qubitAnalysis, waveMode, n, waveInsights }),
+        buildBlock: (targetId) => buildQuantumLivePayload({ targetId, mode, theta, phi, qubitAnalysis, waveMode, n, waveInsights }),
+        getDraftMeta: () => ({
+            title: `Quantum Analysis: ${qubitAnalysis.ket}`,
+            abstract: "Exported from Quantum Singular Engine.",
+            keywords: "quantum,qubit,bloch,schrodinger",
+        }),
+    });
+
+    const warningSignals = React.useMemo(() => {
+        const signals: LaboratorySignal[] = [];
+        if (mode === "qubit") {
+            if (qubitAnalysis.coherence > 0.9) {
+                signals.push({ tone: "info", label: "Pure State", text: "Qubit holati maksimal koherensiyada." });
+            } else {
+                signals.push({ tone: "warn", label: "Decoherence Risk", text: "Superpozitsiya holati beqaror bo'lishi mumkin." });
+            }
+        } else {
+            if (waveInsights.normEstimate < 0.95 || waveInsights.normEstimate > 1.05) {
+                signals.push({ tone: "danger", label: "Norm Alert", text: "To'lqin funksiyasi normalizatsiyasi buzilgan." });
+            } else {
+                signals.push({ tone: "info", label: "Unitary Wave", text: "Ehtimollik zichligi integrali barqaror." });
+            }
+        }
+        return signals;
+    }, [mode, qubitAnalysis, waveInsights]);
+
+    const explainModeMarkdown = React.useMemo(() => [
+        "## Quantum Logic",
+        "- **Superposition** orqali qubit bir vaqtning o'zida |0> va |1> holatlarida bo'la oladi.",
+        "- **Bloch Sphere** unitar o'zgarishlarni vizuallashtirish uchun ishlatiladi.",
+        "- **Schrodinger Tenglamasi** to'lqin funksiyasining vaqt ichida evolyutsiyasini tahlil qiladi.",
+    ].join("\n"), []);
+
+    const reportSkeletonMarkdown = React.useMemo(() => [
+        "## Quantum Computation Report",
+        `Mode: ${mode}`,
+        `Current State: ${mode === "qubit" ? qubitAnalysis.ket : "Wave Packets"}`,
+        "",
+        "### Physics Diagnostics",
+        mode === "qubit" ? `- Zero Prob: ${qubitAnalysis.zeroProbability.toFixed(4)}` : `- Peak Amplitude: ${waveInsights.peakAmplitude.toFixed(4)}`,
+        `- Coherence Factor: ${mode === "qubit" ? qubitAnalysis.coherence.toFixed(4) : "N/A"}`,
+        "- Hilbert space dimensionality verified for single-qubit subsystem.",
+    ].join("\n"), [mode, qubitAnalysis, waveInsights]);
+
+    function addAnnotation() {
+        const note: QntAnnotation = {
+            id: Math.random().toString(36).slice(2, 9),
+            title: annotationTitle || "Quantum Note",
+            note: annotationNote || "Subatomic observation.",
+            anchor: mode === "qubit" ? `State: ${qubitAnalysis.ket}` : `Level: ${n}`,
+            createdAt: new Date().toISOString()
+        };
+        setAnnotations(prev => [note, ...prev].slice(0, 10));
+        setAnnotationTitle("");
+        setAnnotationNote("");
+    }
+
+    function saveExperiment() {
+        const exp: QntSavedExperiment = {
+            id: Math.random().toString(36).slice(2, 9),
+            label: experimentLabel || "Quantum Experiment",
+            savedAt: new Date().toISOString(),
+            theta: String(theta),
+            phi: String(phi),
+            mode,
+            n: String(n)
+        };
+        setSavedExperiments(prev => [exp, ...prev].slice(0, 10));
+        setExperimentLabel("");
+    }
+
+    function loadExperiment(exp: QntSavedExperiment) {
+        setTheta(Number(exp.theta));
+        setPhi(Number(exp.phi));
+        setMode(exp.mode);
+        setN(Number(exp.n));
+    }
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <LaboratoryNotebookToolbar
                 title="Quantum Singular Engine"
                 description="Exploring Hilbert space dimensionality, Bloch sphere trajectories and Schrodinger probability distributions."
@@ -221,204 +494,290 @@ export function QuantumLabModule({ module }: { module: LaboratoryModuleMeta }) {
                 onRemoveBlock={notebook.removeBlock}
             />
 
-            <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-                <div className="space-y-8 min-w-0">
+            {!notebook.activeBlocks.length && <LaboratoryNotebookEmptyState message="Foydalanish uchun kvant modullarini yoqing." />}
+
+            <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                <div className="space-y-6">
                     {notebook.hasBlock("setup") && (
-                        <div className="site-panel relative overflow-hidden p-8 shadow-[0_45px_100px_-50px_rgba(15,23,42,0.4)]">
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.14),transparent_50%),radial-gradient(circle_at_top_right,rgba(29,78,216,0.1),transparent_50%)]" />
-                            
-                            <div className="relative space-y-8">
-                                <div className="flex flex-wrap items-center justify-between gap-6">
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                                            <div className="site-eyebrow text-cyan-600">Hilbert Space Controller</div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {(["qubit", "wave"] as const).map((value) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() => setMode(value)}
-                                                    className={`px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.24em] transition-all duration-500 ${
-                                                        mode === value
-                                                            ? "bg-foreground text-background shadow-xl scale-105"
-                                                            : "bg-muted/5 text-muted-foreground border border-border/40 hover:bg-muted/10"
-                                                    }`}
-                                                >
-                                                    {value === "qubit" ? "Qubit (Bloch)" : "Wave Logic"}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 text-cyan-600">
-                                        <Atom className={`h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.28em]">{isPending ? "Calculating Probability" : "Coherence Sync"}</span>
+                        <div className="site-panel p-6 space-y-6">
+                            <div className="flex flex-wrap items-start justify-between gap-4">
+                                <div className="space-y-1">
+                                    <div className="site-eyebrow text-cyan-600">Hilbert Space Controller</div>
+                                    <div className="flex gap-2">
+                                        {(["qubit", "wave"] as const).map(m => (
+                                            <button key={m} onClick={() => setMode(m)} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${mode === m ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20' : 'bg-muted/10 text-muted-foreground border border-border/50 hover:bg-muted/20'}`}>
+                                                {m === "qubit" ? "Qubit (Bloch)" : "Wave Logic"}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
+                                <div className="rounded-2xl border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-teal-600 flex items-center shadow-lg shadow-teal-500/5">
+                                    <Atom className={`mr-2 h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
+                                    Coherence Sync
+                                </div>
+                            </div>
 
+                            <div className="space-y-4">
                                 {activePresetDescription && (
-                                    <div className="rounded-[2rem] border border-cyan-500/10 bg-cyan-500/5 px-6 py-5 text-sm italic leading-relaxed text-muted-foreground/80 font-serif">
-                                        "{activePresetDescription}"
+                                    <div className="rounded-2xl border border-cyan-500/10 bg-cyan-500/5 px-4 py-3 text-sm leading-relaxed text-muted-foreground italic font-serif">
+                                        &quot;{activePresetDescription}&quot;
                                     </div>
                                 )}
 
                                 {mode === "qubit" ? (
-                                    <div className="space-y-6">
-                                        <div className="grid gap-6 lg:grid-cols-2">
-                                            <MetricCard label="Polar (theta)" value={`${formatNumber(theta, 2)} rad`} tone="cyan" />
-                                            <MetricCard label="Phase (phi)" value={`${formatNumber(phi, 2)} rad`} tone="amber" />
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="site-outline-card p-4 space-y-2">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Polar (theta)</div>
+                                            <input type="range" min="0" max={Math.PI} step="0.01" value={theta} onChange={e => setTheta(Number(e.target.value))} className="w-full accent-cyan-600" />
+                                            <div className="text-xs font-mono font-bold text-center">{formatNumber(theta, 3)} rad</div>
                                         </div>
-                                        <div className="grid gap-4 md:grid-cols-4">
-                                            <SmallMetric label="|0> PROB" value={formatNumber(qubitAnalysis.zeroProbability)} />
-                                            <SmallMetric label="|1> PROB" value={formatNumber(qubitAnalysis.oneProbability)} />
-                                            <SmallMetric label="COHERENCE" value={formatNumber(qubitAnalysis.coherence)} />
-                                            <SmallMetric label="LATITUDE" value={`${formatNumber(qubitAnalysis.latitude, 1)}°`} />
+                                        <div className="site-outline-card p-4 space-y-2">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Phase (phi)</div>
+                                            <input type="range" min="0" max={Math.PI * 2} step="0.01" value={phi} onChange={e => setPhi(Number(e.target.value))} className="w-full accent-cyan-600" />
+                                            <div className="text-xs font-mono font-bold text-center">{formatNumber(phi, 3)} rad</div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
-                                        <div className="flex gap-4 p-2 bg-muted/5 rounded-2xl border border-border/40">
-                                            {(["state", "packet"] as const).map((value) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() => setWaveMode(value)}
-                                                    className={`flex-1 py-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                                        waveMode === value ? "bg-white shadow-md text-foreground" : "text-muted-foreground hover:text-foreground"
-                                                    }`}
-                                                >
-                                                    {value}
+                                    <div className="space-y-4">
+                                        <div className="flex gap-2 p-1 bg-muted/10 rounded-xl border border-border/50">
+                                            {(["state", "packet"] as const).map(v => (
+                                                <button key={v} onClick={() => setWaveMode(v)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${waveMode === v ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                                                    {v}
                                                 </button>
                                             ))}
                                         </div>
-                                        <div className="grid gap-4 md:grid-cols-4">
-                                            <SmallMetric label="ENERGY LEVEL" value={waveMode === "state" ? `n=${n}` : "PACKET"} />
-                                            <SmallMetric label="NODES" value={String(waveInsights.nodes)} />
-                                            <SmallMetric label="PEAK |PSI|" value={formatNumber(waveInsights.peakAmplitude)} />
-                                            <SmallMetric label="NORM EST." value={formatNumber(waveInsights.normEstimate)} />
-                                        </div>
+                                        {waveMode === "state" ? (
+                                            <div className="site-outline-card p-4 space-y-2">
+                                                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Excitation Level (n)</div>
+                                                <input type="range" min="1" max="6" step="1" value={n} onChange={e => setN(Number(e.target.value))} className="w-full accent-cyan-600" />
+                                                <div className="text-xs font-mono font-bold text-center">n = {n}</div>
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="site-outline-card p-4 space-y-2">
+                                                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Spread (σ)</div>
+                                                    <input type="range" min="0.35" max="2.4" step="0.05" value={packetSpread} onChange={e => setPacketSpread(Number(e.target.value))} className="w-full accent-cyan-600" />
+                                                    <div className="text-xs font-mono font-bold text-center">{formatNumber(packetSpread, 2)}</div>
+                                                </div>
+                                                <div className="site-outline-card p-4 space-y-2">
+                                                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Momentum (k)</div>
+                                                    <input type="range" min="1" max="7.5" step="0.1" value={packetMomentum} onChange={e => setPacketMomentum(Number(e.target.value))} className="w-full accent-cyan-600" />
+                                                    <div className="text-xs font-mono font-bold text-center">{formatNumber(packetMomentum, 2)}</div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {mode === "qubit" && notebook.hasBlock("bloch") && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                             <div className="flex items-center gap-4 px-2 text-accent">
-                                <Orbit className="h-5 w-5" />
-                                <div className="site-eyebrow tracking-[0.3em]">GEOMETRIC BLOCH REPRESENTATION</div>
-                             </div>
-                             <p className="px-2 text-sm leading-6 text-muted-foreground">
-                                Sfera qobig&apos;i, ekvator, meridianlar va state vector birga chiziladi. Bu qubitning amplituda va faza holatini geometriya bilan tushuntiradi.
-                             </p>
-                             <ScientificPlot
-                                type="scatter3d"
-                                data={buildBlochTraces(qubitAnalysis.cartesian)}
-                                height={550}
-                                title={`Quantum State Vector Mapping | Ψ = ${qubitAnalysis.ket}`}
-                                insights={["bloch sphere", "state vector", "phase geometry"]}
-                                snapshotFileName="quantum-bloch-sphere"
-                             />
-                        </div>
-                    )}
-
-                    {mode === "wave" && notebook.hasBlock("wave") && (
-                        <div className="site-panel p-8 space-y-8 shadow-[0_45px_100px_-50px_rgba(0,0,0,0.3)]">
-                            <div className="flex items-center gap-4 text-cyan-600">
-                                <Waves className="h-5 w-5" />
-                                <div className="site-eyebrow tracking-[0.3em]">PROBABILITY DENSITY FUNCTION</div>
+                    {notebook.hasBlock("setup") && (
+                        <div className="site-panel p-6 space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Activity className="h-4 w-4 text-cyan-600" />
+                                <div className="site-eyebrow text-cyan-600">Problem Templates</div>
                             </div>
-                            <CartesianPlot
-                                height={400}
-                                series={[
-                                    { label: "Amplitude Ψ(x)", color: "var(--accent)", points: currentWaveData.map(p => ({ x: p.x, y: p.y })) },
-                                    { label: "Density |Ψ|²", color: "#10b981", points: currentWaveData.map(p => ({ x: p.x, y: p.prob })) },
-                                ]}
-                            />
+                            <div className="grid gap-2">
+                                {QUANTUM_WORKFLOW_TEMPLATES.map((template) => (
+                                    <button
+                                        key={template.id}
+                                        type="button"
+                                        onClick={() => applyWorkflowTemplate(template.id)}
+                                        className={`rounded-xl border p-3 text-left transition-all ${
+                                            activeTemplateId === template.id
+                                                ? "border-cyan-600/40 bg-cyan-600/10"
+                                                : "border-border/60 bg-muted/5 hover:border-cyan-600/40 hover:bg-cyan-600/5"
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="truncate text-[11px] font-black tracking-tight text-foreground font-serif">{template.title}</div>
+                                                <div className="mt-1 text-[10px] leading-5 text-muted-foreground">{template.description}</div>
+                                            </div>
+                                            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
-                </div>
 
-                <div className="space-y-6">
-                    <div className="site-panel-strong p-8 ring-1 ring-white/10 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Sparkles className="h-5 w-5 text-accent" />
-                            <div className="site-eyebrow text-accent">Quantum Presets</div>
+                    <div className="site-panel p-6 space-y-4">
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-cyan-600" />
+                            <div className="site-eyebrow text-cyan-600">Quantum Presets</div>
                         </div>
-                        <div className="grid gap-3">
+                        <div className="grid gap-2">
                             {LABORATORY_PRESETS.quantum.map((preset) => (
                                 <button
                                     key={preset.label}
+                                    type="button"
                                     onClick={() => applyPreset(preset)}
-                                    className="group relative flex items-center justify-between p-4 rounded-2xl border border-white/5 bg-white/5 transition-all duration-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 overflow-hidden"
+                                    className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/5 p-3 text-left transition-all group hover:translate-x-1 hover:border-cyan-600/40 hover:bg-cyan-600/5"
                                 >
-                                    <div className="relative z-10">
-                                        <div className="text-sm font-black italic tracking-tight text-foreground group-hover:text-cyan-600 font-serif transition-colors duration-500">{preset.label}</div>
-                                        <div className="mt-1 text-[9px] font-mono text-muted-foreground/60 uppercase tracking-[0.15em]">
-                                            {isAnglePreset(preset) ? "Qubit State" : "Wave Logic"}
-                                        </div>
+                                    <div className="min-w-0">
+                                        <div className="text-[10px] font-black uppercase tracking-tight text-foreground group-hover:text-cyan-600">{preset.label}</div>
+                                        <div className="mt-1 text-[10px] leading-5 text-muted-foreground">{quantumPresetDescriptions[preset.label] || "Quantum scenario"}</div>
                                     </div>
-                                    <Zap className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-500" />
+                                    <Zap className="ml-3 h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-cyan-600 transition-colors" />
                                 </button>
                             ))}
                         </div>
                     </div>
+                    <LaboratorySignalPanel
+                        eyebrow="Quantum Signals"
+                        title="Hilbert monitoring"
+                        items={warningSignals}
+                    />
 
-                    <div className="site-panel-strong p-8 ring-1 ring-white/10">
-                        <div className="flex items-center gap-3 mb-6 font-serif">
-                            <Info className="h-5 w-5 text-accent" />
-                            <div className="site-eyebrow text-accent">Theory & Logic</div>
+                    <div className="grid gap-4 xl:grid-cols-2">
+                        <LaboratoryMathPanel
+                            eyebrow="Explain Mode"
+                            title="Konseptual tahlil"
+                            content={explainModeMarkdown}
+                            accentClassName="text-cyan-600"
+                        />
+                        <LaboratoryMathPanel
+                            eyebrow="Report Skeleton"
+                            title="Natijalar qoralama holatida"
+                            content={reportSkeletonMarkdown}
+                            accentClassName="text-amber-600"
+                        />
+                    </div>
+
+                    <div className="site-panel p-6 space-y-4">
+                        <div className="site-eyebrow text-cyan-600">Interactive Annotations</div>
+                        <div className="space-y-4">
+                            <input value={annotationTitle} onChange={e => setAnnotationTitle(e.target.value)} placeholder="Note title" className="w-full bg-background border-2 border-border/50 rounded-xl px-4 py-2 text-sm outline-none focus:border-cyan-600/40" />
+                            <textarea value={annotationNote} onChange={e => setAnnotationNote(e.target.value)} placeholder="Observations..." className="w-full bg-background border-2 border-border/50 rounded-xl px-4 py-2 text-sm outline-none focus:border-cyan-600/40 min-h-[80px]" />
+                            <button onClick={addAnnotation} className="w-full bg-cyan-600 text-white rounded-xl py-2 text-sm font-bold hover:bg-cyan-600/80 transition-colors">Save Annotation</button>
                         </div>
-                        <div className="space-y-6">
-                            <TheoryItem title="Bloch Coherence" text="Qubit qutblari (0 va 1) o'lchov bazalaridir. Ekvator maksimal superpozitsiya, Phi esa interferentsiya fazasini belgilaydi." />
-                            <TheoryItem title="Wave Duality" text="To'lqin funksiyasi amplitudasi (Ψ) va ehtimollik zichligi (|Ψ|²) kvant tizimining fazoviy taqsimotini to'liq tavsiflaydi." />
+                        <div className="space-y-2 mt-4">
+                            {annotations.map(a => (
+                                <div key={a.id} className="p-3 rounded-xl border border-border/60 bg-muted/5">
+                                    <div className="text-xs font-bold">{a.title}</div>
+                                    <div className="text-[10px] text-muted-foreground mt-1">{a.note}</div>
+                                    <div className="text-[9px] mt-2 opacity-50">{a.anchor}</div>
+                                </div>
+                            ))}
                         </div>
                     </div>
+
+                    <div className="site-panel p-6 space-y-4">
+                        <div className="site-eyebrow text-cyan-600">Saved Experiments</div>
+                        <div className="flex gap-2">
+                             <input value={experimentLabel} onChange={e => setExperimentLabel(e.target.value)} placeholder="Experiment name" className="flex-1 bg-background border-2 border-border/50 rounded-xl px-4 py-2 text-sm outline-none focus:border-cyan-600/40" />
+                             <button onClick={saveExperiment} className="bg-cyan-600 text-white px-4 rounded-xl hover:bg-cyan-600/80 transition-colors"><Plus className="h-4 w-4" /></button>
+                        </div>
+                        <div className="space-y-2">
+                            {savedExperiments.map(e => (
+                                <button key={e.id} onClick={() => loadExperiment(e)} className="w-full text-left p-3 rounded-xl border border-border/60 bg-muted/5 hover:bg-cyan-600/5 transition-all">
+                                    <div className="text-xs font-bold">{e.label}</div>
+                                    <div className="text-[9px] text-muted-foreground uppercase">{e.mode} | n={e.n} | {new Date(e.savedAt).toLocaleString()}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                    {mode === "qubit" && notebook.hasBlock("bloch") && (
+                        <div className="rounded-3xl border border-border/60 bg-background/45 p-3">
+                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Geometric Workspace</div>
+                            <div className="mt-3">
+                                <div className="site-panel-strong p-6 space-y-6">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="site-eyebrow text-cyan-600">Bloch Sphere Mapping</div>
+                                        <div className="site-outline-card px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ψ = {qubitAnalysis.ket}</div>
+                                    </div>
+                                    <div className="w-full">
+                                        <ScientificPlot
+                                            type="scatter3d"
+                                            data={buildBlochTraces(qubitAnalysis.cartesian)}
+                                            height={450}
+                                            title="State Vector Visualization"
+                                            insights={["bloch sphere", "state vector", "phase geometry"]}
+                                        />
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-4">
+                                        <div className="site-outline-card border-cyan-600/20 bg-cyan-600/5 p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-cyan-600">Prob |0{" >"}</div><div className="mt-1 font-serif text-xl font-black">{formatNumber(qubitAnalysis.zeroProbability, 4)}</div></div>
+                                        <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Prob |1{" >"}</div><div className="mt-1 font-serif text-xl font-black">{formatNumber(qubitAnalysis.oneProbability, 4)}</div></div>
+                                        <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Coherence</div><div className="mt-1 font-serif text-xl font-black">{formatNumber(qubitAnalysis.coherence, 4)}</div></div>
+                                        <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Latitude</div><div className="mt-1 font-serif text-xl font-black">{formatNumber(qubitAnalysis.latitude, 1)}°</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === "wave" && notebook.hasBlock("wave") && (
+                        <div className="rounded-3xl border border-border/60 bg-background/45 p-3">
+                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Spectral Deck</div>
+                            <div className="mt-3">
+                                <div className="site-panel-strong p-6 space-y-6">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="site-eyebrow text-cyan-600">Probability Density</div>
+                                        <div className="site-outline-card px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">n = {n} level</div>
+                                    </div>
+                                    <div className="w-full">
+                                        <CartesianPlot
+                                            height={350}
+                                            series={[
+                                                { label: "Amplitude Ψ(x)", color: "var(--accent)", points: currentWaveData.map(p => ({ x: p.x, y: p.y })) },
+                                                { label: "Density |Ψ|²", color: "#10b981", points: currentWaveData.map(p => ({ x: p.x, y: p.prob })) },
+                                            ]}
+                                        />
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-4">
+                                        <div className="site-outline-card border-cyan-600/20 bg-cyan-600/5 p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-cyan-600">Peak |Psi|</div><div className="mt-1 font-serif text-xl font-black">{formatNumber(waveInsights.peakAmplitude, 4)}</div></div>
+                                        <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Peak Density</div><div className="mt-1 font-serif text-xl font-black">{formatNumber(waveInsights.peakDensity, 4)}</div></div>
+                                        <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Nodes</div><div className="mt-1 font-serif text-xl font-black">{waveInsights.nodes}</div></div>
+                                        <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Norm Est.</div><div className="mt-1 font-serif text-lg font-black">{formatNumber(waveInsights.normEstimate, 4)}</div></div>
+                                    </div>
+
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <div className="rounded-2xl border border-border/60 bg-background/55 px-4 py-3">
+                                            <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                                <Layers3 className="h-3.5 w-3.5" />
+                                                Wave insight
+                                            </div>
+                                            <div className="mt-2 text-sm leading-6 text-foreground">
+                                                To'lqin funksiyasi amplitudasi (psi) va ehtimollik zichligi (psi kvadrat) real vaqtda hisoblanmoqda.
+                                            </div>
+                                        </div>
+                                        <div className="rounded-2xl border border-border/60 bg-background/55 px-4 py-3">
+                                            <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                                <Box className="h-3.5 w-3.5" />
+                                                Energy insight
+                                            </div>
+                                            <div className="mt-2 text-sm leading-6 text-foreground">
+                                                {waveMode === "state" ? `Energetik daraja n=${n} ga mos keladigan tugunlar soni ${waveInsights.nodes} tani tashkil etadi.` : "Gausian to'lqin paketi koordinata-impuls noaniqligini ko'rsatib turibdi."}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {notebook.hasBlock("bridge") && (
                         <LaboratoryBridgeCard
                             ready={true}
-                            exportState="idle"
-                            guideMode={null}
-                            setGuideMode={() => {}}
-                            guides={{} as any}
+                            exportState={exportState}
+                            guideMode={guideMode}
+                            setGuideMode={setGuideMode}
+                            guides={exportGuides}
                             liveTargets={liveTargets}
                             selectedLiveTargetId={selectedLiveTargetId}
                             onSelectTarget={setSelectedLiveTargetId}
-                            onCopy={() => {}}
-                            onSend={() => {}}
-                            onPush={() => {}}
+                            onCopy={copyMarkdownExport}
+                            onSend={sendToWriter}
+                            onPush={pushLiveResult}
                         />
                     )}
                 </div>
             </div>
-        </div>
-    );
-}
-
-function MetricCard({ label, value, tone }: { label: string; value: string; tone: string }) {
-    return (
-        <div className="site-outline-card p-6 bg-background/40 backdrop-blur-md transition-all hover:bg-white/5">
-            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground/60 mb-2">{label}</div>
-            <div className={`text-2xl font-black italic tracking-tighter text-foreground`}>{value}</div>
-        </div>
-    );
-}
-
-function SmallMetric({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/10">
-            <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1">{label}</div>
-            <div className="text-sm font-black italic text-foreground/80">{value}</div>
-        </div>
-    );
-}
-
-function TheoryItem({ title, text }: { title: string; text: string }) {
-    return (
-        <div className="space-y-2">
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600">{title}</div>
-            <p className="text-xs leading-relaxed text-muted-foreground italic font-serif opacity-80">{text}</p>
         </div>
     );
 }

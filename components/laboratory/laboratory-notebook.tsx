@@ -56,11 +56,17 @@ export function useLaboratoryNotebook<TBlockId extends string>(params: {
         return activeBlocks.includes(blockId);
     }
 
+    function setBlocks(blockIds: readonly TBlockId[]) {
+        const valid = blockIds.filter((item): item is TBlockId => definitions.some((block) => block.id === item));
+        setActiveBlocks(valid.length ? [...valid] : [...defaultBlocks]);
+    }
+
     return {
         activeBlocks,
         addBlock,
         removeBlock,
         hasBlock,
+        setBlocks,
     };
 }
 
@@ -71,6 +77,7 @@ export function LaboratoryNotebookToolbar<TBlockId extends string>({
     definitions,
     onAddBlock,
     onRemoveBlock,
+    controls,
 }: {
     title?: string;
     description?: string;
@@ -78,22 +85,25 @@ export function LaboratoryNotebookToolbar<TBlockId extends string>({
     definitions: readonly LaboratoryNotebookBlockDefinition<TBlockId>[];
     onAddBlock: (blockId: TBlockId) => void;
     onRemoveBlock: (blockId: TBlockId) => void;
+    controls?: React.ReactNode;
 }) {
     return (
-        <div className="site-panel relative overflow-hidden p-4">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.12),transparent_42%),radial-gradient(circle_at_top_right,rgba(15,118,110,0.1),transparent_36%)]" />
-            <div className="relative flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <div className="site-eyebrow">Notebook Workspace</div>
-                    <h2 className="mt-1 font-serif text-2xl font-black">{title}</h2>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+        <div className="site-panel border-border/60 px-3 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Notebook Workspace</div>
+                        <h2 className="font-serif text-lg font-black text-foreground">{title}</h2>
+                        <div className="rounded-full border border-accent/20 bg-accent/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent">
+                            {activeBlocks.length} active
+                        </div>
+                    </div>
+                    {description ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p> : null}
                 </div>
-                <div className="rounded-full border border-accent/20 bg-accent/5 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-accent">
-                    {activeBlocks.length} active block
-                </div>
+                {controls ? <div className="flex items-center gap-2 max-sm:w-full max-sm:justify-start">{controls}</div> : null}
             </div>
 
-            <div className="relative mt-4 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
                 {definitions.map((block) => {
                     const active = activeBlocks.includes(block.id);
                     return (
@@ -101,10 +111,10 @@ export function LaboratoryNotebookToolbar<TBlockId extends string>({
                             key={block.id}
                             type="button"
                             onClick={() => (active ? onRemoveBlock(block.id) : onAddBlock(block.id))}
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] transition-all ${
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] transition-all ${
                                 active
                                     ? "border-foreground bg-foreground text-background shadow-lg shadow-slate-900/10"
-                                    : "border-border bg-background/75 text-muted-foreground hover:-translate-y-0.5 hover:border-accent/30 hover:text-foreground"
+                                    : "border-border bg-background/75 text-muted-foreground hover:border-accent/30 hover:text-foreground"
                             }`}
                             title={block.description}
                         >

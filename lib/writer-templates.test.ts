@@ -29,6 +29,7 @@ describe("writer templates", () => {
         expect(draft.title.toLowerCase()).toContain("tadqiqot");
         expect(draft.content).toContain("##");
         expect(draft.status).toBe("draft");
+        expect(draft.sections).toHaveLength(1);
     });
 
     it("supports legacy template ids for existing links", () => {
@@ -43,6 +44,7 @@ describe("writer templates", () => {
 
         expect(draft.content).toContain("Observation Log");
         expect(draft.content).toContain("Submission Checklist");
+        expect(draft.sections[0]?.content).toContain("Observation Log");
         expect(resolveWriterTemplateAddOns(["delivery-checklist"])).toHaveLength(1);
     });
 });

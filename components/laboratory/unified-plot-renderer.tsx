@@ -83,12 +83,13 @@ export function UnifiedPlotRenderer({
 
     const finalizedLayout = useMemo(() => {
         const axisStyle = {
-            gridcolor: "rgba(148, 163, 184, 0.10)",
-            zerolinecolor: "rgba(148, 163, 184, 0.22)",
-            tickfont: { size: 10, color: "rgba(82,82,91,0.85)" },
-            titlefont: { size: 11, color: "rgba(63,63,70,0.95)" },
-            showbackground: false,
-            backgroundcolor: "transparent",
+            gridcolor: "rgba(148, 163, 184, 0.18)",
+            zerolinecolor: "rgba(148, 163, 184, 0.34)",
+            tickfont: { size: 10, color: "rgba(82,82,91,0.9)" },
+            titlefont: { size: 11, color: "rgba(39,39,42,0.98)" },
+            showbackground: true,
+            backgroundcolor: "rgba(248,250,252,0.14)",
+            showspikes: false,
         };
         const withAxisTitle = (text: string) => ({
             ...axisStyle,
@@ -134,7 +135,7 @@ export function UnifiedPlotRenderer({
                       dragmode: "orbit",
                       aspectmode: "data",
                       camera: defaultCamera,
-                      bgcolor: "transparent",
+                      bgcolor: "rgba(255,255,255,0.01)",
                   }
                 : undefined,
         };

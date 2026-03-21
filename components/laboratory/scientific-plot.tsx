@@ -40,6 +40,23 @@ function roundKey(value: number) {
     return value.toFixed(6);
 }
 
+function withAlphaColor(color: string | undefined, fallback: string, alpha: number) {
+    if (!color) {
+        return fallback;
+    }
+
+    const normalized = color.trim();
+    if (/^#([0-9a-f]{6})$/i.test(normalized)) {
+        const hex = normalized.slice(1);
+        const red = Number.parseInt(hex.slice(0, 2), 16);
+        const green = Number.parseInt(hex.slice(2, 4), 16);
+        const blue = Number.parseInt(hex.slice(4, 6), 16);
+        return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+    }
+
+    return fallback;
+}
+
 function isPlotlyTraceArray(data: Array<Record<string, unknown>>) {
     return data.every((item) => item && typeof item === "object" && "type" in item);
 }
@@ -51,6 +68,9 @@ export function buildScatter3DTrajectoryData(
         lineColor?: string;
         startColor?: string;
         endColor?: string;
+        revealRatio?: number;
+        colorscale?: string | Array<[number, string]>;
+        maxSamples?: number;
     } = {},
 ) {
     const cleanPoints = points.filter((point) => isFinitePoint(point.x) && isFinitePoint(point.y) && isFinitePoint(point.z));
@@ -58,32 +78,146 @@ export function buildScatter3DTrajectoryData(
         return [] as Data[];
     }
 
+    const sampleTrajectory = (input: PlotPointLike[], maxSamples: number) => {
+        if (input.length <= maxSamples) {
+            return input;
+        }
+
+        const step = (input.length - 1) / Math.max(1, maxSamples - 1);
+        const sampled = Array.from({ length: maxSamples }, (_, index) => input[Math.min(input.length - 1, Math.round(index * step))]);
+        return sampled.filter((point, index) => index === 0 || point !== sampled[index - 1]);
+    };
+
+    const normalizedRevealRatio = Math.max(0.02, Math.min(1, options.revealRatio ?? 1));
+    const visibleCount = Math.max(1, Math.ceil(cleanPoints.length * normalizedRevealRatio));
+    const visiblePoints = sampleTrajectory(cleanPoints.slice(0, visibleCount), Math.max(60, options.maxSamples ?? 900));
     const label = options.label || "Trajectory";
-    const firstPoint = cleanPoints[0];
-    const lastPoint = cleanPoints[cleanPoints.length - 1];
+    const firstPoint = visiblePoints[0];
+    const visibleLastPoint = visiblePoints[visiblePoints.length - 1];
+    const xValues = visiblePoints.map((point) => point.x);
+    const yValues = visiblePoints.map((point) => point.y);
+    const zValues = visiblePoints.map((point) => point.z as number);
+    const xPlane = Math.min(...xValues);
+    const yPlane = Math.min(...yValues);
+    const zPlane = Math.min(...zValues);
+    const projectionColor = withAlphaColor(options.lineColor, "rgba(37, 99, 235, 0.22)", 0.22);
+    const glowColor = withAlphaColor(options.lineColor, "rgba(37, 99, 235, 0.16)", 0.16);
+    const lineColor = options.lineColor || "#2563eb";
+    const gradientScale = options.colorscale || [
+        [0, "#67e8f9"],
+        [0.45, lineColor],
+        [1, options.endColor || "#f59e0b"],
+    ];
 
     const traces: Data[] = [
         {
             type: "scatter3d",
-            mode: cleanPoints.length > 1 ? "lines" : "markers",
+            mode: visiblePoints.length > 1 ? "lines" : "markers",
+            name: `${label} glow`,
+            x: xValues,
+            y: yValues,
+            z: zValues,
+            line: {
+                width: 12,
+                color: glowColor,
+            },
+            marker: {
+                size: 0,
+                opacity: 0,
+            },
+            hoverinfo: "skip",
+            showlegend: false,
+        } as Data,
+        {
+            type: "scatter3d",
+            mode: visiblePoints.length > 1 ? "lines" : "markers",
             name: label,
-            x: cleanPoints.map((point) => point.x),
-            y: cleanPoints.map((point) => point.y),
-            z: cleanPoints.map((point) => point.z as number),
+            x: xValues,
+            y: yValues,
+            z: zValues,
             line: {
                 width: 6,
-                color: options.lineColor || "#2563eb",
+                color: lineColor,
             },
             marker: {
                 size: 4,
-                color: options.lineColor || "#2563eb",
+                color: lineColor,
                 opacity: 0.82,
             },
             hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
         } as Data,
     ];
 
-    if (cleanPoints.length > 1) {
+    if (visiblePoints.length > 1) {
+        traces.push({
+            type: "scatter3d",
+            mode: "markers",
+            name: `${label} gradient trail`,
+            x: xValues,
+            y: yValues,
+            z: zValues,
+            marker: {
+                size: visiblePoints.length > 600 ? 2.2 : 3.2,
+                color: visiblePoints.map((_, index) => index / Math.max(1, visiblePoints.length - 1)),
+                colorscale: gradientScale,
+                opacity: 0.95,
+                line: { width: 0 },
+                showscale: false,
+            },
+            hoverinfo: "skip",
+            showlegend: false,
+        } as Data);
+
+        traces.push(
+            {
+                type: "scatter3d",
+                mode: "lines",
+                name: `${label} xy projection`,
+                x: xValues,
+                y: yValues,
+                z: visiblePoints.map(() => zPlane),
+                line: {
+                    width: 2,
+                    color: projectionColor,
+                    dash: "dot",
+                },
+                hoverinfo: "skip",
+                showlegend: false,
+            } as Data,
+            {
+                type: "scatter3d",
+                mode: "lines",
+                name: `${label} xz projection`,
+                x: xValues,
+                y: visiblePoints.map(() => yPlane),
+                z: zValues,
+                line: {
+                    width: 2,
+                    color: projectionColor,
+                    dash: "dot",
+                },
+                hoverinfo: "skip",
+                showlegend: false,
+            } as Data,
+            {
+                type: "scatter3d",
+                mode: "lines",
+                name: `${label} yz projection`,
+                x: visiblePoints.map(() => xPlane),
+                y: yValues,
+                z: zValues,
+                line: {
+                    width: 2,
+                    color: projectionColor,
+                    dash: "dot",
+                },
+                hoverinfo: "skip",
+                showlegend: false,
+            } as Data,
+        );
+    }
+
+    if (visiblePoints.length > 1) {
         traces.push(
             {
                 type: "scatter3d",
@@ -93,25 +227,25 @@ export function buildScatter3DTrajectoryData(
                 y: [firstPoint.y],
                 z: [firstPoint.z as number],
                 marker: {
-                    size: 6,
+                    size: 7,
                     color: options.startColor || "#14b8a6",
-                    line: { width: 1.5, color: "rgba(255,255,255,0.85)" },
+                    line: { width: 2, color: "rgba(255,255,255,0.92)" },
                 },
                 hovertemplate: "Start<br>x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
             } as Data,
             {
                 type: "scatter3d",
                 mode: "markers",
-                name: `${label} end`,
-                x: [lastPoint.x],
-                y: [lastPoint.y],
-                z: [lastPoint.z as number],
+                name: normalizedRevealRatio >= 0.999 ? `${label} end` : `${label} head`,
+                x: [visibleLastPoint.x],
+                y: [visibleLastPoint.y],
+                z: [visibleLastPoint.z as number],
                 marker: {
-                    size: 7,
+                    size: normalizedRevealRatio >= 0.999 ? 8 : 10,
                     color: options.endColor || "#f59e0b",
-                    line: { width: 1.5, color: "rgba(255,255,255,0.85)" },
+                    line: { width: 2, color: "rgba(255,255,255,0.92)" },
                 },
-                hovertemplate: "End<br>x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
+                hovertemplate: `${normalizedRevealRatio >= 0.999 ? "End" : "Trail head"}<br>x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>`,
             } as Data,
         );
     }

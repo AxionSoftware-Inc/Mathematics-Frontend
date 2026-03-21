@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, FileText, Pencil, Trash2, Calendar, Clock, BookOpen, Layers, Search, X } from "lucide-react";
 import { WriteTypeSelector } from "@/components/write-type-selector";
@@ -11,6 +11,8 @@ interface Paper {
     title: string;
     abstract: string;
     status: string;
+    document_kind?: string;
+    section_count?: number;
     created_at: string;
     updated_at: string;
 }
@@ -22,8 +24,7 @@ export default function WriteIndexPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isWriteSelectorOpen, setIsWriteSelectorOpen] = useState(false);
 
-
-    const fetchPapers = async () => {
+    const fetchPapers = useCallback(async () => {
         setIsLoading(true);
         try {
             const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -41,14 +42,14 @@ export default function WriteIndexPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [filterStatus, searchQuery]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchPapers();
         }, 400); // debounce search
         return () => clearTimeout(timer);
-    }, [filterStatus, searchQuery]);
+    }, [fetchPapers]);
 
     const handleDelete = async (id: number) => {
         if (!confirm("Haqiqatan ham ushbu maqolani o'chirib tashlamoqchimisiz?")) return;
@@ -188,9 +189,14 @@ export default function WriteIndexPage() {
                                 <div key={paper.id} className="rounded-xl border border-border/50 bg-background hover:bg-muted/10 transition-all shadow-sm hover:shadow-md group flex flex-col overflow-hidden relative">
                                     <div className="p-6 flex-1 flex flex-col">
                                         <div className="flex items-center justify-between mb-4">
-                                            <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${paper.status === 'published' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                                                {paper.status === 'draft' ? "Qoralama" : "Nashr qilingan"}
-                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${paper.status === 'published' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                                                    {paper.status === 'draft' ? "Qoralama" : "Nashr qilingan"}
+                                                </span>
+                                                <span className="inline-flex items-center rounded-md bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">
+                                                    {paper.document_kind || "paper"}
+                                                </span>
+                                            </div>
                                             
                                             <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                 <button 
@@ -215,6 +221,9 @@ export default function WriteIndexPage() {
                                         <p className="text-sm text-muted-foreground line-clamp-3 mb-6 flex-1 leading-relaxed">
                                             {paper.abstract || "Annotatsiya kiritilmagan yoxud hali yozilmoqda..."}
                                         </p>
+                                        <div className="mb-4 inline-flex rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                            {paper.section_count || 1} sections
+                                        </div>
                                         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t border-border/50 font-medium">
                                             <div className="flex items-center gap-1.5">
                                                 <Calendar className="w-3.5 h-3.5" />
@@ -245,4 +254,3 @@ export default function WriteIndexPage() {
         </div>
     );
 }
-

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, type ComponentProps } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -14,7 +15,37 @@ function looksLikeHtml(content: string) {
     return /<\/?[a-z][\s\S]*>/i.test(content);
 }
 
-export function ArticleRichContent({
+const markdownComponents = {
+    code(props: ComponentProps<"code"> & { node?: unknown }) {
+        const { children, className: codeClassName, ...rest } = props;
+        const normalizedCode = String(children).replace(/\n$/, "");
+        const plotMatch = /language-(plot2d|plot3d)/.exec(codeClassName || "");
+
+        if (plotMatch) {
+            return <PlotRenderer code={normalizedCode} type={plotMatch[1] as "plot2d" | "plot3d"} />;
+        }
+
+        if (/language-python/.test(codeClassName || "")) {
+            return <JupyterTerminalElement code={normalizedCode} />;
+        }
+
+        if (/language-lab-result/.test(codeClassName || "")) {
+            const parsed = parseWriterBridgeBlock(normalizedCode);
+
+            if (parsed) {
+                return <LabResultCard block={parsed} />;
+            }
+        }
+
+        return (
+            <code className={codeClassName} {...rest}>
+                {children}
+            </code>
+        );
+    },
+};
+
+export const ArticleRichContent = memo(function ArticleRichContent({
     content,
     className = "",
 }: {
@@ -31,45 +62,9 @@ export function ArticleRichContent({
 
     return (
         <div className={className}>
-            <ReactMarkdown
-                remarkPlugins={[remarkMath]}
-                rehypePlugins={[rehypeKatex]}
-                components={{
-                    code(props) {
-                        const { children, className: codeClassName, ...rest } = props;
-                        const plotMatch = /language-(plot2d|plot3d)/.exec(codeClassName || "");
-
-                        if (plotMatch) {
-                            return (
-                                <PlotRenderer
-                                    code={String(children).replace(/\n$/, "")}
-                                    type={plotMatch[1] as "plot2d" | "plot3d"}
-                                />
-                            );
-                        }
-
-                        if (/language-python/.test(codeClassName || "")) {
-                            return <JupyterTerminalElement code={String(children).replace(/\n$/, "")} />;
-                        }
-
-                        if (/language-lab-result/.test(codeClassName || "")) {
-                            const parsed = parseWriterBridgeBlock(String(children).replace(/\n$/, ""));
-
-                            if (parsed) {
-                                return <LabResultCard block={parsed} />;
-                            }
-                        }
-
-                        return (
-                            <code className={codeClassName} {...rest}>
-                                {children}
-                            </code>
-                        );
-                    },
-                }}
-            >
+            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
                 {content}
             </ReactMarkdown>
         </div>
     );
-}
+});

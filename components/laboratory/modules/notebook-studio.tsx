@@ -7,14 +7,9 @@ import { ArticleRichContent } from "@/components/article-rich-content";
 import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
 import { analyzeSeries, analyzeTaylorApproximation, estimateLimit } from "@/components/laboratory/math-utils";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
+import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
-import {
-    createLaboratoryWriterDraftHref,
-    findLiveWriterTargetBySelection,
-    publishToLiveWriterTarget,
-    queueWriterImport,
-    type WriterBridgeBlockData,
-} from "@/lib/live-writer-bridge";
+import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 
 type NotebookCellType = "markdown" | "series" | "limit" | "taylor";
@@ -385,40 +380,21 @@ export function NotebookStudioModule({ module }: { module: LaboratoryModuleMeta 
         });
     }
 
-    async function copyMarkdownExport() {
-        await navigator.clipboard.writeText(compileNotebookMarkdown(title, cells));
-        setExportState("copied");
-        setGuideMode(null);
-    }
-
-    function sendToWriter() {
-        const requestId = queueWriterImport({
-            version: 1,
-            markdown: compileNotebookMarkdown(title, cells),
-            block: buildNotebookLivePayload(`import-notebook-${Date.now()}`, title, cells, activeCellId),
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: Boolean(cells.length),
+        sourceLabel: "Notebook Studio",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        setGuideMode,
+        buildMarkdown: () => compileNotebookMarkdown(title, cells),
+        buildBlock: (targetId) => buildNotebookLivePayload(targetId, title, cells, activeCellId),
+        getDraftMeta: () => ({
             title,
             abstract: "Notebook studio'dan eksport qilingan matematik hujjat va faol cell natijasi.",
             keywords: "notebook, mathematics, laboratory",
-        });
-        setExportState("sent");
-        setGuideMode(null);
-        window.location.assign(createLaboratoryWriterDraftHref(requestId));
-    }
-
-    function pushLiveResult() {
-        const selectedTarget = findLiveWriterTargetBySelection(liveTargets, selectedLiveTargetId);
-        if (!selectedTarget || !cells.length) {
-            return;
-        }
-
-        publishToLiveWriterTarget({
-            writerId: selectedTarget.writerId,
-            targetId: selectedTarget.id,
-            sourceLabel: "Notebook Studio",
-            documentTitle: selectedTarget.documentTitle,
-            payload: buildNotebookLivePayload(selectedTarget.id, title, cells, activeCellId),
-        });
-    }
+        }),
+    });
 
     return (
         <div className="space-y-3">
@@ -440,7 +416,7 @@ export function NotebookStudioModule({ module }: { module: LaboratoryModuleMeta 
                 </div>
             </div>
 
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
                 <div className="space-y-3">
                     {cells.map((cell) => (
                         <CellCard

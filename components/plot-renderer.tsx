@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { compile } from 'mathjs';
 
@@ -15,8 +15,73 @@ interface PlotProp {
     type: 'plot2d' | 'plot3d';
 }
 
-export function PlotRenderer({ code, type }: PlotProp) {
+function clampSteps(value: unknown, fallback: number, min: number, max: number) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return fallback;
+    }
+
+    return Math.min(max, Math.max(min, Math.round(numericValue)));
+}
+
+export const PlotRenderer = React.memo(function PlotRenderer({ code, type }: PlotProp) {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [shouldRender, setShouldRender] = useState(false);
+
+    useEffect(() => {
+        if (shouldRender) {
+            return;
+        }
+
+        const node = containerRef.current;
+        if (!node || typeof IntersectionObserver === 'undefined') {
+            const frameId = window.requestAnimationFrame(() => {
+                setShouldRender(true);
+            });
+
+            return () => window.cancelAnimationFrame(frameId);
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    setShouldRender(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '480px 0px' },
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [shouldRender]);
+
+    const plotMeta = useMemo(() => {
+        try {
+            const config = JSON.parse(code);
+            const expression = config.f || config.expression || 'x^2';
+            return {
+                title: config.title || (type === 'plot3d' ? `f(x,y) = ${expression}` : `f(x) = ${expression}`),
+                expression,
+                description:
+                    type === 'plot3d'
+                        ? '3D surface preview viewportga kelganda yuklanadi.'
+                        : 'Grafik preview viewportga kelganda yuklanadi.',
+            };
+        } catch {
+            return {
+                title: type === 'plot3d' ? '3D grafik' : '2D grafik',
+                expression: '',
+                description: 'Grafik konfiguratsiyasi viewportga kelganda tekshiriladi.',
+            };
+        }
+    }, [code, type]);
+
     const plotData = useMemo(() => {
+        if (!shouldRender) {
+            return null;
+        }
+
         try {
             // Attempt to parse JSON config
             const config = JSON.parse(code);
@@ -25,7 +90,7 @@ export function PlotRenderer({ code, type }: PlotProp) {
 
             if (type === 'plot2d') {
                 const domain = config.domain || [-10, 10];
-                const steps = config.steps || 200;
+                const steps = clampSteps(config.previewSteps ?? config.steps, 200, 80, 360);
                 
                 const xValues = [];
                 const yValues = [];
@@ -68,7 +133,7 @@ export function PlotRenderer({ code, type }: PlotProp) {
             } else if (type === 'plot3d') {
                 const xDomain = config.xDomain || [-5, 5];
                 const yDomain = config.yDomain || [-5, 5];
-                const steps = config.steps || 50;
+                const steps = clampSteps(config.previewSteps ?? config.steps, 28, 12, 36);
 
                 const xValues = [];
                 const yValues = [];
@@ -128,9 +193,38 @@ export function PlotRenderer({ code, type }: PlotProp) {
             return { error: `Parsing error: ${error instanceof Error ? error.message : String(error)}` };
         }
         return { error: 'Unknown type' };
-    }, [code, type]);
+    }, [code, shouldRender, type]);
 
-    if (plotData.error) {
+    if (!shouldRender) {
+        return (
+            <div
+                ref={containerRef}
+                className="my-6 flex min-h-52 flex-col justify-between rounded-2xl border border-border/50 bg-background/70 p-5 shadow-sm"
+            >
+                <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        {type === 'plot3d' ? '3D Plot Queue' : 'Plot Queue'}
+                    </div>
+                    <div className="mt-2 text-lg font-black">{plotMeta.title}</div>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{plotMeta.description}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="rounded-full border border-border/60 bg-background/75 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
+                        {plotMeta.expression || 'Expression hidden'}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShouldRender(true)}
+                        className="rounded-full border border-border/60 bg-background/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                        Hozir render qilish
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (plotData?.error) {
         return (
             <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl my-4 text-sm font-mono">
                 [Plot rendering failed: {plotData.error}]
@@ -138,12 +232,22 @@ export function PlotRenderer({ code, type }: PlotProp) {
         );
     }
 
-    const ThePlot = Plot as any;
+    if (!plotData) {
+        return null;
+    }
+
+    const PlotComponent = Plot as unknown as React.ComponentType<{
+        data: unknown;
+        layout: unknown;
+        useResizeHandler: boolean;
+        className: string;
+        config: { displayModeBar: boolean; responsive: boolean };
+    }>;
 
     return (
         <div className="my-6 rounded-2xl overflow-hidden border border-border/50 bg-background shadow-sm hover:shadow-md transition-shadow">
-            <ThePlot
-                data={plotData.data as any}
+            <PlotComponent
+                data={plotData.data}
                 layout={{
                     ...plotData.layout,
                     autosize: true
@@ -154,4 +258,4 @@ export function PlotRenderer({ code, type }: PlotProp) {
             />
         </div>
     );
-}
+});

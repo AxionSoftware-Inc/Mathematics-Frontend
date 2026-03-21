@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -17,7 +17,9 @@ import {
     PanelLeftClose,
     PanelLeftOpen,
     PencilLine,
+    Radar,
     Printer,
+    RefreshCw,
     Save,
     ScanText,
     Sigma,
@@ -29,6 +31,7 @@ import { ArticleRichContent } from "@/components/article-rich-content";
 import { MathKeyboard } from "@/components/math-keyboard";
 import { CitationManager } from "@/components/citation-manager";
 import { WriterLiveTargetsPanel } from "@/components/live-writer-bridge/writer-live-targets-panel";
+import { WriterProjectPanel } from "@/components/writer-project-panel";
 import {
     LIVE_WRITER_TARGET_TTL_MS,
     createBroadcastChannel,
@@ -43,6 +46,14 @@ import {
     type LabPublishBroadcast,
     type WriterTargetsRequest,
 } from "@/lib/live-writer-bridge";
+import {
+    compileWriterProjectSections,
+    createWriterProjectSection,
+    ensureWriterProjectSections,
+    getWriterSectionKey,
+    normalizeWriterProjectSections,
+    type WriterProjectSection,
+} from "@/lib/writer-project";
 import { writerTemplates, type WriterTemplate, type WriterTemplateIcon } from "@/lib/writer-templates";
 
 export type PaperFormData = {
@@ -51,7 +62,11 @@ export type PaperFormData = {
     content: string;
     authors: string;
     keywords: string;
+    document_kind: string;
+    branding_enabled: boolean;
+    branding_label: string;
     status: string;
+    sections: WriterProjectSection[];
 };
 
 type SaveState = "idle" | "submitting" | "success" | "error";
@@ -61,6 +76,16 @@ type BlockPreset = {
     icon: typeof Sigma;
     snippet: string;
 };
+
+type PreviewSyncMode = "live" | "manual";
+type InspectorSection = "navigator" | "tools" | "metadata" | "templates" | "outline";
+
+const CONTENT_SYNC_DELAY_MS = 160;
+const PREVIEW_SYNC_DELAY_MS = 260;
+const LARGE_DOCUMENT_CHARACTER_THRESHOLD = 45000;
+const LARGE_DOCUMENT_WORD_THRESHOLD = 7000;
+const HEAVY_PLOT_THRESHOLD = 6;
+const HEAVY_3D_PLOT_THRESHOLD = 2;
 
 const blockPresets: BlockPreset[] = [
     {
@@ -123,6 +148,30 @@ function splitCommaValues(value: string) {
         .filter(Boolean);
 }
 
+function analyzeDocumentContent(content: string) {
+    const trimmedContent = content.trim();
+    const words = trimmedContent ? trimmedContent.split(/\s+/).length : 0;
+    const headings = [...content.matchAll(/^#{1,6}\s+(.+)$/gm)].map((match) => ({
+        level: match[0].match(/^#+/)?.[0].length ?? 1,
+        title: match[1].trim(),
+    }));
+    const equations = (content.match(/\$\$[\s\S]*?\$\$|\$[^$\n]+\$/g) || []).length;
+    const codeBlocks = Math.floor((content.match(/```/g) || []).length / 2);
+    const plot2DBlocks = (content.match(/```plot2d/g) || []).length;
+    const plot3DBlocks = (content.match(/```plot3d/g) || []).length;
+
+    return {
+        words,
+        characters: content.length,
+        headings,
+        equations,
+        codeBlocks,
+        plot2DBlocks,
+        plot3DBlocks,
+        totalPlots: plot2DBlocks + plot3DBlocks,
+    };
+}
+
 export function PaperEditorWorkspace({
     formData,
     onChange,
@@ -135,7 +184,7 @@ export function PaperEditorWorkspace({
 }: {
     formData: PaperFormData;
     onChange: (next: PaperFormData) => void;
-    onSubmit: () => void;
+    onSubmit: (nextData?: PaperFormData) => void | Promise<void>;
     saveState: SaveState;
     errorMessage: string;
     backHref?: string;
@@ -143,6 +192,12 @@ export function PaperEditorWorkspace({
     documentId?: string;
 }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const workspaceShellRef = useRef<HTMLDivElement>(null);
+    const splitWorkspaceRef = useRef<HTMLDivElement>(null);
+    const dragModeRef = useRef<"sidebar" | "split" | null>(null);
+    const [viewportWidth, setViewportWidth] = useState(() =>
+        typeof window !== "undefined" ? window.innerWidth : 1440,
+    );
     const [viewMode, setViewMode] = useState<"split" | "edit" | "preview">(() =>
         typeof window !== "undefined" && window.innerWidth < 1280 ? "edit" : "split",
     );
@@ -150,26 +205,63 @@ export function PaperEditorWorkspace({
     const [showInspector, setShowInspector] = useState(() =>
         typeof window !== "undefined" ? window.innerWidth >= 1280 : true,
     );
+    const [inspectorSection, setInspectorSection] = useState<InspectorSection>("navigator");
+    const [previewSyncMode, setPreviewSyncMode] = useState<PreviewSyncMode>("live");
     const writerIdRef = useRef(createWriterId());
     const channelRef = useRef<BroadcastChannel | null>(null);
     const latestFormDataRef = useRef(formData);
+    const isInternalContentSyncRef = useRef(false);
+    const hasAutoSwitchedForPerformanceRef = useRef(false);
+    const liveBridgeTargetsRef = useRef<ReturnType<typeof extractWriterBridgeTargets>>([]);
+    const normalizedSections = useMemo(() => ensureWriterProjectSections(formData), [formData]);
+    const [activeSectionId, setActiveSectionId] = useState(() => getWriterSectionKey(normalizedSections[0]));
+    const activeSection =
+        normalizedSections.find((section) => getWriterSectionKey(section) === activeSectionId) ?? normalizedSections[0];
+    const [editorContent, setEditorContent] = useState(activeSection?.content ?? "");
+    const [previewContent, setPreviewContent] = useState(
+        compileWriterProjectSections(normalizedSections, {
+            brandingEnabled: formData.branding_enabled,
+            brandingLabel: formData.branding_label,
+        }),
+    );
+    const [sidebarWidth, setSidebarWidth] = useState(280);
+    const [splitRatio, setSplitRatio] = useState(52);
+    const latestEditorContentRef = useRef(activeSection?.content ?? "");
+    const lastCommittedContentRef = useRef(activeSection?.content ?? "");
 
     const deferredTitle = useDeferredValue(formData.title);
     const deferredAbstract = useDeferredValue(formData.abstract);
-    const deferredContent = useDeferredValue(formData.content);
+    const compiledProjectContent = useMemo(
+        () =>
+            compileWriterProjectSections(normalizedSections, {
+                brandingEnabled: formData.branding_enabled,
+                brandingLabel: formData.branding_label,
+            }),
+        [formData.branding_enabled, formData.branding_label, normalizedSections],
+    );
+    const deferredEditorContent = useDeferredValue(compiledProjectContent);
+    const deferredPreviewContent = useDeferredValue(previewContent);
 
-    const words = deferredContent.trim() ? deferredContent.trim().split(/\s+/).length : 0;
-    const characters = deferredContent.length;
+    const documentAnalysis = useMemo(() => analyzeDocumentContent(deferredEditorContent), [deferredEditorContent]);
+    const words = documentAnalysis.words;
+    const characters = documentAnalysis.characters;
     const readingTime = Math.max(1, Math.ceil(words / 220));
-    const headings = [...deferredContent.matchAll(/^#{1,6}\s+(.+)$/gm)].map((match) => ({
-        level: match[0].match(/^#+/)?.[0].length ?? 1,
-        title: match[1].trim(),
-    }));
-    const equations = (deferredContent.match(/\$\$[\s\S]*?\$\$|\$[^$\n]+\$/g) || []).length;
-    const codeBlocks = Math.floor((deferredContent.match(/```/g) || []).length / 2);
-    const liveBridgeTargets = extractWriterBridgeTargets(formData.content);
+    const headings = documentAnalysis.headings;
+    const equations = documentAnalysis.equations;
+    const codeBlocks = documentAnalysis.codeBlocks;
+    const plot2DBlocks = documentAnalysis.plot2DBlocks;
+    const plot3DBlocks = documentAnalysis.plot3DBlocks;
+    const totalPlots = documentAnalysis.totalPlots;
+    const liveBridgeTargets = useMemo(() => extractWriterBridgeTargets(compiledProjectContent), [compiledProjectContent]);
+    const liveBridgeTargetsSignature = useMemo(() => JSON.stringify(liveBridgeTargets), [liveBridgeTargets]);
     const authorList = splitCommaValues(formData.authors);
     const keywordList = splitCommaValues(formData.keywords);
+    const performanceModeRecommended =
+        characters >= LARGE_DOCUMENT_CHARACTER_THRESHOLD ||
+        words >= LARGE_DOCUMENT_WORD_THRESHOLD ||
+        totalPlots >= HEAVY_PLOT_THRESHOLD ||
+        plot3DBlocks >= HEAVY_3D_PLOT_THRESHOLD;
+    const previewIsStale = previewContent !== compiledProjectContent;
     const completionItems = [
         Boolean(formData.title.trim()),
         Boolean(formData.abstract.trim()),
@@ -187,28 +279,380 @@ export function PaperEditorWorkspace({
         { label: "Kamida 250 so'z", done: words >= 250 },
         { label: "Kamida 3 bo'lim", done: headings.length >= 3 },
     ];
+    const canResizeSidebar = viewportWidth >= 1280;
+    const splitLayoutEnabled = viewMode === "split" && viewportWidth >= 1280;
+
+    const compileProjectContent = useCallback((sections: WriterProjectSection[]) => {
+        return compileWriterProjectSections(sections, {
+            brandingEnabled: latestFormDataRef.current.branding_enabled,
+            brandingLabel: latestFormDataRef.current.branding_label,
+        });
+    }, []);
+
+    const getSectionsWithCurrentDraft = useCallback((overrideContent = latestEditorContentRef.current) => {
+        return normalizeWriterProjectSections(
+            normalizedSections.map((section) =>
+                getWriterSectionKey(section) === getWriterSectionKey(activeSection)
+                    ? { ...section, content: overrideContent }
+                    : section,
+            ),
+        );
+    }, [activeSection, normalizedSections]);
 
     useEffect(() => {
         latestFormDataRef.current = formData;
     }, [formData]);
 
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        function handleResize() {
+            setViewportWidth(window.innerWidth);
+        }
+
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    useEffect(() => {
+        latestEditorContentRef.current = editorContent;
+    }, [editorContent]);
+
+    useEffect(() => {
+        if (viewportWidth < 1024) {
+            setShowInspector(false);
+        }
+    }, [viewportWidth]);
+
+    useEffect(() => {
+        function handlePointerMove(event: PointerEvent) {
+            if (dragModeRef.current === "sidebar" && workspaceShellRef.current) {
+                const bounds = workspaceShellRef.current.getBoundingClientRect();
+                const nextWidth = Math.min(Math.max(event.clientX - bounds.left, 220), 420);
+                setSidebarWidth(nextWidth);
+            }
+
+            if (dragModeRef.current === "split" && splitWorkspaceRef.current) {
+                const bounds = splitWorkspaceRef.current.getBoundingClientRect();
+                const nextRatio = ((event.clientX - bounds.left) / bounds.width) * 100;
+                setSplitRatio(Math.min(Math.max(nextRatio, 35), 65));
+            }
+        }
+
+        function handlePointerUp() {
+            dragModeRef.current = null;
+            document.body.style.removeProperty("cursor");
+            document.body.style.removeProperty("user-select");
+        }
+
+        window.addEventListener("pointermove", handlePointerMove);
+        window.addEventListener("pointerup", handlePointerUp);
+        return () => {
+            window.removeEventListener("pointermove", handlePointerMove);
+            window.removeEventListener("pointerup", handlePointerUp);
+        };
+    }, []);
+
+    useEffect(() => {
+        const activeStillExists = normalizedSections.some((section) => getWriterSectionKey(section) === activeSectionId);
+        if (!activeStillExists) {
+            setActiveSectionId(getWriterSectionKey(normalizedSections[0]));
+        }
+    }, [activeSectionId, normalizedSections]);
+
+    useEffect(() => {
+        liveBridgeTargetsRef.current = liveBridgeTargets;
+    }, [liveBridgeTargets, liveBridgeTargetsSignature]);
+
+    useEffect(() => {
+        const nextActiveContent = activeSection?.content ?? "";
+        if (isInternalContentSyncRef.current && nextActiveContent === latestEditorContentRef.current) {
+            isInternalContentSyncRef.current = false;
+            lastCommittedContentRef.current = nextActiveContent;
+            return;
+        }
+
+        if (nextActiveContent !== lastCommittedContentRef.current) {
+            lastCommittedContentRef.current = nextActiveContent;
+            latestEditorContentRef.current = nextActiveContent;
+            const frameId = window.requestAnimationFrame(() => {
+                setEditorContent(nextActiveContent);
+                setPreviewContent(compiledProjectContent);
+            });
+            return () => window.cancelAnimationFrame(frameId);
+        }
+    }, [activeSection, compiledProjectContent]);
+
+    useEffect(() => {
+        if (editorContent === lastCommittedContentRef.current) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            const nextContent = latestEditorContentRef.current;
+            const nextSections = getSectionsWithCurrentDraft(nextContent);
+            isInternalContentSyncRef.current = true;
+            lastCommittedContentRef.current = nextContent;
+            const compiledContent = compileProjectContent(nextSections);
+            const nextData = {
+                ...latestFormDataRef.current,
+                sections: nextSections,
+                content: compiledContent,
+            };
+            latestFormDataRef.current = nextData;
+            onChange(nextData);
+        }, CONTENT_SYNC_DELAY_MS);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [activeSection, compileProjectContent, editorContent, getSectionsWithCurrentDraft, onChange]);
+
+    useEffect(() => {
+        if (previewSyncMode !== "live") {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            const nextSections = getSectionsWithCurrentDraft();
+            setPreviewContent(compileProjectContent(nextSections));
+        }, PREVIEW_SYNC_DELAY_MS);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [activeSection, compileProjectContent, editorContent, getSectionsWithCurrentDraft, previewSyncMode]);
+
+    useEffect(() => {
+        if (performanceModeRecommended && !hasAutoSwitchedForPerformanceRef.current) {
+            const timeoutId = window.setTimeout(() => {
+                setPreviewSyncMode("manual");
+                if (viewMode === "split") {
+                    setViewMode("edit");
+                }
+                if (typeof window !== "undefined" && window.innerWidth < 1536) {
+                    setShowInspector(false);
+                }
+                hasAutoSwitchedForPerformanceRef.current = true;
+            }, 0);
+
+            return () => window.clearTimeout(timeoutId);
+        }
+
+        if (!performanceModeRecommended) {
+            hasAutoSwitchedForPerformanceRef.current = false;
+        }
+    }, [performanceModeRecommended, viewMode]);
+
+    useEffect(() => {
+        if (viewMode === "preview" && previewSyncMode === "manual") {
+            setPreviewContent(compileProjectContent(getSectionsWithCurrentDraft()));
+        }
+    }, [compileProjectContent, getSectionsWithCurrentDraft, previewSyncMode, viewMode]);
+
     function setField<K extends keyof PaperFormData>(field: K, value: PaperFormData[K]) {
-        onChange({ ...formData, [field]: value });
+        const next = { ...latestFormDataRef.current, [field]: value };
+        latestFormDataRef.current = next;
+        onChange(next);
+    }
+
+    function startSidebarResize() {
+        dragModeRef.current = "sidebar";
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+    }
+
+    function startSplitResize() {
+        dragModeRef.current = "split";
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+    }
+
+    const syncFullDocument = useCallback((next: PaperFormData, options: { syncPreview?: boolean } = {}) => {
+        const nextSections = normalizeWriterProjectSections(ensureWriterProjectSections(next));
+        const nextCompiledContent = compileWriterProjectSections(nextSections, {
+            brandingEnabled: next.branding_enabled,
+            brandingLabel: next.branding_label,
+        });
+        const nextData = {
+            ...next,
+            sections: nextSections,
+            content: nextCompiledContent,
+        };
+        const nextActiveSection =
+            nextSections.find((section) => getWriterSectionKey(section) === activeSectionId) ?? nextSections[0];
+
+        latestFormDataRef.current = nextData;
+        latestEditorContentRef.current = nextActiveSection.content;
+        lastCommittedContentRef.current = nextActiveSection.content;
+        isInternalContentSyncRef.current = true;
+        setEditorContent(nextActiveSection.content);
+        if (options.syncPreview ?? true) {
+            setPreviewContent(nextCompiledContent);
+        }
+        onChange(nextData);
+    }, [activeSectionId, onChange]);
+
+    const refreshPreview = useCallback(() => {
+        const nextSections = getSectionsWithCurrentDraft();
+        setPreviewContent(compileProjectContent(nextSections));
+    }, [compileProjectContent, getSectionsWithCurrentDraft]);
+
+    async function handleSave() {
+        const nextSections = getSectionsWithCurrentDraft();
+        const nextData = {
+            ...latestFormDataRef.current,
+            sections: nextSections,
+            content: compileProjectContent(nextSections),
+        };
+        syncFullDocument(nextData, { syncPreview: true });
+        await Promise.resolve(onSubmit(nextData));
+    }
+
+    function handleSelectSection(sectionId: string) {
+        const nextSections = getSectionsWithCurrentDraft();
+        const nextSection = nextSections.find((section) => getWriterSectionKey(section) === sectionId) ?? nextSections[0];
+        const nextData = {
+            ...latestFormDataRef.current,
+            sections: nextSections,
+            content: compileProjectContent(nextSections),
+        };
+        latestFormDataRef.current = nextData;
+        onChange(nextData);
+        setActiveSectionId(sectionId);
+        latestEditorContentRef.current = nextSection.content;
+        lastCommittedContentRef.current = nextSection.content;
+        setEditorContent(nextSection.content);
+    }
+
+    function handleAddSection() {
+        const mergedSections = getSectionsWithCurrentDraft();
+        const nextSections = normalizeWriterProjectSections([
+            ...mergedSections,
+            createWriterProjectSection({
+                title: `Section ${mergedSections.length + 1}`,
+                kind: formData.document_kind === "book" ? "chapter" : "section",
+                order: mergedSections.length + 1,
+                content: "",
+            }),
+        ]);
+        const createdSection = nextSections[nextSections.length - 1];
+        syncFullDocument({
+            ...latestFormDataRef.current,
+            sections: nextSections,
+            content: compileProjectContent(nextSections),
+        });
+        setActiveSectionId(getWriterSectionKey(createdSection));
+        latestEditorContentRef.current = createdSection.content;
+        lastCommittedContentRef.current = createdSection.content;
+        setEditorContent(createdSection.content);
+    }
+
+    function handleDuplicateSection() {
+        const mergedSections = getSectionsWithCurrentDraft();
+        const currentIndex = mergedSections.findIndex(
+            (section) => getWriterSectionKey(section) === getWriterSectionKey(activeSection),
+        );
+        const sourceSection = mergedSections[currentIndex] ?? mergedSections[mergedSections.length - 1];
+
+        if (!sourceSection) {
+            return;
+        }
+
+        const duplicateSection = createWriterProjectSection({
+            title: `${sourceSection.title} Copy`,
+            kind: sourceSection.kind,
+            progress_state: sourceSection.progress_state,
+            order: sourceSection.order + 1,
+            content: sourceSection.content,
+        });
+
+        const nextSections = [...mergedSections];
+        nextSections.splice(currentIndex + 1, 0, duplicateSection);
+        const normalizedNextSections = normalizeWriterProjectSections(nextSections);
+
+        syncFullDocument({
+            ...latestFormDataRef.current,
+            sections: normalizedNextSections,
+            content: compileProjectContent(normalizedNextSections),
+        });
+        setActiveSectionId(getWriterSectionKey(duplicateSection));
+        latestEditorContentRef.current = duplicateSection.content;
+        lastCommittedContentRef.current = duplicateSection.content;
+        setEditorContent(duplicateSection.content);
+    }
+
+    function handleMoveSection(sectionId: string, direction: "up" | "down") {
+        const mergedSections = getSectionsWithCurrentDraft();
+        const currentIndex = mergedSections.findIndex((section) => getWriterSectionKey(section) === sectionId);
+        if (currentIndex < 0) {
+            return;
+        }
+
+        const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+        if (nextIndex < 0 || nextIndex >= mergedSections.length) {
+            return;
+        }
+
+        const nextSections = [...mergedSections];
+        [nextSections[currentIndex], nextSections[nextIndex]] = [nextSections[nextIndex], nextSections[currentIndex]];
+        const reorderedSections = nextSections.map((section, index) => ({
+            ...section,
+            order: index + 1,
+        }));
+
+        syncFullDocument({
+            ...latestFormDataRef.current,
+            sections: normalizeWriterProjectSections(reorderedSections),
+            content: compileProjectContent(reorderedSections),
+        });
+    }
+
+    function handleRemoveSection(sectionId: string) {
+        const mergedSections = getSectionsWithCurrentDraft();
+        if (mergedSections.length === 1) {
+            return;
+        }
+
+        const nextSections = normalizeWriterProjectSections(
+            mergedSections.filter((section) => getWriterSectionKey(section) !== sectionId),
+        );
+        const nextActiveSection =
+            nextSections.find((section) => getWriterSectionKey(section) !== sectionId) ?? nextSections[0];
+
+        syncFullDocument({
+            ...latestFormDataRef.current,
+            sections: nextSections,
+            content: compileProjectContent(nextSections),
+        });
+        setActiveSectionId(getWriterSectionKey(nextActiveSection));
+        latestEditorContentRef.current = nextActiveSection.content;
+        lastCommittedContentRef.current = nextActiveSection.content;
+        setEditorContent(nextActiveSection.content);
     }
 
     function insertSnippet(snippet: string) {
         const textarea = textareaRef.current;
+        const currentContent = latestEditorContentRef.current;
 
         if (!textarea) {
-            setField("content", `${formData.content}${snippet}`);
+            const nextContent = `${currentContent}${snippet}`;
+            latestEditorContentRef.current = nextContent;
+            setEditorContent(nextContent);
+            if (previewSyncMode === "live") {
+                setPreviewContent(compileProjectContent(getSectionsWithCurrentDraft(nextContent)));
+            }
             return;
         }
 
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const nextContent = `${formData.content.slice(0, start)}${snippet}${formData.content.slice(end)}`;
+        const nextContent = `${currentContent.slice(0, start)}${snippet}${currentContent.slice(end)}`;
 
-        onChange({ ...formData, content: nextContent });
+        latestEditorContentRef.current = nextContent;
+        setEditorContent(nextContent);
+        if (previewSyncMode === "live") {
+            setPreviewContent(compileProjectContent(getSectionsWithCurrentDraft(nextContent)));
+        }
 
         requestAnimationFrame(() => {
             textarea.focus();
@@ -226,8 +670,14 @@ export function PaperEditorWorkspace({
 
     function handleInsertCitation(citation: string, inlineRef: string) {
         const textarea = textareaRef.current;
+        const currentContent = latestEditorContentRef.current;
         if (!textarea) {
-            setField("content", formData.content + `\n\n- [${inlineRef}] ${citation}`);
+            const nextContent = `${currentContent}\n\n- [${inlineRef}] ${citation}`;
+            latestEditorContentRef.current = nextContent;
+            setEditorContent(nextContent);
+            if (previewSyncMode === "live") {
+                setPreviewContent(compileProjectContent(getSectionsWithCurrentDraft(nextContent)));
+            }
             return;
         }
 
@@ -235,7 +685,7 @@ export function PaperEditorWorkspace({
         const end = textarea.selectionEnd;
         const inlineText = ` [${inlineRef}]`;
 
-        let textWithInline = `${formData.content.slice(0, start)}${inlineText}${formData.content.slice(end)}`;
+        let textWithInline = `${currentContent.slice(0, start)}${inlineText}${currentContent.slice(end)}`;
         
         if (!textWithInline.includes("## Ishlatilgan adabiyotlar")) {
             textWithInline += "\n\n## Ishlatilgan adabiyotlar\n";
@@ -243,7 +693,11 @@ export function PaperEditorWorkspace({
 
         textWithInline += `\n- [${inlineRef}] ${citation}`;
 
-        onChange({ ...formData, content: textWithInline });
+        latestEditorContentRef.current = textWithInline;
+        setEditorContent(textWithInline);
+        if (previewSyncMode === "live") {
+            setPreviewContent(compileProjectContent(getSectionsWithCurrentDraft(textWithInline)));
+        }
 
         requestAnimationFrame(() => {
             textarea.focus();
@@ -255,15 +709,15 @@ export function PaperEditorWorkspace({
 
     function applyTemplate(template: WriterTemplate) {
         const shouldReplace =
-            !formData.content.trim() ||
+            !latestEditorContentRef.current.trim() ||
             window.confirm("Hozirgi matn o'rniga tanlangan professional andoza qo'yilsinmi?");
 
         if (!shouldReplace) {
             return;
         }
 
-        onChange({
-            ...formData,
+        syncFullDocument({
+            ...latestFormDataRef.current,
             title: template.titleTemplate,
             abstract: template.abstractTemplate,
             content: template.contentTemplate,
@@ -297,11 +751,11 @@ export function PaperEditorWorkspace({
             };
 
             startTransition(() => {
-                const current = latestFormDataRef.current;
-                onChange({
-                    ...current,
-                    content: replaceWriterBridgeBlock(current.content, nextBlock),
-                });
+                const nextData = {
+                    ...latestFormDataRef.current,
+                    content: replaceWriterBridgeBlock(latestEditorContentRef.current, nextBlock),
+                };
+                syncFullDocument(nextData);
             });
 
             channel.postMessage(
@@ -321,7 +775,7 @@ export function PaperEditorWorkspace({
             channel.close();
             channelRef.current = null;
         };
-    }, [onChange]);
+    }, [syncFullDocument]);
 
     useEffect(() => {
         const channel = channelRef.current;
@@ -334,9 +788,9 @@ export function PaperEditorWorkspace({
             const payload = {
                 type: "writer-targets",
                 writerId,
-                documentTitle: formData.title || "Nomsiz maqola",
+                documentTitle: latestFormDataRef.current.title || "Nomsiz maqola",
                 documentId,
-                targets: liveBridgeTargets,
+                targets: liveBridgeTargetsRef.current,
             } as const;
 
             channel.postMessage(payload);
@@ -364,7 +818,7 @@ export function PaperEditorWorkspace({
             window.clearInterval(intervalId);
             removeStoredWriterTargetSession(writerId);
         };
-    }, [documentId, formData.title, liveBridgeTargets]);
+    }, [documentId]);
 
     const statusTone =
         formData.status === "published"
@@ -383,6 +837,7 @@ export function PaperEditorWorkspace({
                   : "Tahrirlash rejimi";
 
     function handleExportPDF() {
+        setPreviewContent(compileProjectContent(getSectionsWithCurrentDraft()));
         if (viewMode === "edit") {
             setViewMode("preview");
             // Wait for DOM to update and render the preview section
@@ -396,8 +851,8 @@ export function PaperEditorWorkspace({
         <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.10),transparent_24%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.02),transparent_35%)] bg-background text-foreground print:bg-white print:h-auto print:overflow-visible">
             <div className="flex h-full flex-col print:h-auto print:block">
                 <div className="border-b border-border/60 bg-background/80 backdrop-blur-xl print:hidden">
-                    <div className="flex w-full flex-col gap-4 px-4 py-4 sm:px-6">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex w-full flex-col gap-3 px-4 py-3 sm:px-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex min-w-0 items-center gap-4">
                                 <Link
                                     href={backHref}
@@ -406,7 +861,7 @@ export function PaperEditorWorkspace({
                                     <ArrowLeft className="h-5 w-5" />
                                 </Link>
                                 <div className="min-w-0">
-                                    <div className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-muted-foreground">
+                                    <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
                                         <SquarePen className="h-3.5 w-3.5" />
                                         Professional Writer Lab
                                     </div>
@@ -414,7 +869,7 @@ export function PaperEditorWorkspace({
                                         name="title"
                                         value={formData.title}
                                         onChange={(event) => setField("title", event.target.value)}
-                                        className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-muted-foreground/45 md:text-4xl"
+                                        className="w-full bg-transparent text-xl font-black tracking-tight outline-none placeholder:text-muted-foreground/45 md:text-3xl"
                                         placeholder="Maqola sarlavhasini kiriting..."
                                     />
                                 </div>
@@ -442,17 +897,17 @@ export function PaperEditorWorkspace({
                                 <button
                                     type="button"
                                     onClick={() => setShowInspector((value) => !value)}
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border/60 bg-background/60 px-5 text-sm font-bold shadow-sm transition-all hover:bg-muted/80"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border/60 bg-background/60 px-4 text-sm font-bold shadow-sm transition-all hover:bg-muted/80"
                                 >
                                     {showInspector ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-                                    {showInspector ? "Panelni yopish" : "Panelni ochish"}
+                                    {showInspector ? "Files / tools yopish" : "Files / tools ochish"}
                                 </button>
 
                                 <div className="inline-flex rounded-full border border-border/60 bg-background/60 p-1">
                                     <button
                                         type="button"
                                         onClick={() => setViewMode("edit")}
-                                        className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${viewMode === "edit" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                        className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${viewMode === "edit" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                         <PencilLine className="mr-2 inline h-3.5 w-3.5" />
                                         Edit
@@ -460,7 +915,7 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={() => setViewMode("split")}
-                                        className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${viewMode === "split" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                        className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${viewMode === "split" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                         <Layers2 className="mr-2 inline h-3.5 w-3.5" />
                                         Split
@@ -468,17 +923,44 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={() => setViewMode("preview")}
-                                        className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${viewMode === "preview" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                        className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${viewMode === "preview" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                         <Eye className="mr-2 inline h-3.5 w-3.5" />
                                         Preview
                                     </button>
                                 </div>
 
+                                <div className="inline-flex rounded-full border border-border/60 bg-background/60 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewSyncMode("live")}
+                                        className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${previewSyncMode === "live" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        Live Sync
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewSyncMode("manual")}
+                                        className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${previewSyncMode === "manual" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        Manual Sync
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={refreshPreview}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border/60 bg-background/60 px-4 text-sm font-bold shadow-sm transition-all hover:bg-muted/80"
+                                    title="Preview'ni hozirgi matn bilan yangilash"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    Refresh
+                                </button>
+
                                 <button
                                     type="button"
                                     onClick={handleExportPDF}
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border/60 bg-background/60 px-5 text-sm font-bold shadow-sm transition-all hover:bg-muted/80"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border/60 bg-background/60 px-4 text-sm font-bold shadow-sm transition-all hover:bg-muted/80"
                                     title="Hujjatni PDF ko'rinishida saqlash"
                                 >
                                     <Printer className="h-4 w-4" />
@@ -487,9 +969,9 @@ export function PaperEditorWorkspace({
 
                                 <button
                                     type="button"
-                                    onClick={onSubmit}
+                                    onClick={() => void handleSave()}
                                     disabled={saveState === "submitting" || saveState === "success"}
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-foreground px-6 text-sm font-bold text-background shadow-lg transition-all hover:scale-[1.02] disabled:pointer-events-none disabled:opacity-60"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-foreground px-5 text-sm font-bold text-background shadow-lg transition-all hover:scale-[1.02] disabled:pointer-events-none disabled:opacity-60"
                                 >
                                     {saveState === "submitting" ? (
                                         <>
@@ -505,37 +987,130 @@ export function PaperEditorWorkspace({
                                 </button>
                             </div>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <span className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5">
-                                Progress: {completion}%
-                            </span>
-                            <span className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5">
-                                {words} so&apos;z
-                            </span>
-                            <span className="rounded-full border border-border/60 bg-background/60 px-3 py-1.5">
-                                {readingTime} daqiqa o&apos;qish
-                            </span>
-                            <span className={`rounded-full border px-3 py-1.5 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border/60 bg-background/60"}`}>
-                                {saveStatusLabel}
-                            </span>
-                            <div className="ml-auto hidden items-center gap-2 lg:flex">
-                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
-                                    Powered by
-                                </span>
-                                <span className="font-playfair text-xs font-black tracking-tight">
-                                    MathSphere AI
-                                </span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-
-                <div className="flex w-full flex-1 flex-col overflow-hidden lg:flex-row print:w-full print:block print:overflow-visible">
+                <div
+                    ref={workspaceShellRef}
+                    className="flex w-full flex-1 flex-col overflow-hidden lg:flex-row print:w-full print:block print:overflow-visible"
+                >
                     {showInspector && (
-                    <aside className="w-full shrink-0 overflow-y-auto border-b border-border/60 bg-background/40 p-4 backdrop-blur-sm lg:w-[360px] lg:border-b-0 lg:border-r print:hidden">
+                    <aside
+                        className="w-full shrink-0 overflow-y-auto border-b border-border/60 bg-background/40 p-2.5 backdrop-blur-sm lg:border-b-0 lg:border-r print:hidden"
+                        style={canResizeSidebar ? { width: `${sidebarWidth}px` } : undefined}
+                    >
                         <div className="space-y-4">
+                            <div className="rounded-[2rem] border border-border/60 bg-background/80 p-3 shadow-sm">
+                                <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                    Workspace Sidebar
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { id: "navigator", label: "Files" },
+                                        { id: "tools", label: "Tools" },
+                                        { id: "metadata", label: "Meta" },
+                                        { id: "templates", label: "Templates" },
+                                        { id: "outline", label: "Outline" },
+                                    ].map((item) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => setInspectorSection(item.id as InspectorSection)}
+                                            className={`rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] transition-colors ${
+                                                inspectorSection === item.id
+                                                    ? "bg-foreground text-background"
+                                                    : "border border-border/60 bg-background/60 text-muted-foreground hover:text-foreground"
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {inspectorSection === "navigator" && (
+                                <WriterProjectPanel
+                                    sections={normalizedSections}
+                                    activeSectionId={getWriterSectionKey(activeSection)}
+                                    documentKind={formData.document_kind}
+                                    onSelectSection={handleSelectSection}
+                                    onAddSection={handleAddSection}
+                                    onDuplicateSection={handleDuplicateSection}
+                                    onMoveSection={handleMoveSection}
+                                    onRemoveSection={handleRemoveSection}
+                                    onInsertLabBlock={insertLiveBridgeBlock}
+                                    onOpenMetadata={() => setInspectorSection("metadata")}
+                                    onOpenTemplates={() => setInspectorSection("templates")}
+                                />
+                            )}
+
+                            {inspectorSection === "tools" && (
+                                <>
+                            <div className="rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <div>
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                            Workspace Loadout
+                                        </div>
+                                        <div className="mt-1 text-xl font-black">Katta hujjat rejimi</div>
+                                    </div>
+                                    <Radar className="h-5 w-5 text-sky-500" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
+                                        <div className="text-xs text-muted-foreground">Preview sync</div>
+                                        <div className="mt-1 text-base font-black">{previewSyncMode === "live" ? "Live" : "Manual"}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
+                                        <div className="text-xs text-muted-foreground">Document load</div>
+                                        <div className="mt-1 text-base font-black">{performanceModeRecommended ? "Heavy" : "Normal"}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
+                                        <div className="text-xs text-muted-foreground">2D grafik</div>
+                                        <div className="mt-1 text-base font-black">{plot2DBlocks}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
+                                        <div className="text-xs text-muted-foreground">3D grafik</div>
+                                        <div className="mt-1 text-base font-black">{plot3DBlocks}</div>
+                                    </div>
+                                </div>
+                                <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
+                                    {performanceModeRecommended
+                                        ? "Katta matn yoki ko'p 3D blok aniqlandi. Edit-first va manual preview bu sahifani ancha stabil ushlab turadi."
+                                        : "Hozirgi hujjat live preview bilan qulay ishlashi kerak."}
+                                </div>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewSyncMode("live")}
+                                        className={`rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] ${
+                                            previewSyncMode === "live"
+                                                ? "bg-foreground text-background"
+                                                : "border border-border/60 bg-background/70 text-muted-foreground"
+                                        }`}
+                                    >
+                                        Live preview
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewSyncMode("manual")}
+                                        className={`rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] ${
+                                            previewSyncMode === "manual"
+                                                ? "bg-foreground text-background"
+                                                : "border border-border/60 bg-background/70 text-muted-foreground"
+                                        }`}
+                                    >
+                                        Manual preview
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={refreshPreview}
+                                        className="rounded-2xl border border-border/60 bg-background/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground"
+                                    >
+                                        Refresh preview
+                                    </button>
+                                </div>
+                            </div>
                             <CitationManager onInsert={handleInsertCitation} />
                             <WriterLiveTargetsPanel targets={liveBridgeTargets} onInsertTarget={insertLiveBridgeBlock} />
 
@@ -605,7 +1180,10 @@ export function PaperEditorWorkspace({
                                     ))}
                                 </div>
                             </div>
+                                </>
+                            )}
 
+                            {inspectorSection === "metadata" && (
                             <div className="rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm">
                                 <button
                                     type="button"
@@ -659,10 +1237,62 @@ export function PaperEditorWorkspace({
                                                 className="w-full rounded-3xl border border-border/60 bg-muted/10 px-4 py-3 text-sm leading-relaxed outline-none transition-colors focus:border-teal-500/40"
                                             />
                                         </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                                                Hujjat turi
+                                            </label>
+                                            <select
+                                                value={formData.document_kind}
+                                                onChange={(event) => setField("document_kind", event.target.value)}
+                                                className="w-full rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm outline-none transition-colors focus:border-teal-500/40"
+                                            >
+                                                <option value="paper">Paper</option>
+                                                <option value="book">Book</option>
+                                                <option value="report">Report</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                                                <span>Branding</span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.branding_enabled}
+                                                    onChange={(event) =>
+                                                        syncFullDocument({
+                                                            ...latestFormDataRef.current,
+                                                            branding_enabled: event.target.checked,
+                                                            sections: getSectionsWithCurrentDraft(),
+                                                            content: compiledProjectContent,
+                                                        })
+                                                    }
+                                                    className="h-4 w-4"
+                                                />
+                                            </label>
+                                            <input
+                                                value={formData.branding_label}
+                                                onChange={(event) =>
+                                                    syncFullDocument(
+                                                        {
+                                                            ...latestFormDataRef.current,
+                                                            branding_label: event.target.value,
+                                                            sections: getSectionsWithCurrentDraft(),
+                                                            content: compiledProjectContent,
+                                                        },
+                                                        { syncPreview: false },
+                                                    )
+                                                }
+                                                placeholder="Powered by MathSphere Writer"
+                                                className="w-full rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm outline-none transition-colors focus:border-teal-500/40"
+                                            />
+                                        </div>
                                     </div>
                                 )}
                             </div>
+                            )}
 
+                            {inspectorSection === "templates" && (
                             <div className="rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm">
                                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
                                     Starter Layouts
@@ -701,7 +1331,9 @@ export function PaperEditorWorkspace({
                                     )})}
                                 </div>
                             </div>
+                            )}
 
+                            {inspectorSection === "outline" && (
                             <div className="rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm">
                                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
                                     Outline
@@ -725,63 +1357,136 @@ export function PaperEditorWorkspace({
                                     )}
                                 </div>
                             </div>
+                            )}
                         </div>
                     </aside>
                     )}
+                    {showInspector && canResizeSidebar ? (
+                        <div
+                            role="separator"
+                            aria-orientation="vertical"
+                            onPointerDown={startSidebarResize}
+                            className="hidden w-2 shrink-0 cursor-col-resize bg-transparent lg:flex lg:items-stretch print:hidden"
+                        >
+                            <div className="mx-auto my-2 w-[3px] rounded-full bg-border/70" />
+                        </div>
+                    ) : null}
 
-                    <div className={`flex-1 overflow-hidden ${viewMode === "split" ? "grid lg:grid-cols-2" : "grid grid-cols-1"} print:block print:overflow-visible`}>
+                    <div
+                        ref={splitWorkspaceRef}
+                        className={`flex-1 overflow-hidden ${splitLayoutEnabled ? "grid" : "grid grid-cols-1"} print:block print:overflow-visible`}
+                        style={splitLayoutEnabled ? { gridTemplateColumns: `${splitRatio}fr 10px ${100 - splitRatio}fr` } : undefined}
+                    >
                         {(viewMode === "edit" || viewMode === "split") && (
                             <section className="flex min-h-0 flex-col border-b border-border/60 bg-background/35 lg:border-b-0 lg:border-r print:hidden">
-                                {mode === "new" && (
-                                    <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.08),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.4),transparent)] px-4 py-4 md:px-6">
-                                        <div className="rounded-[1.8rem] border border-border/60 bg-background/80 p-4 md:p-5">
-                                            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                                                <div>
-                                                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                                                        Quick Start
-                                                    </div>
-                                                    <div className="mt-1 text-xl font-black">Yangi draft uchun qulay start paneli</div>
-                                                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                                        Sarlavha va metadata tayyorlang, keyin quyidagi tezkor bloklar bilan
-                                                        maqolani tez oching. Keng ekranlarda preview yonma-yon ko&apos;rinadi,
-                                                        ixcham ekranda esa yozishga fokus qilinadi.
-                                                    </p>
-                                                </div>
-                                                <div className="grid gap-2 sm:grid-cols-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertSnippet("\n## Kirish\n\nBu yerda mavzuning motivatsiyasi va maqsadini yozing.\n")}
-                                                        className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/20"
-                                                    >
-                                                        Kirish qo&apos;shish
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertSnippet("\n> **Teorema.** Bayonot.\n>\n> **Isbot.** Qadamlar shu yerda.\n")}
-                                                        className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/20"
-                                                    >
-                                                        Teorema bloki
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowInspector(true)}
-                                                        className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/20"
-                                                    >
-                                                        Metadata paneli
-                                                    </button>
-                                                </div>
+                                <div className="border-b border-border/60 bg-background/55 px-4 py-3 md:px-5">
+                                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px_auto]">
+                                        <input
+                                            value={activeSection.title}
+                                            onChange={(event) => {
+                                                const nextSections = getSectionsWithCurrentDraft().map((section) =>
+                                                    getWriterSectionKey(section) === getWriterSectionKey(activeSection)
+                                                        ? { ...section, title: event.target.value }
+                                                        : section,
+                                                );
+                                                syncFullDocument(
+                                                    {
+                                                        ...latestFormDataRef.current,
+                                                        sections: nextSections,
+                                                        content: compileProjectContent(nextSections),
+                                                    },
+                                                    { syncPreview: false },
+                                                );
+                                            }}
+                                            className="w-full rounded-2xl border border-border/60 bg-background/75 px-4 py-2.5 text-sm font-semibold outline-none transition-colors focus:border-teal-500/40"
+                                            placeholder="Hozirgi file nomi"
+                                        />
+                                        <select
+                                            value={activeSection.kind}
+                                            onChange={(event) => {
+                                                const nextSections = getSectionsWithCurrentDraft().map((section) =>
+                                                    getWriterSectionKey(section) === getWriterSectionKey(activeSection)
+                                                        ? { ...section, kind: event.target.value as WriterProjectSection["kind"] }
+                                                        : section,
+                                                );
+                                                syncFullDocument(
+                                                    {
+                                                        ...latestFormDataRef.current,
+                                                        sections: nextSections,
+                                                        content: compileProjectContent(nextSections),
+                                                    },
+                                                    { syncPreview: false },
+                                                );
+                                            }}
+                                            className="rounded-2xl border border-border/60 bg-background/75 px-4 py-2.5 text-sm font-semibold outline-none transition-colors focus:border-teal-500/40"
+                                        >
+                                            <option value="frontmatter">Frontmatter</option>
+                                            <option value="chapter">Chapter</option>
+                                            <option value="section">Section</option>
+                                            <option value="appendix">Appendix</option>
+                                            <option value="references">References</option>
+                                        </select>
+                                        <div className="grid gap-2 sm:grid-cols-[160px_auto]">
+                                            <select
+                                                value={activeSection.progress_state}
+                                                onChange={(event) => {
+                                                    const nextSections = getSectionsWithCurrentDraft().map((section) =>
+                                                        getWriterSectionKey(section) === getWriterSectionKey(activeSection)
+                                                            ? {
+                                                                  ...section,
+                                                                  progress_state: event.target.value as WriterProjectSection["progress_state"],
+                                                              }
+                                                            : section,
+                                                    );
+                                                    syncFullDocument(
+                                                        {
+                                                            ...latestFormDataRef.current,
+                                                            sections: nextSections,
+                                                            content: compileProjectContent(nextSections),
+                                                        },
+                                                        { syncPreview: false },
+                                                    );
+                                                }}
+                                                className="rounded-2xl border border-border/60 bg-background/75 px-4 py-2.5 text-sm font-semibold outline-none transition-colors focus:border-teal-500/40"
+                                            >
+                                                <option value="todo">Todo</option>
+                                                <option value="drafting">Drafting</option>
+                                                <option value="done">Done</option>
+                                            </select>
+                                            <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleAddSection}
+                                                className="rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                New
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleDuplicateSection}
+                                                className="rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                Clone
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={insertLiveBridgeBlock}
+                                                className="rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                Lab
+                                            </button>
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
 
-                                <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-3 bg-muted/5">
+                                <div className="flex flex-wrap items-center gap-2 overflow-x-auto border-b border-border/60 px-4 py-2 bg-muted/5 md:px-5">
                                     {blockPresets.map((preset) => (
                                         <button
                                             key={preset.label}
                                             type="button"
                                             onClick={() => insertSnippet(preset.snippet)}
-                                            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+                                            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
                                         >
                                             <preset.icon className="h-3.5 w-3.5" />
                                             {preset.label}
@@ -790,7 +1495,7 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={insertLiveBridgeBlock}
-                                        className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+                                        className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
                                     >
                                         <Sparkles className="h-3.5 w-3.5" />
                                         Live Lab Block
@@ -800,25 +1505,43 @@ export function PaperEditorWorkspace({
                                     </div>
                                 </div>
 
-                                <div className="border-b border-border/60 bg-background/50 px-5 py-3 text-xs text-muted-foreground md:px-8">
+                                <div className="border-b border-border/60 bg-background/50 px-5 py-2 text-[11px] text-muted-foreground md:px-6">
                                     Markdown, LaTeX, `plot2d`, `plot3d` va Python bloklari shu editor ichida ishlaydi.
-                                    Matnni yozayotgan paytda preview avtomatik yangilanadi.
+                                    {previewSyncMode === "live"
+                                        ? " Matnni yozayotgan paytda preview avtomatik yangilanadi."
+                                        : " Preview manual rejimda, shuning uchun katta hujjatda FPS barqarorroq bo'ladi."}
                                 </div>
 
                                 <textarea
                                     ref={textareaRef}
-                                    value={formData.content}
-                                    onChange={(event) => setField("content", event.target.value)}
-                                    className="min-h-0 flex-1 resize-none bg-transparent px-5 py-6 font-mono text-[15px] leading-7 text-foreground outline-none md:px-8"
+                                    value={editorContent}
+                                    onChange={(event) => setEditorContent(event.target.value)}
+                                    className="min-h-0 flex-1 resize-none bg-transparent px-5 py-5 font-mono text-[15px] leading-7 text-foreground outline-none md:px-6"
                                     placeholder="Ilmiy maqolani yozishni boshlang... Bu yerda bo'limlar, formulalar, teoremalar va grafik bloklarini yozishingiz mumkin."
                                     spellCheck={false}
                                 />
                             </section>
                         )}
 
+                        {splitLayoutEnabled ? (
+                            <div
+                                role="separator"
+                                aria-orientation="vertical"
+                                onPointerDown={startSplitResize}
+                                className="hidden cursor-col-resize items-stretch bg-transparent xl:flex print:hidden"
+                            >
+                                <div className="mx-auto my-3 w-[3px] rounded-full bg-border/70" />
+                            </div>
+                        ) : null}
+
                         {(viewMode === "preview" || viewMode === "split") && (
                             <section className="min-h-0 overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0.2))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.65),rgba(15,23,42,0.35))] print:bg-white print:overflow-visible print:block print:w-full">
-                                <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 md:px-8 print:p-0 print:m-0 print:max-w-none">
+                                <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-3 py-4 md:px-6 print:p-0 print:m-0 print:max-w-none">
+                                    {previewSyncMode === "manual" && previewIsStale ? (
+                                        <div className="rounded-[1.5rem] border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm leading-6 text-amber-700 shadow-sm dark:text-amber-300 print:hidden">
+                                            Preview hozircha eski snapshotni ko&apos;rsatyapti. `Refresh` bossangiz yangi holat render bo&apos;ladi.
+                                        </div>
+                                    ) : null}
                                     <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-background/85 shadow-xl print:border-none print:shadow-none print:bg-white print:rounded-none">
                                         <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.18),transparent_22%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_28%)] px-6 py-6 md:px-8 print:bg-none print:border-none print:p-0 print:pb-6">
                                             <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
@@ -828,6 +1551,11 @@ export function PaperEditorWorkspace({
                                                 <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
                                                     Professional Preview
                                                 </span>
+                                                {formData.branding_enabled ? (
+                                                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">
+                                                        {formData.branding_label || "Powered by MathSphere Writer"}
+                                                    </span>
+                                                ) : null}
                                             </div>
                                             <h1 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">
                                                 {deferredTitle || "Nomsiz maqola"}
@@ -871,14 +1599,94 @@ export function PaperEditorWorkspace({
 
                                         <div className="px-6 py-8 md:px-8 print:p-0 print:text-black">
                                             <ArticleRichContent
-                                                content={deferredContent}
+                                                content={deferredPreviewContent}
                                                 className="prose prose-neutral max-w-none text-foreground dark:prose-invert prose-headings:font-playfair prose-headings:font-black prose-p:text-[15px] prose-p:leading-8 print:text-black print:dark:prose-invert"
                                             />
+
+                                            {formData.branding_enabled ? (
+                                                <div className="mt-10 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground print:mt-12 print:text-black">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.24em]">
+                                                        {formData.branding_label || "Powered by MathSphere Writer"}
+                                                    </div>
+                                                    <div className="mt-2">
+                                                        Structured and published with MathSphere&apos;s production-ready writer workspace.
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
                                 </div>
                             </section>
                         )}
+                    </div>
+                </div>
+
+                <div className="border-t border-border/60 bg-background/85 px-4 py-2 text-[11px] print:hidden">
+                    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                        <span className="rounded-full border border-teal-500/20 bg-teal-500/10 px-3 py-1 text-teal-700 dark:text-teal-300">
+                            File {normalizedSections.findIndex((section) => getWriterSectionKey(section) === getWriterSectionKey(activeSection)) + 1}/{normalizedSections.length}
+                        </span>
+                        <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-violet-700 dark:text-violet-300">
+                            File: {activeSection.title}
+                        </span>
+                        <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-sky-700 dark:text-sky-300">
+                            {activeSection.kind}
+                        </span>
+                        <span
+                            className={`rounded-full border px-3 py-1 ${
+                                activeSection.progress_state === "done"
+                                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                    : activeSection.progress_state === "drafting"
+                                      ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                      : "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                            }`}
+                        >
+                            {activeSection.progress_state}
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            {formData.document_kind}
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            {words} so&apos;z
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            {readingTime} min
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            Plot {totalPlots}
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            3D {plot3DBlocks}
+                        </span>
+                        <span className={`rounded-full border px-3 py-1 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border/60 bg-background/70"}`}>
+                            {saveStatusLabel}
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            {previewSyncMode === "live" ? "Live preview" : "Manual preview"}
+                        </span>
+                        {mode === "new" ? (
+                            <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-emerald-700 dark:text-emerald-300">
+                                Quick start
+                            </span>
+                        ) : null}
+                        {previewSyncMode === "manual" ? (
+                            <span className={`rounded-full border px-3 py-1 ${previewIsStale ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+                                {previewIsStale ? "Preview stale" : "Preview synced"}
+                            </span>
+                        ) : null}
+                        {performanceModeRecommended ? (
+                            <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-sky-700 dark:text-sky-300">
+                                Performance mode
+                            </span>
+                        ) : null}
+                        <div className="ml-auto hidden items-center gap-2 lg:flex">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+                                Powered by
+                            </span>
+                            <span className="font-playfair text-xs font-black tracking-tight">
+                                MathSphere AI
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

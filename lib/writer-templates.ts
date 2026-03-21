@@ -542,13 +542,26 @@ export function createDraftFromTemplate(template: WriterTemplate, addOnIds: stri
     const content = addOnContent
         ? `${template.contentTemplate.trim()}\n\n---\n\n${addOnContent}\n`
         : template.contentTemplate;
+    const sections = [
+        createWriterProjectSection({
+            title: template.title,
+            kind: template.category === "thesis" ? "chapter" : template.category === "report" ? "section" : "section",
+            content,
+            order: 1,
+        }),
+    ];
 
     return {
         title: template.titleTemplate,
         abstract: template.abstractTemplate,
-        content,
+        content: compileWriterProjectSections(sections),
         authors: "",
         keywords: template.keywords,
         status: "draft",
+        document_kind: template.category === "thesis" ? "book" : template.category === "report" ? "report" : "paper",
+        branding_enabled: true,
+        branding_label: "Powered by MathSphere Writer",
+        sections,
     };
 }
+import { compileWriterProjectSections, createWriterProjectSection } from "@/lib/writer-project";

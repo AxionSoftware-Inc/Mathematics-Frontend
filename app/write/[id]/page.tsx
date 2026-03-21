@@ -21,7 +21,11 @@ export default function EditPaperPage() {
         content: "",
         authors: "",
         keywords: "",
+        document_kind: "paper",
+        branding_enabled: true,
+        branding_label: "Powered by MathSphere Writer",
         status: "draft",
+        sections: [],
     });
     const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
     const [errorMessage, setErrorMessage] = useState("");
@@ -40,7 +44,11 @@ export default function EditPaperPage() {
                         content: data.content || "",
                         authors: data.authors || "",
                         keywords: data.keywords || "",
+                        document_kind: data.document_kind || "paper",
+                        branding_enabled: data.branding_enabled ?? true,
+                        branding_label: data.branding_label || "Powered by MathSphere Writer",
                         status: data.status || "draft",
+                        sections: Array.isArray(data.sections) ? data.sections : [],
                     });
                 } else {
                     router.push("/write");
@@ -56,17 +64,18 @@ export default function EditPaperPage() {
         fetchPaper();
     }, [id, router]);
 
-    async function handleSubmit() {
+    async function handleSubmit(nextData?: PaperFormData) {
         setStatus("submitting");
 
         try {
+            const payload = nextData ?? formData;
             const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
             const res = await fetch(`${apiUrl}/api/builder/papers/${id}/`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {

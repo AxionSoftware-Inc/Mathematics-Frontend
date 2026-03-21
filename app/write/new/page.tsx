@@ -9,6 +9,7 @@ import {
     type PaperFormData,
 } from "@/components/paper-editor-workspace";
 import { readQueuedWriterImport, removeQueuedWriterImport, serializeWriterBridgeBlock } from "@/lib/live-writer-bridge";
+import { compileWriterProjectSections } from "@/lib/writer-project";
 import { createDraftFromTemplate, getDefaultWriterTemplate, getWriterTemplate, getWriterTemplatePreset } from "@/lib/writer-templates";
 
 
@@ -56,35 +57,53 @@ function NewPaperPageContent() {
                 laboratoryExport.markdown,
             ].filter(Boolean);
 
-            setFormData((current) => ({
-                ...current,
-                title:
-                    current.title === getDefaultWriterTemplate().titleTemplate
-                        ? laboratoryExport.title || "Laboratoriya hisoboti asosidagi maqola"
-                        : current.title,
-                abstract:
-                    current.abstract ||
-                    laboratoryExport.abstract ||
-                    "Ushbu qoralama matematik laboratoriyadan eksport qilingan hisob-kitob va vizual natijalarga tayangan holda shakllantirildi.",
-                content: `${importedSections.join("\n\n")}\n\n---\n\n${current.content}`,
-                keywords: current.keywords || laboratoryExport.keywords || "mathematics, laboratory",
-            }));
+            setFormData((current) => {
+                const nextSections = current.sections.length
+                    ? current.sections.map((section, index) =>
+                          index === 0
+                              ? {
+                                    ...section,
+                                    content: `${importedSections.join("\n\n")}\n\n---\n\n${section.content}`,
+                                }
+                              : section,
+                      )
+                    : current.sections;
+
+                return {
+                    ...current,
+                    sections: nextSections,
+                    title:
+                        current.title === getDefaultWriterTemplate().titleTemplate
+                            ? laboratoryExport.title || "Laboratoriya hisoboti asosidagi maqola"
+                            : current.title,
+                    abstract:
+                        current.abstract ||
+                        laboratoryExport.abstract ||
+                        "Ushbu qoralama matematik laboratoriyadan eksport qilingan hisob-kitob va vizual natijalarga tayangan holda shakllantirildi.",
+                    content: compileWriterProjectSections(nextSections, {
+                        brandingEnabled: current.branding_enabled,
+                        brandingLabel: current.branding_label,
+                    }),
+                    keywords: current.keywords || laboratoryExport.keywords || "mathematics, laboratory",
+                };
+            });
         }, 0);
 
         return () => window.clearTimeout(timer);
     }, [importId, source]);
 
-    async function handleSubmit() {
+    async function handleSubmit(nextData?: PaperFormData) {
         setStatus("submitting");
 
         try {
+            const payload = nextData ?? formData;
             const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
             const res = await fetch(`${apiUrl}/api/builder/papers/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {

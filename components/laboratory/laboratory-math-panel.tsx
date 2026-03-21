@@ -1,0 +1,30 @@
+"use client";
+
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+
+export function LaboratoryMathPanel({
+    eyebrow,
+    title,
+    content,
+    accentClassName = "text-accent",
+}: {
+    eyebrow: string;
+    title: string;
+    content: string;
+    accentClassName?: string;
+}) {
+    return (
+        <div className="rounded-3xl border border-border/60 bg-background/55 px-5 py-4">
+            <div className={`text-[10px] font-black uppercase tracking-[0.18em] ${accentClassName}`}>{eyebrow}</div>
+            <div className="mt-2 text-lg font-black tracking-tight text-foreground">{title}</div>
+            <div className="mt-3 prose prose-sm max-w-none text-foreground prose-p:my-3 prose-p:leading-7 prose-li:my-1 prose-li:leading-7 prose-strong:text-foreground prose-code:text-foreground">
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {content}
+                </ReactMarkdown>
+            </div>
+        </div>
+    );
+}
