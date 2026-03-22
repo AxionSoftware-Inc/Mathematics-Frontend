@@ -124,21 +124,23 @@ function NewPaperPageContent() {
     }
 
     return (
-        <PaperEditorWorkspace
-            formData={formData}
-            onChange={setFormData}
-            onSubmit={handleSubmit}
-            saveState={status}
-            errorMessage={errorMessage}
-            mode="new"
-            documentId="new-draft"
-        />
+        <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col overflow-hidden">
+            <PaperEditorWorkspace
+                formData={formData}
+                onChange={setFormData}
+                onSubmit={handleSubmit}
+                saveState={status}
+                errorMessage={errorMessage}
+                mode="new"
+                documentId="new-draft"
+            />
+        </div>
     );
 }
 
 function NewPaperPageFallback() {
     return (
-        <div className="flex h-screen flex-col items-center justify-center bg-background text-muted-foreground">
+        <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col items-center justify-center overflow-hidden bg-background text-muted-foreground">
             <p>Writer yuklanmoqda...</p>
         </div>
     );

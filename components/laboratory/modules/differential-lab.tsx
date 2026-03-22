@@ -5,6 +5,7 @@ import { Activity, ArrowRight, Beaker, GitCompareArrows, SlidersHorizontal, Spar
 import { parse as parseMathExpression } from "mathjs";
 
 import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
+import { DirectionFieldPlot } from "@/components/laboratory/direction-field-plot";
 import { LaboratoryAnnotationsPanel, type LaboratoryAnnotationItem } from "@/components/laboratory/laboratory-annotations-panel";
 import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
 import { LaboratoryResultLevelsPanel } from "@/components/laboratory/laboratory-result-levels-panel";
@@ -13,7 +14,18 @@ import { LaboratoryWorkflowTemplatePanel } from "@/components/laboratory/laborat
 import { buildScatter3DTrajectoryData, ScientificPlot } from "@/components/laboratory/scientific-plot";
 import { usePersistedLabCollection } from "@/components/laboratory/use-persisted-lab-collection";
 import { LaboratoryNotebookToolbar, useLaboratoryNotebook } from "@/components/laboratory/laboratory-notebook";
-import { solveDifferentialEquation, solveODESystem, type DifferentialPoint, type ODESystemPoint, LABORATORY_PRESETS } from "@/components/laboratory/math-utils";
+import {
+    solveDifferentialEquation,
+    solveODESystem,
+    type DifferentialPoint,
+    type ODESystemPoint,
+    LABORATORY_PRESETS,
+} from "@/components/laboratory/math-utils";
+import { runDifferentialAnalysis } from "@/components/laboratory/differential-analysis-runtime";
+import type {
+    DifferentialAnalysisResult,
+    DifferentialAnalysisWorkerResponse,
+} from "@/components/laboratory/differential-analysis-worker-types";
 import { LaboratoryBridgeCard } from "@/components/live-writer-bridge/laboratory-bridge-card";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
@@ -487,6 +499,16 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
     const [activeTemplateId, setActiveTemplateId] = React.useState<string | null>(null);
     const [annotations, setAnnotations] = usePersistedLabCollection<DifferentialAnnotation>("mathsphere-lab-differential-annotations");
     const [savedExperiments, setSavedExperiments] = usePersistedLabCollection<DifferentialSavedExperiment>("mathsphere-lab-differential-experiments");
+    const workerRef = React.useRef<Worker | null>(null);
+    const workerRequestIdRef = React.useRef(0);
+    const [analysisResult, setAnalysisResult] = React.useState<DifferentialAnalysisResult>({
+        singleAudit: null,
+        systemAudit: null,
+        singleDirectionField: null,
+        planarSystemField: null,
+    });
+    const [analysisStatus, setAnalysisStatus] = React.useState<"idle" | "computing" | "ready" | "error">("idle");
+    const [analysisError, setAnalysisError] = React.useState<string | null>(null);
     const activePreset = LABORATORY_PRESETS.differential.find((preset) => {
         if (preset.mode !== solverMode) {
             return false;
@@ -609,6 +631,110 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
             ),
         [comparisonScenarios, solverMode, sysExpr3],
     );
+    const singleAudit = analysisResult.singleAudit;
+    const systemAudit = analysisResult.systemAudit;
+    const singleDirectionField = analysisResult.singleDirectionField;
+    const planarSystemField = analysisResult.planarSystemField;
+    React.useEffect(() => {
+        if (typeof window === "undefined" || typeof Worker === "undefined") {
+            return;
+        }
+
+        const worker = new Worker(new URL("../differential-analysis.worker.ts", import.meta.url));
+        workerRef.current = worker;
+
+        worker.onmessage = (event: MessageEvent<DifferentialAnalysisWorkerResponse>) => {
+            const message = event.data;
+            if (message.requestId !== workerRequestIdRef.current) {
+                return;
+            }
+
+            if (message.status === "success") {
+                setAnalysisResult(message.result);
+                setAnalysisError(null);
+                setAnalysisStatus("ready");
+                return;
+            }
+
+            setAnalysisError(message.error);
+            setAnalysisStatus("error");
+        };
+
+        worker.onerror = () => {
+            setAnalysisError("Analysis worker crashed.");
+            setAnalysisStatus("error");
+        };
+
+        return () => {
+            worker.terminate();
+            workerRef.current = null;
+        };
+    }, []);
+    React.useEffect(() => {
+        if (solverError || !hasPoints) {
+            setAnalysisResult({
+                singleAudit: null,
+                systemAudit: null,
+                singleDirectionField: null,
+                planarSystemField: null,
+            });
+            setAnalysisError(null);
+            setAnalysisStatus("idle");
+            return;
+        }
+
+        const payload = {
+            solverMode,
+            derivative,
+            sysExpr1,
+            sysExpr2,
+            sysExpr3,
+            x0: Number(x0),
+            y0: Number(y0),
+            z0: Number(z0),
+            step: Number(step),
+            steps: Number(steps),
+            differentialPoints,
+            systemPoints,
+            comparisonSystemTrajectories: compatibleComparisons.map((scenario) => scenario.systemPoints),
+        } as const;
+
+        if (workerRef.current) {
+            workerRequestIdRef.current += 1;
+            setAnalysisStatus("computing");
+            setAnalysisError(null);
+            workerRef.current.postMessage({
+                requestId: workerRequestIdRef.current,
+                payload,
+            });
+            return;
+        }
+
+        try {
+            setAnalysisResult(runDifferentialAnalysis(payload));
+            setAnalysisError(null);
+            setAnalysisStatus("ready");
+        } catch (error) {
+            setAnalysisError(error instanceof Error ? error.message : "Differential analysis failed.");
+            setAnalysisStatus("error");
+        }
+    }, [
+        compatibleComparisons,
+        derivative,
+        differentialPoints,
+        hasPoints,
+        solverError,
+        solverMode,
+        step,
+        steps,
+        sysExpr1,
+        sysExpr2,
+        sysExpr3,
+        systemPoints,
+        x0,
+        y0,
+        z0,
+    ]);
     const analysisBriefMarkdown = React.useMemo(() => {
         if (solverMode === "single") {
             return [
@@ -967,6 +1093,62 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
 
         return signals;
     }, [derivative, lastPoint, solverMode, step, steps, sysExpr1, sysExpr2, sysExpr3, total3DPointLoad]);
+    const advancedAuditSignals = React.useMemo(() => {
+        if (solverMode === "single") {
+            if (!singleAudit) {
+                return [] as LaboratorySignal[];
+            }
+
+            const equilibriumSummary = singleAudit.phaseLine.equilibria.length
+                ? `${singleAudit.phaseLine.equilibria.length} equilibrium topildi. Birinchisi y=${formatMetric(singleAudit.phaseLine.equilibria[0]?.y, 5)} (${singleAudit.phaseLine.equilibria[0]?.stability}).`
+                : "Phase-line slice ichida aniq equilibrium topilmadi yoki ifoda juda sezgir.";
+            const referenceTone =
+                singleAudit.finalReferenceGap > Math.max(0.02, Math.abs((lastPoint as DifferentialPoint | null)?.heun || 0) * 0.04)
+                    ? "warn"
+                    : "info";
+
+            return [
+                {
+                    tone: referenceTone,
+                    label: "Reference Audit",
+                    text: `Refined Heun bilan yakuniy gap ${formatMetric(singleAudit.finalReferenceGap, 7)}. Tavsiya etilgan h=${formatMetric(singleAudit.recommendedStep, 5)}.`,
+                },
+                {
+                    tone: singleAudit.meanReferenceGap < 0.01 ? "info" : "neutral",
+                    label: "Global Error",
+                    text: `Mean reference gap ${formatMetric(singleAudit.meanReferenceGap, 7)}, max gap ${formatMetric(singleAudit.maxReferenceGap, 7)}.`,
+                },
+                {
+                    tone: singleAudit.phaseLine.equilibria.some((entry) => entry.stability === "stable") ? "info" : "neutral",
+                    label: "Equilibrium Scan",
+                    text: equilibriumSummary,
+                },
+            ] satisfies LaboratorySignal[];
+        }
+
+        if (!systemAudit) {
+            return [] as LaboratorySignal[];
+        }
+
+        const radiusRatio = systemAudit.startRadius > 0 ? systemAudit.finalRadius / systemAudit.startRadius : null;
+        return [
+            {
+                tone: radiusRatio !== null && radiusRatio < 0.9 ? "info" : radiusRatio !== null && radiusRatio > 1.1 ? "warn" : "neutral",
+                label: "Radius Trend",
+                text: `Start radius ${formatMetric(systemAudit.startRadius, 6)}, final radius ${formatMetric(systemAudit.finalRadius, 6)}.`,
+            },
+            {
+                tone: systemAudit.peakSpeed > 20 ? "warn" : "info",
+                label: "Trajectory Speed",
+                text: `Peak speed ${formatMetric(systemAudit.peakSpeed, 6)}, mean speed ${formatMetric(systemAudit.meanSpeed, 6)}.`,
+            },
+            {
+                tone: "neutral",
+                label: "State Footprint",
+                text: `Trajectory footprint ${formatMetric(systemAudit.footprint, 6)}, net drift ${formatMetric(systemAudit.netDrift, 6)}.`,
+            },
+        ] satisfies LaboratorySignal[];
+    }, [lastPoint, singleAudit, solverMode, systemAudit]);
     const sweepValues = React.useMemo(() => generateSweepValues(sweepStart, sweepEnd, sweepCount, 0.02, 0.8), [sweepCount, sweepEnd, sweepStart]);
     const sweepSeries = React.useMemo(() => {
         try {
@@ -1486,6 +1668,173 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
                         )}
                     </div>
 
+                    {(singleAudit || systemAudit) && (
+                        <div className="site-panel p-6 space-y-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <div className="site-eyebrow text-accent">Client-side Audit</div>
+                                    <div className="mt-2 text-sm leading-7 text-muted-foreground">
+                                        Qo&apos;shimcha diagnostika serverga chiqmasdan brauzerning o&apos;zida hisoblanadi: reference error, equilibrium va trajectory health shu yerda tahlil qilinadi.
+                                    </div>
+                                </div>
+                                <div className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                    {analysisStatus === "computing" ? "Worker active" : analysisStatus === "ready" ? "Worker ready" : "Local runtime"}
+                                </div>
+                            </div>
+
+                            {analysisStatus === "computing" ? (
+                                <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm leading-7 text-sky-800 dark:text-sky-200">
+                                    Differential audit alohida worker thread&apos;da hisoblanmoqda. UI shu paytda bloklanmaydi.
+                                </div>
+                            ) : null}
+
+                            {analysisError ? (
+                                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-7 text-rose-700 dark:text-rose-300">
+                                    Worker analysis: {analysisError}
+                                </div>
+                            ) : null}
+
+                            <LaboratorySignalPanel
+                                eyebrow="Audit Signals"
+                                title={solverMode === "single" ? "Reference va equilibrium review" : "Trajectory health review"}
+                                items={advancedAuditSignals}
+                            />
+
+                            {solverMode === "single" && singleAudit ? (
+                                <>
+                                    <div className="grid gap-3 md:grid-cols-4">
+                                        <div className="site-outline-card border-accent/20 bg-accent/5 p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Refined h</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(singleAudit.refinedStep, 5)}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Final ref gap</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(singleAudit.finalReferenceGap, 6)}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Mean ref gap</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(singleAudit.meanReferenceGap, 6)}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Equilibria</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{singleAudit.phaseLine.equilibria.length}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 xl:grid-cols-2">
+                                        <CartesianPlot
+                                            title="Current Heun vs refined reference"
+                                            series={[
+                                                {
+                                                    label: "Current Heun",
+                                                    color: "var(--accent)",
+                                                    points: differentialPoints.map((point) => ({ x: point.x, y: point.heun })),
+                                                },
+                                                {
+                                                    label: "Refined Heun",
+                                                    color: "#8b5cf6",
+                                                    points: singleAudit.referenceSeries,
+                                                },
+                                            ]}
+                                        />
+                                        <CartesianPlot
+                                            title="Gap profile"
+                                            series={[
+                                                {
+                                                    label: "Reference gap",
+                                                    color: "#ef4444",
+                                                    points: singleAudit.referenceGapSeries,
+                                                },
+                                                {
+                                                    label: "Method gap",
+                                                    color: "#f59e0b",
+                                                    points: singleAudit.methodGapSeries,
+                                                },
+                                            ]}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                                        <CartesianPlot
+                                            title={`Phase-line slice at x = ${formatMetric(singleAudit.phaseLine.xAnchor, 3)}`}
+                                            series={[
+                                                {
+                                                    label: "dy/dx",
+                                                    color: "#2563eb",
+                                                    points: singleAudit.phaseLine.samples,
+                                                },
+                                            ]}
+                                            domainX={singleAudit.phaseLine.yDomain}
+                                        />
+                                        <div className="grid gap-3">
+                                            {singleAudit.phaseLine.equilibria.length ? singleAudit.phaseLine.equilibria.map((entry, index) => (
+                                                <div key={`${entry.y}-${entry.stability}`} className="rounded-2xl border border-border/60 bg-background/55 px-4 py-3">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                                        Equilibrium {index + 1}
+                                                    </div>
+                                                    <div className="mt-2 text-lg font-black text-foreground">y = {formatMetric(entry.y, 5)}</div>
+                                                    <div className="mt-2 text-sm leading-6 text-muted-foreground">
+                                                        Stability: <span className="font-bold text-foreground">{entry.stability}</span>
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="rounded-2xl border border-dashed border-border/60 bg-background/45 px-4 py-5 text-sm leading-7 text-muted-foreground">
+                                                    Hozirgi phase-line slice ichida aniq equilibrium topilmadi. y diapazonini yoki boshlang&apos;ich qiymatni o&apos;zgartirib qayta tekshirib ko&apos;ring.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : null}
+
+                            {solverMode === "system" && systemAudit ? (
+                                <>
+                                    <div className="grid gap-3 md:grid-cols-4">
+                                        <div className="site-outline-card border-accent/20 bg-accent/5 p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Start radius</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(systemAudit.startRadius, 6)}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Final radius</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(systemAudit.finalRadius, 6)}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Peak speed</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(systemAudit.peakSpeed, 6)}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Footprint</div>
+                                            <div className="mt-2 font-serif text-2xl font-black">{formatMetric(systemAudit.footprint, 6)}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 xl:grid-cols-2">
+                                        <CartesianPlot
+                                            title="Radius profile"
+                                            series={[
+                                                {
+                                                    label: "State radius",
+                                                    color: "#2563eb",
+                                                    points: systemAudit.radiusSeries,
+                                                },
+                                            ]}
+                                        />
+                                        <CartesianPlot
+                                            title="Speed profile"
+                                            series={[
+                                                {
+                                                    label: "State speed",
+                                                    color: "#8b5cf6",
+                                                    points: systemAudit.speedSeries,
+                                                },
+                                            ]}
+                                        />
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
+                    )}
+
                     <div className="site-panel p-6 space-y-4">
                         <div className="flex items-center justify-between gap-3">
                             <div>
@@ -1765,6 +2114,84 @@ export function DifferentialLabModule({ module }: { module: LaboratoryModuleMeta
                                                     {insight}
                                                 </div>
                                             ))}
+                                        </div>
+                                    ) : null}
+
+                                    {solverMode === "single" && singleDirectionField ? (
+                                        <div className="space-y-3 pt-2">
+                                            <div className="rounded-2xl border border-border/60 bg-background/45 px-4 py-3">
+                                                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                                    Direction Field
+                                                </div>
+                                                <div className="mt-2 text-sm leading-7 text-muted-foreground">
+                                                    Endi trajectory faqat chiziq emas. Fonda local slope field chiziladi, shuning uchun Heun va Euler oqimi qaysi yo&apos;nalish maydonidan o&apos;tayotgani aniq ko&apos;rinadi.
+                                                </div>
+                                            </div>
+                                            <DirectionFieldPlot
+                                                title="Direction field with live trajectories"
+                                                segments={singleDirectionField.segments}
+                                                xDomain={singleDirectionField.xDomain}
+                                                yDomain={singleDirectionField.yDomain}
+                                                series={[
+                                                    {
+                                                        label: "Heun trajectory",
+                                                        color: "var(--accent)",
+                                                        points: differentialPoints.map((point) => ({ x: point.x, y: point.heun })),
+                                                    },
+                                                    {
+                                                        label: "Euler trajectory",
+                                                        color: "#f59e0b",
+                                                        points: differentialPoints.map((point) => ({ x: point.x, y: point.euler })),
+                                                    },
+                                                ]}
+                                                height={320}
+                                            />
+                                        </div>
+                                    ) : null}
+
+                                    {solverMode === "system" && !sysExpr3.trim() && planarSystemField ? (
+                                        <div className="space-y-3 pt-2">
+                                            <div className="rounded-2xl border border-border/60 bg-background/45 px-4 py-3">
+                                                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                                    Phase Plane Field
+                                                </div>
+                                                <div className="mt-2 text-sm leading-7 text-muted-foreground">
+                                                    Endi 2D sistema faqat trajectory emas. Fonda vector field, ustida esa `x&apos;=0` va `y&apos;=0` nullcline qatlamlari ko&apos;rinadi, shuning uchun fokus, saddle va oqim kesishishlari ancha ravshan bo&apos;ladi.
+                                                </div>
+                                            </div>
+                                            <DirectionFieldPlot
+                                                title="Vector field, nullclines and trajectories"
+                                                segments={planarSystemField.segments}
+                                                xDomain={planarSystemField.xDomain}
+                                                yDomain={planarSystemField.yDomain}
+                                                pointOverlays={[
+                                                    {
+                                                        label: "x' = 0",
+                                                        color: "#ef4444",
+                                                        points: planarSystemField.nullclines.xNullcline,
+                                                        radius: 2.1,
+                                                    },
+                                                    {
+                                                        label: "y' = 0",
+                                                        color: "#14b8a6",
+                                                        points: planarSystemField.nullclines.yNullcline,
+                                                        radius: 2.1,
+                                                    },
+                                                ]}
+                                                series={[
+                                                    {
+                                                        label: "Current trajectory",
+                                                        color: "var(--accent)",
+                                                        points: systemPoints.map((point) => ({ x: point.vars.x || 0, y: point.vars.y || 0 })),
+                                                    },
+                                                    ...compatibleComparisons.map((scenario) => ({
+                                                        label: scenario.label,
+                                                        color: scenario.color,
+                                                        points: scenario.systemPoints.map((point) => ({ x: point.vars.x || 0, y: point.vars.y || 0 })),
+                                                    })),
+                                                ]}
+                                                height={340}
+                                            />
                                         </div>
                                     ) : null}
                                 </div>

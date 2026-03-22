@@ -42,7 +42,7 @@ export const laboratoryModuleRegistry: Record<string, LaboratoryModuleDefinition
         component: IntegralStudioModule,
     },
     "differential-lab": {
-        capabilities: ["Euler and Heun methods", "Initial value problems", "Standard writer bridge", "Notebook workspace"],
+        capabilities: ["Euler and Heun methods", "Direction field and nullclines", "Client-side convergence audit", "Equilibrium and trajectory health"],
         component: DifferentialLabModule,
     },
     "series-limits-studio": {

@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, GraduationCap, Sparkles, U
 
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 import { YouTubePlayer } from "@/components/youtube-player";
-import { fetchPublic } from "@/lib/api";
+import { fetchPublic, getMediaUrl } from "@/lib/api";
 
 type Course = {
     id: number | string;
@@ -74,62 +74,109 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
         "Keyingi kurslar yoki ilmiy yozuv uchun mustahkam poydevor",
     ];
 
+    const modules = [
+        {
+            title: "1-modul: Foundation",
+            text: "Asosiy tushunchalar, terminlar va umumiy metodologiya.",
+        },
+        {
+            title: "2-modul: Method",
+            text: "Masala yechish usullari va asosiy formulalar oqimi.",
+        },
+        {
+            title: "3-modul: Practice",
+            text: "Qo'llash, misollar va mustaqil ishlash uchun tayyor struktura.",
+        },
+    ];
+
     return (
         <div className="site-shell">
-            <SiteSection className="pb-10 pt-16 md:pt-24">
+            {course.thumbnail ? (
+                <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
+                    <img
+                        src={getMediaUrl(course.thumbnail)}
+                        alt={course.title}
+                        className="h-full w-full scale-[1.14] object-cover opacity-[0.1] blur-[26px]"
+                    />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(244,242,236,0.97),rgba(244,242,236,0.84)_22%,rgba(244,242,236,0.76)_58%,rgba(244,242,236,0.98))] dark:bg-[linear-gradient(180deg,rgba(0,0,0,0.96),rgba(0,0,0,0.82)_22%,rgba(0,0,0,0.7)_58%,rgba(0,0,0,0.98))]" />
+                </div>
+            ) : null}
+
+            <SiteSection className="pb-8 pt-12 md:pt-16">
                 <SiteContainer>
                     <Link href="/academy" className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground">
                         <ArrowLeft className="h-4 w-4" />
                         Barcha kurslar
                     </Link>
 
-                    <div className="mt-8 grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-                        <div className="space-y-7">
+                    <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
+                        <div className="space-y-6">
                             <HeroBadge>
                                 <Sparkles className="h-4 w-4" />
                                 {course.level_type || "Structured Course"}
                             </HeroBadge>
-                            <div className="space-y-5">
-                                <h1 className="site-display text-5xl md:text-7xl xl:text-[5.1rem]">{course.title}</h1>
-                                <p className="site-lead max-w-2xl">
+
+                            <div className="space-y-4">
+                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.4rem]">{course.title}</h1>
+                                <p className="site-lead max-w-3xl">
                                     {course.description || "Kurs tavsifi yaqin orada to'ldiriladi."}
                                 </p>
                             </div>
+
                             <div className="flex flex-wrap gap-2">
                                 {(course.tags_names || []).map((tag) => (
-                                    <span
-                                        key={tag}
-                                        className="rounded-full border border-border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
-                                    >
+                                    <span key={tag} className="site-chip">
                                         {tag}
                                     </span>
                                 ))}
                             </div>
-                        </div>
 
-                        <div className="site-panel-strong p-8 md:p-10">
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="site-outline-card p-5">
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="site-metric-card p-5">
                                     <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                         <User2 className="h-4 w-4 text-[var(--accent)]" />
                                         Instructor
                                     </div>
                                     <div className="mt-3 font-serif text-2xl font-black">{course.instructor || "MathSphere Faculty"}</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                         <Clock3 className="h-4 w-4 text-[var(--accent-alt)]" />
                                         Duration
                                     </div>
                                     <div className="mt-3 font-serif text-2xl font-black">{course.duration_hours || "12"}h</div>
                                 </div>
+                                <div className="site-metric-card p-5">
+                                    <div className="text-sm font-semibold text-muted-foreground">Level</div>
+                                    <div className="mt-3 font-serif text-2xl font-black">{course.level_type || "Beginner"}</div>
+                                </div>
+                                <div className="site-metric-card p-5">
+                                    <div className="text-sm font-semibold text-muted-foreground">Tracks</div>
+                                    <div className="mt-3 font-serif text-2xl font-black">{course.tags_names?.length || 0}</div>
+                                </div>
                             </div>
-                            <div className="mt-6 site-outline-card p-6">
+
+                            <div className="site-panel p-6">
                                 <div className="site-eyebrow">Course Intent</div>
-                                <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                    Detail sahifasi endi faqat sarlavha va video emas. Kursning professional positioning'i,
-                                    instructor signali va foydalanuvchi nimani olishini aniq ko'rsatadi.
+                                <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                                    Detail sahifasi endi faqat sarlavha va video emas. Kursning professional
+                                    positioning'i, instructor signali va foydalanuvchi nimani olishini aniq ko'rsatadi.
                                 </p>
+                            </div>
+                        </div>
+
+                        <div className="xl:sticky xl:top-24 xl:self-start">
+                            <div className="site-panel-strong p-6 md:p-8">
+                                <div className="mb-6 flex items-center justify-between gap-4">
+                                    <div>
+                                        <div className="site-eyebrow">Course Preview</div>
+                                        <h2 className="mt-2 font-serif text-4xl font-black">Introductory lesson</h2>
+                                    </div>
+                                    <div className="rounded-full bg-[var(--accent-soft)] px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+                                        Preview
+                                    </div>
+                                </div>
+                                <YouTubePlayer videoId="dQw4w9WgXcQ" title={course.title} thumbnailUrl={course.thumbnail || undefined} />
                             </div>
                         </div>
                     </div>
@@ -138,35 +185,47 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
 
             <SiteSection className="py-8">
                 <SiteContainer>
-                    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                        <div className="site-panel-strong p-6 md:p-8">
-                            <div className="mb-6 flex items-center justify-between gap-4">
-                                <div>
-                                    <div className="site-eyebrow">Course Preview</div>
-                                    <h2 className="mt-2 font-serif text-4xl font-black">Introductory lesson</h2>
-                                </div>
-                                <div className="rounded-full bg-[var(--accent-soft)] px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[var(--accent)]">
-                                    Preview
-                                </div>
-                            </div>
-                            <YouTubePlayer videoId="dQw4w9WgXcQ" title={course.title} thumbnailUrl={course.thumbnail || undefined} />
-                        </div>
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                        <div className="site-panel p-8 md:p-10">
+                            <SectionHeading
+                                eyebrow="Course Structure"
+                                title="Nimalarni o'rganasiz"
+                                description="Asosiy o'quv natijalari ixcham, lekin ishonchli signal bilan ajratildi. Kurs detaili endi foydani yashirmaydi."
+                            />
 
-                        <div className="site-panel p-8">
-                            <div className="site-eyebrow">Course Structure</div>
-                            <h2 className="mt-3 font-serif text-4xl font-black">Nimalarni o'rganasiz</h2>
-                            <div className="mt-6 space-y-4">
+                            <div className="mt-8 grid gap-4">
                                 {learningPoints.map((point) => (
-                                    <div key={point} className="site-outline-card flex items-start gap-3 p-4">
+                                    <div key={point} className="site-outline-card flex items-start gap-3 p-5">
                                         <CheckCircle2 className="mt-1 h-4 w-4 text-[var(--accent)]" />
                                         <p className="text-sm leading-7 text-muted-foreground">{point}</p>
                                     </div>
                                 ))}
                             </div>
-                            <Link href="/write" className="site-button-primary mt-8">
-                                Shu mavzuda yozishni boshlash
-                                <ArrowRight className="h-4 w-4" />
-                            </Link>
+                        </div>
+
+                        <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                            <div className="site-panel-strong p-8">
+                                <div className="site-eyebrow">Action</div>
+                                <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                                    Kursni o'rganib bo'lgach, shu mavzu asosida maqola yoki ishlanma yozishni bir
+                                    klikda boshlash mumkin.
+                                </p>
+                                <Link href="/write" className="site-button-primary mt-6">
+                                    Shu mavzuda yozishni boshlash
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </div>
+
+                            <div className="site-panel p-6">
+                                <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                    <Zap className="h-4 w-4 text-[var(--accent)]" />
+                                    Learning Signal
+                                </div>
+                                <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                                    Preview, natijalar va modul oqimi bitta detail sahifada yig'ilgani sabab foydalanuvchi
+                                    kursni tanlashdan oldin to'liq kontekst oladi.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </SiteContainer>
@@ -177,23 +236,10 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
                     <SectionHeading
                         eyebrow="Module Flow"
                         title="Tartibli o'quv yo'li"
-                        description="Mundarija bloki ham endi professional ko'rinadi: foydalanuvchi bu kurs qaerdan boshlanib, qayerga olib borishini darrov anglaydi."
+                        description="Mundarija bloki ham professional ko'rinadi: foydalanuvchi bu kurs qaerdan boshlanib, qayerga olib borishini darrov anglaydi."
                     />
                     <div className="mt-10 grid gap-6 lg:grid-cols-3">
-                        {[
-                            {
-                                title: "1-modul: Foundation",
-                                text: "Asosiy tushunchalar, terminlar va umumiy metodologiya.",
-                            },
-                            {
-                                title: "2-modul: Method",
-                                text: "Masala yechish usullari va asosiy formulalar oqimi.",
-                            },
-                            {
-                                title: "3-modul: Practice",
-                                text: "Qo'llash, misollar va mustaqil ishlash uchun tayyor struktura.",
-                            },
-                        ].map((module) => (
+                        {modules.map((module) => (
                             <div key={module.title} className="site-panel p-7">
                                 <div className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.24em] text-muted-foreground">
                                     <Zap className="h-4 w-4 text-[var(--accent)]" />

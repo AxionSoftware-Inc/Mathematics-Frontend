@@ -1,6 +1,7 @@
+/* eslint-disable react/no-unescaped-entities */
 import { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Download, LibraryBig, Sparkles, Star, User2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, Download, LibraryBig, Sparkles, Star, User2 } from "lucide-react";
 
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchPublic, getMediaUrl } from "@/lib/api";
@@ -31,6 +32,10 @@ async function getBook(id: string): Promise<Book | null> {
     }
 
     return null;
+}
+
+function getPublicationYear(value?: string | null) {
+    return value ? new Date(value).getFullYear() : "2024";
 }
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -69,61 +74,106 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
         );
     }
 
+    const publicationYear = getPublicationYear(book.published_date);
+    const accessLabel = book.pdf_file && book.sample_pdf_file ? "Preview + full access" : book.pdf_file ? "Full access" : "Archive only";
+
     return (
         <div className="site-shell">
-            <SiteSection className="pb-10 pt-16 md:pt-24">
+            {book.cover_image ? (
+                <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
+                    <img
+                        src={getMediaUrl(book.cover_image)}
+                        alt={book.title}
+                        className="h-full w-full scale-[1.18] object-cover opacity-[0.12] blur-[26px]"
+                    />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(244,242,236,0.97),rgba(244,242,236,0.86)_20%,rgba(244,242,236,0.72)_58%,rgba(244,242,236,0.98))] dark:bg-[linear-gradient(180deg,rgba(0,0,0,0.97),rgba(0,0,0,0.84)_20%,rgba(0,0,0,0.7)_58%,rgba(0,0,0,0.98))]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.14),transparent_26%),radial-gradient(circle_at_85%_18%,rgba(15,118,110,0.14),transparent_22%),radial-gradient(circle_at_center,transparent_42%,rgba(244,242,236,0.35)_100%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_24%),radial-gradient(circle_at_85%_18%,rgba(20,184,166,0.16),transparent_22%),radial-gradient(circle_at_center,transparent_46%,rgba(0,0,0,0.28)_100%)]" />
+                </div>
+            ) : null}
+
+            <SiteSection className="pb-8 pt-12 md:pt-16">
                 <SiteContainer>
                     <Link href="/library" className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground">
                         <ArrowLeft className="h-4 w-4" />
                         Katalogga qaytish
                     </Link>
 
-                    <div className="mt-8 grid gap-8 xl:grid-cols-[420px_1fr]">
-                        <div className="site-panel-strong overflow-hidden p-4">
-                            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border border-border bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.12),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(15,118,110,0.12),transparent_40%)]">
-                                {book.cover_image ? (
-                                    <img
-                                        src={getMediaUrl(book.cover_image)}
-                                        alt={book.title}
-                                        className="h-full w-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center">
-                                        <LibraryBig className="h-16 w-16 text-[var(--accent)]/40" />
+                    <div className="mt-8 grid gap-8 xl:grid-cols-[360px_minmax(0,1fr)]">
+                        <div className="xl:sticky xl:top-24 xl:self-start">
+                            <div className="site-panel-strong p-5 md:p-6">
+                                <div className="site-media-frame p-4">
+                                    <div className="rounded-[1.9rem] border border-white/45 bg-white/60 p-3 shadow-2xl shadow-slate-900/10">
+                                        <div className="relative aspect-[3/4] overflow-hidden rounded-[1.5rem] border border-border bg-white/70">
+                                            {book.cover_image ? (
+                                                <img
+                                                    src={getMediaUrl(book.cover_image)}
+                                                    alt={book.title}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.16),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(15,118,110,0.16),transparent_40%)]">
+                                                    <LibraryBig className="h-16 w-16 text-[var(--accent)]/40" />
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/30 to-transparent" />
+                                        </div>
                                     </div>
-                                )}
+                                </div>
+
+                                <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                                    <div className="site-outline-card p-4">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Format</div>
+                                        <div className="mt-2 text-sm font-semibold">{book.pdf_file ? "Digital PDF" : "Archive item"}</div>
+                                    </div>
+                                    <div className="site-outline-card p-4">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Published</div>
+                                        <div className="mt-2 text-sm font-semibold">{publicationYear}</div>
+                                    </div>
+                                    <div className="site-outline-card p-4">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Downloads</div>
+                                        <div className="mt-2 text-sm font-semibold">{book.download_count || 0}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="space-y-7">
+                        <div className="space-y-6">
                             <HeroBadge>
                                 <Sparkles className="h-4 w-4" />
                                 {book.category_name || "Mathematical Volume"}
                             </HeroBadge>
-                            <div className="space-y-5">
-                                <h1 className="site-display text-5xl md:text-7xl xl:text-[5.1rem]">{book.title}</h1>
+
+                            <div className="space-y-4">
+                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.4rem]">{book.title}</h1>
                                 <p className="site-lead max-w-3xl">
                                     {book.description || "Bu kitob uchun tavsif keyinroq to'ldiriladi."}
                                 </p>
                             </div>
 
+                            <div className="flex flex-wrap gap-2">
+                                <span className="site-chip site-chip-active">{book.author || "Unknown author"}</span>
+                                <span className="site-chip">{book.language || "UZ"}</span>
+                                <span className="site-chip">{book.pages || "-"} pages</span>
+                                <span className="site-chip">{accessLabel}</span>
+                            </div>
+
                             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                         <User2 className="h-4 w-4 text-[var(--accent)]" />
                                         Author
                                     </div>
                                     <div className="mt-3 font-serif text-2xl font-black">{book.author || "Unknown"}</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="text-sm font-semibold text-muted-foreground">Language</div>
                                     <div className="mt-3 font-serif text-2xl font-black">{book.language || "UZ"}</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="text-sm font-semibold text-muted-foreground">Pages</div>
                                     <div className="mt-3 font-serif text-2xl font-black">{book.pages || "-"}</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                         <Star className="h-4 w-4 text-[var(--accent)]" />
                                         Downloads
@@ -134,13 +184,13 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
 
                             <div className="flex flex-wrap gap-3">
                                 {book.pdf_file ? (
-                                    <Link href={book.pdf_file} target="_blank" className="site-button-primary">
+                                    <Link href={getMediaUrl(book.pdf_file)} target="_blank" className="site-button-primary">
                                         <BookOpen className="h-4 w-4" />
                                         Kitobni ochish
                                     </Link>
                                 ) : null}
                                 {book.sample_pdf_file ? (
-                                    <Link href={book.sample_pdf_file} target="_blank" className="site-button-secondary">
+                                    <Link href={getMediaUrl(book.sample_pdf_file)} target="_blank" className="site-button-secondary">
                                         <Download className="h-4 w-4" />
                                         Namuna fayli
                                     </Link>
@@ -153,37 +203,73 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
 
             <SiteSection className="py-8">
                 <SiteContainer>
-                    <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
                         <div className="site-panel p-8 md:p-10">
                             <SectionHeading
                                 eyebrow="Book Abstract"
-                                title="Mazmun va qiymat"
-                                description="Detail sahifa endi oddiy metadata ro'yxati emas. U kitobning ilmiy yoki o'quv qiymatini professional ko'rinishda olib chiqadi."
+                                title="Mazmun va o'qish konteksti"
+                                description="Detail sahifa endi oddiy metadata ro'yxati emas. U kitobning ilmiy yoki o'quv qiymatini aniq ritmda ko'rsatadi."
                             />
-                            <div className="mt-8 text-base leading-8 text-muted-foreground">
-                                {book.description || "Annotatsiya keyinroq to'ldiriladi."}
+
+                            <div className="mt-8 grid gap-5">
+                                <div className="site-outline-card p-6">
+                                    <div className="site-eyebrow">Overview</div>
+                                    <p className="mt-4 text-base leading-8 text-muted-foreground">
+                                        {book.description || "Annotatsiya keyinroq to'ldiriladi."}
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <div className="site-outline-card p-6">
+                                        <div className="site-eyebrow">Reading Value</div>
+                                        <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                                            Ushbu nashr nazariya va amaliy masalalar orasida ko'prik vazifasini bajaradigan,
+                                            kutubxona ichida qayta murojaat qilinadigan resurs sifatida ko'rsatilmoqda.
+                                        </p>
+                                    </div>
+                                    <div className="site-outline-card p-6">
+                                        <div className="site-eyebrow">Use Case</div>
+                                        <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                                            Kurs tayyorgarligi, mustaqil o'qish yoki maqola yozish jarayonida manba
+                                            sifatida ishlatish uchun detail card va access yo'llari yuqorida aniq berildi.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="site-panel-strong p-8">
-                            <div className="site-eyebrow">Catalog Metadata</div>
-                            <div className="mt-6 space-y-4 text-sm font-semibold">
-                                <div className="site-outline-card flex items-center justify-between p-4">
-                                    <span className="text-muted-foreground">Published year</span>
-                                    <span>{book.published_date ? new Date(book.published_date).getFullYear() : "2024"}</span>
+                        <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+                            <div className="site-panel-strong p-8">
+                                <div className="site-eyebrow">Catalog Metadata</div>
+                                <div className="mt-6 space-y-4 text-sm font-semibold">
+                                    <div className="site-outline-card flex items-center justify-between gap-4 p-4">
+                                        <span className="text-muted-foreground">Published year</span>
+                                        <span>{publicationYear}</span>
+                                    </div>
+                                    <div className="site-outline-card flex items-center justify-between gap-4 p-4">
+                                        <span className="text-muted-foreground">Format</span>
+                                        <span>{book.pdf_file ? "Digital PDF" : "Archive item"}</span>
+                                    </div>
+                                    <div className="site-outline-card flex items-center justify-between gap-4 p-4">
+                                        <span className="text-muted-foreground">Reading mode</span>
+                                        <span>{book.sample_pdf_file ? "Preview available" : "Full view only"}</span>
+                                    </div>
+                                    <div className="site-outline-card flex items-center justify-between gap-4 p-4">
+                                        <span className="text-muted-foreground">Section</span>
+                                        <span>{book.category_name || "Mathematics"}</span>
+                                    </div>
                                 </div>
-                                <div className="site-outline-card flex items-center justify-between p-4">
-                                    <span className="text-muted-foreground">Format</span>
-                                    <span>{book.pdf_file ? "Digital PDF" : "Archive item"}</span>
+                            </div>
+
+                            <div className="site-panel p-6">
+                                <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                    <CalendarDays className="h-4 w-4 text-[var(--accent)]" />
+                                    Reader Note
                                 </div>
-                                <div className="site-outline-card flex items-center justify-between p-4">
-                                    <span className="text-muted-foreground">Reading mode</span>
-                                    <span>{book.sample_pdf_file ? "Preview available" : "Full view only"}</span>
-                                </div>
-                                <div className="site-outline-card flex items-center justify-between p-4">
-                                    <span className="text-muted-foreground">Section</span>
-                                    <span>{book.category_name || "Mathematics"}</span>
-                                </div>
+                                <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                                    Cover, metadata va action tugmalari bir ekranda qolishi uchun asosiy summary yuqoriga
+                                    chiqarildi. Pastdagi blok esa kitobning nima uchun muhimligini sokin ritmda tushuntiradi.
+                                </p>
                             </div>
                         </div>
                     </div>

@@ -279,3 +279,135 @@ h6 {
 .site-kicker {
   color: var(--accent-alt);
 }
+
+.site-filter-shell {
+  @apply relative overflow-hidden border shadow-sm;
+  border-radius: var(--radius-panel);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), color-mix(in srgb, var(--surface) 88%, transparent)),
+    radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 36%);
+}
+
+.site-filter-shell::before {
+  content: "";
+  @apply pointer-events-none absolute inset-x-6 top-0 h-px;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 45%, transparent), transparent);
+}
+
+.site-chip {
+  @apply inline-flex items-center justify-center gap-2 border transition-colors;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.site-chip:hover {
+  color: var(--foreground);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
+.site-chip-active {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, white), color-mix(in srgb, var(--accent-alt) 10%, white));
+  color: var(--foreground);
+}
+
+.site-metric-card {
+  @apply relative overflow-hidden border shadow-sm;
+  border-radius: calc(var(--radius-card) + 0.15rem);
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 92%, transparent), color-mix(in srgb, var(--surface) 88%, transparent)),
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 30%);
+}
+
+.site-metric-card::before {
+  content: "";
+  @apply pointer-events-none absolute inset-x-0 top-0 h-1;
+  background: linear-gradient(to right, rgba(29, 78, 216, 0.45), rgba(15, 118, 110, 0.28), transparent);
+}
+
+.site-media-frame {
+  @apply relative overflow-hidden border;
+  border-radius: calc(var(--radius-panel) + 0.2rem);
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  background:
+    radial-gradient(circle at top left, rgba(29, 78, 216, 0.16), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.16), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, white 86%, transparent), color-mix(in srgb, var(--surface) 92%, transparent));
+  box-shadow:
+    0 20px 50px rgba(17, 24, 39, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.dark .site-media-frame {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.2), transparent 38%),
+    linear-gradient(180deg, rgba(17, 24, 39, 0.84), rgba(10, 10, 10, 0.96));
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.site-media-frame::before {
+  content: "";
+  @apply pointer-events-none absolute inset-0;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 65%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 65%, transparent) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(circle at center, black 28%, transparent 92%);
+  opacity: 0.18;
+}
+
+.site-media-frame::after {
+  content: "";
+  @apply pointer-events-none absolute inset-x-[14%] top-0 h-24;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent);
+  filter: blur(16px);
+  opacity: 0.6;
+}
+
+.lab-shell-panel {
+  @apply relative overflow-hidden border shadow-sm;
+  border-radius: calc(var(--radius-panel) + 0.2rem);
+  border-color: color-mix(in srgb, var(--border) 86%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), color-mix(in srgb, var(--surface) 88%, transparent)),
+    radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 34%);
+}
+
+.lab-shell-panel::before {
+  content: "";
+  @apply pointer-events-none absolute inset-x-8 top-0 h-px;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 46%, transparent), transparent);
+}
+
+.lab-shell-chip {
+  @apply inline-flex items-center gap-2 border;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lab-workspace-stage {
+  @apply relative overflow-hidden;
+  border-radius: calc(var(--radius-panel) + 0.35rem);
+  background:
+    radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.1), transparent 24%);
+}

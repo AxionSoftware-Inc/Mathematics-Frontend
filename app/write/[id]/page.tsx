@@ -97,7 +97,7 @@ export default function EditPaperPage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen flex-col items-center justify-center bg-background text-muted-foreground">
+            <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col items-center justify-center overflow-hidden bg-background text-muted-foreground">
                 <Loader2 className="mb-4 h-8 w-8 animate-spin" />
                 <p>Muhit tayyorlanmoqda...</p>
             </div>
@@ -105,14 +105,16 @@ export default function EditPaperPage() {
     }
 
     return (
-        <PaperEditorWorkspace
-            formData={formData}
-            onChange={setFormData}
-            onSubmit={handleSubmit}
-            saveState={status}
-            errorMessage={errorMessage}
-            mode="edit"
-            documentId={id}
-        />
+        <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col overflow-hidden">
+            <PaperEditorWorkspace
+                formData={formData}
+                onChange={setFormData}
+                onSubmit={handleSubmit}
+                saveState={status}
+                errorMessage={errorMessage}
+                mode="edit"
+                documentId={id}
+            />
+        </div>
     );
 }

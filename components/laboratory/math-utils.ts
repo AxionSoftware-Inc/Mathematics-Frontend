@@ -48,6 +48,55 @@ export type ODESystemPoint = {
     vars: Record<string, number>;
 };
 
+export type DirectionFieldSegment = {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    slope: number;
+};
+
+export type PlanarNullclineField = {
+    xNullcline: PlotPoint[];
+    yNullcline: PlotPoint[];
+};
+
+export type DifferentialEquilibrium = {
+    y: number;
+    stability: "stable" | "unstable" | "semi-stable";
+    slope: number;
+};
+
+export type SingleEquationPhaseLine = {
+    samples: PlotPoint[];
+    equilibria: DifferentialEquilibrium[];
+    xAnchor: number;
+    yDomain: [number, number];
+};
+
+export type SingleDifferentialAudit = {
+    referenceSeries: PlotPoint[];
+    referenceGapSeries: PlotPoint[];
+    methodGapSeries: PlotPoint[];
+    phaseLine: SingleEquationPhaseLine;
+    refinedStep: number;
+    maxReferenceGap: number;
+    meanReferenceGap: number;
+    finalReferenceGap: number;
+    recommendedStep: number;
+};
+
+export type SystemTrajectoryAudit = {
+    radiusSeries: PlotPoint[];
+    speedSeries: PlotPoint[];
+    startRadius: number;
+    finalRadius: number;
+    peakSpeed: number;
+    meanSpeed: number;
+    footprint: number;
+    netDrift: number;
+};
+
 export type DoubleIntegralSummary = {
     value: number;
     samples: { x: number; y: number; z: number }[];
@@ -919,6 +968,206 @@ export function solveDifferentialEquation(
     return points;
 }
 
+export function buildDirectionField(
+    derivativeExpression: string,
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    columns = 18,
+    rows = 12,
+): DirectionFieldSegment[] {
+    ensureFiniteNumber(xMin, "xMin");
+    ensureFiniteNumber(xMax, "xMax");
+    ensureFiniteNumber(yMin, "yMin");
+    ensureFiniteNumber(yMax, "yMax");
+
+    const safeColumns = Math.max(4, Math.floor(columns));
+    const safeRows = Math.max(4, Math.floor(rows));
+    const xStart = Math.min(xMin, xMax);
+    const xEnd = Math.max(xMin, xMax);
+    const yStart = Math.min(yMin, yMax);
+    const yEnd = Math.max(yMin, yMax);
+    const cellWidth = (xEnd - xStart) / Math.max(1, safeColumns - 1);
+    const cellHeight = (yEnd - yStart) / Math.max(1, safeRows - 1);
+    const segmentLength = Math.min(cellWidth, cellHeight) * 0.72;
+    const segments: DirectionFieldSegment[] = [];
+
+    for (let row = 0; row < safeRows; row += 1) {
+        const y = yStart + cellHeight * row;
+        for (let column = 0; column < safeColumns; column += 1) {
+            const x = xStart + cellWidth * column;
+
+            try {
+                const rawSlope = evaluateExpression(derivativeExpression, { x, y });
+                if (!Number.isFinite(rawSlope)) {
+                    continue;
+                }
+
+                const angle = Math.atan(rawSlope);
+                const dx = Math.cos(angle) * segmentLength * 0.5;
+                const dy = Math.sin(angle) * segmentLength * 0.5;
+                segments.push({
+                    x1: roundValue(x - dx, 6),
+                    y1: roundValue(y - dy, 6),
+                    x2: roundValue(x + dx, 6),
+                    y2: roundValue(y + dy, 6),
+                    slope: roundValue(rawSlope, 6),
+                });
+            } catch {
+                // Skip singular samples and keep the field responsive in the browser.
+            }
+        }
+    }
+
+    return segments;
+}
+
+export function buildPlanarVectorField(
+    xExpression: string,
+    yExpression: string,
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    columns = 18,
+    rows = 12,
+): DirectionFieldSegment[] {
+    ensureFiniteNumber(xMin, "xMin");
+    ensureFiniteNumber(xMax, "xMax");
+    ensureFiniteNumber(yMin, "yMin");
+    ensureFiniteNumber(yMax, "yMax");
+
+    const safeColumns = Math.max(4, Math.floor(columns));
+    const safeRows = Math.max(4, Math.floor(rows));
+    const xStart = Math.min(xMin, xMax);
+    const xEnd = Math.max(xMin, xMax);
+    const yStart = Math.min(yMin, yMax);
+    const yEnd = Math.max(yMin, yMax);
+    const cellWidth = (xEnd - xStart) / Math.max(1, safeColumns - 1);
+    const cellHeight = (yEnd - yStart) / Math.max(1, safeRows - 1);
+    const segmentLength = Math.min(cellWidth, cellHeight) * 0.68;
+    const segments: DirectionFieldSegment[] = [];
+
+    for (let row = 0; row < safeRows; row += 1) {
+        const y = yStart + cellHeight * row;
+        for (let column = 0; column < safeColumns; column += 1) {
+            const x = xStart + cellWidth * column;
+
+            try {
+                const vx = evaluateExpression(xExpression, { x, y, t: 0 });
+                const vy = evaluateExpression(yExpression, { x, y, t: 0 });
+                const magnitude = Math.sqrt(vx * vx + vy * vy);
+                if (!Number.isFinite(magnitude) || magnitude === 0) {
+                    continue;
+                }
+
+                const unitX = vx / magnitude;
+                const unitY = vy / magnitude;
+                const dx = unitX * segmentLength * 0.5;
+                const dy = unitY * segmentLength * 0.5;
+                segments.push({
+                    x1: roundValue(x - dx, 6),
+                    y1: roundValue(y - dy, 6),
+                    x2: roundValue(x + dx, 6),
+                    y2: roundValue(y + dy, 6),
+                    slope: roundValue(Math.abs(vx) < 1e-9 ? Math.sign(vy) * 1_000_000 : vy / vx, 6),
+                });
+            } catch {
+                // Skip singular samples to keep the phase-plane field usable.
+            }
+        }
+    }
+
+    return segments;
+}
+
+function buildNullclinePoints(
+    expression: string,
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    columns = 42,
+    rows = 42,
+) {
+    const safeColumns = Math.max(6, Math.floor(columns));
+    const safeRows = Math.max(6, Math.floor(rows));
+    const grid: Array<Array<number | null>> = [];
+    const xStep = (xMax - xMin) / Math.max(1, safeColumns - 1);
+    const yStep = (yMax - yMin) / Math.max(1, safeRows - 1);
+    const points = new Map<string, PlotPoint>();
+    const zeroThreshold = 0.03 * Math.max(1, Math.abs(xMax - xMin), Math.abs(yMax - yMin));
+
+    for (let row = 0; row < safeRows; row += 1) {
+        const y = yMin + yStep * row;
+        const rowValues: Array<number | null> = [];
+
+        for (let column = 0; column < safeColumns; column += 1) {
+            const x = xMin + xStep * column;
+            try {
+                rowValues.push(evaluateExpression(expression, { x, y, t: 0 }));
+            } catch {
+                rowValues.push(null);
+            }
+        }
+
+        grid.push(rowValues);
+    }
+
+    function pushPoint(x: number, y: number) {
+        const key = `${x.toFixed(3)}:${y.toFixed(3)}`;
+        if (!points.has(key)) {
+            points.set(key, { x: roundValue(x, 6), y: roundValue(y, 6) });
+        }
+    }
+
+    for (let row = 0; row < safeRows; row += 1) {
+        const y = yMin + yStep * row;
+        for (let column = 0; column < safeColumns; column += 1) {
+            const x = xMin + xStep * column;
+            const current = grid[row][column];
+            if (current !== null && Math.abs(current) < zeroThreshold) {
+                pushPoint(x, y);
+            }
+
+            if (column < safeColumns - 1) {
+                const right = grid[row][column + 1];
+                if (current !== null && right !== null && (current === 0 || right === 0 || current * right < 0)) {
+                    const ratio = current === right ? 0.5 : Math.abs(current) / (Math.abs(current) + Math.abs(right));
+                    pushPoint(x + xStep * ratio, y);
+                }
+            }
+
+            if (row < safeRows - 1) {
+                const top = grid[row + 1][column];
+                if (current !== null && top !== null && (current === 0 || top === 0 || current * top < 0)) {
+                    const ratio = current === top ? 0.5 : Math.abs(current) / (Math.abs(current) + Math.abs(top));
+                    pushPoint(x, y + yStep * ratio);
+                }
+            }
+        }
+    }
+
+    return Array.from(points.values());
+}
+
+export function buildPlanarNullclineField(
+    xExpression: string,
+    yExpression: string,
+    xMin: number,
+    xMax: number,
+    yMin: number,
+    yMax: number,
+    columns = 42,
+    rows = 42,
+): PlanarNullclineField {
+    return {
+        xNullcline: buildNullclinePoints(xExpression, xMin, xMax, yMin, yMax, columns, rows),
+        yNullcline: buildNullclinePoints(yExpression, xMin, xMax, yMin, yMax, columns, rows),
+    };
+}
+
 export function solveODESystem(
     expressions: Record<string, string>,
     initialValues: Record<string, number>,
@@ -980,6 +1229,246 @@ export function solveODESystem(
     }
 
     return points;
+}
+
+function interpolatePlotSeriesY(points: PlotPoint[], x: number) {
+    if (!points.length) {
+        return null;
+    }
+
+    if (x <= points[0].x) {
+        return points[0].y;
+    }
+
+    if (x >= points[points.length - 1].x) {
+        return points[points.length - 1].y;
+    }
+
+    for (let index = 0; index < points.length - 1; index += 1) {
+        const left = points[index];
+        const right = points[index + 1];
+        if (x < left.x || x > right.x) {
+            continue;
+        }
+
+        const span = right.x - left.x;
+        if (span === 0) {
+            return left.y;
+        }
+
+        const ratio = (x - left.x) / span;
+        return left.y + (right.y - left.y) * ratio;
+    }
+
+    return null;
+}
+
+export function sampleSingleEquationPhaseLine(
+    derivativeExpression: string,
+    xAnchor: number,
+    yMin: number,
+    yMax: number,
+    sampleCount = 72,
+): SingleEquationPhaseLine {
+    ensureFiniteNumber(xAnchor, "x anchor");
+    ensureFiniteNumber(yMin, "yMin");
+    ensureFiniteNumber(yMax, "yMax");
+
+    const span = Math.max(Math.abs(yMax - yMin), 1);
+    const paddedMin = Math.min(yMin, yMax) - span * 0.2 - 0.5;
+    const paddedMax = Math.max(yMin, yMax) + span * 0.2 + 0.5;
+    const safeCount = Math.max(24, Math.floor(sampleCount));
+    const rawSamples: Array<{ y: number; slope: number }> = [];
+
+    for (let index = 0; index < safeCount; index += 1) {
+        const ratio = index / Math.max(1, safeCount - 1);
+        const y = paddedMin + (paddedMax - paddedMin) * ratio;
+
+        try {
+            const slope = evaluateExpression(derivativeExpression, { x: xAnchor, y });
+            if (Number.isFinite(slope)) {
+                rawSamples.push({ y: roundValue(y), slope: roundValue(slope) });
+            }
+        } catch {
+            // Skip singular or non-finite samples so plotting stays usable.
+        }
+    }
+
+    const equilibria: DifferentialEquilibrium[] = [];
+    const epsilon = Math.max((paddedMax - paddedMin) / 220, 0.001);
+
+    function classifyEquilibrium(root: number) {
+        try {
+            const leftSlope = evaluateExpression(derivativeExpression, { x: xAnchor, y: root - epsilon });
+            const rightSlope = evaluateExpression(derivativeExpression, { x: xAnchor, y: root + epsilon });
+
+            if (leftSlope > 0 && rightSlope < 0) {
+                return "stable" as const;
+            }
+            if (leftSlope < 0 && rightSlope > 0) {
+                return "unstable" as const;
+            }
+        } catch {
+            return "semi-stable" as const;
+        }
+
+        return "semi-stable" as const;
+    }
+
+    rawSamples.forEach((sample, index) => {
+        if (index === 0) {
+            return;
+        }
+
+        const previous = rawSamples[index - 1];
+        const signChanged = previous.slope === 0 || sample.slope === 0 || previous.slope * sample.slope < 0;
+        if (!signChanged) {
+            return;
+        }
+
+        const slopeDelta = sample.slope - previous.slope;
+        const root =
+            slopeDelta === 0
+                ? sample.y
+                : previous.y - previous.slope * ((sample.y - previous.y) / slopeDelta);
+        const roundedRoot = roundValue(root, 5);
+
+        if (equilibria.some((entry) => Math.abs(entry.y - roundedRoot) < epsilon * 1.5)) {
+            return;
+        }
+
+        equilibria.push({
+            y: roundedRoot,
+            stability: classifyEquilibrium(roundedRoot),
+            slope: roundValue(interpolatePlotSeriesY(rawSamples.map((entry) => ({ x: entry.y, y: entry.slope })), roundedRoot) ?? 0, 6),
+        });
+    });
+
+    return {
+        samples: rawSamples.map((entry) => ({ x: entry.y, y: entry.slope })),
+        equilibria: equilibria.slice(0, 6),
+        xAnchor: roundValue(xAnchor, 4),
+        yDomain: [roundValue(paddedMin, 4), roundValue(paddedMax, 4)],
+    };
+}
+
+export function buildSingleDifferentialAudit(
+    derivativeExpression: string,
+    points: DifferentialPoint[],
+    x0: number,
+    y0: number,
+    stepSize: number,
+    steps: number,
+): SingleDifferentialAudit {
+    if (!points.length) {
+        throw new Error("Audit uchun differential trajectory kerak.");
+    }
+
+    const safeSteps = Math.max(1, Math.floor(steps));
+    const horizon = Math.max(stepSize * safeSteps, stepSize);
+    const refinementFactor = stepSize >= 0.12 ? 6 : stepSize >= 0.04 ? 4 : 2;
+    const refinedSteps = Math.min(Math.max(safeSteps * refinementFactor, safeSteps + 4), 2400);
+    const refinedStep = horizon / refinedSteps;
+    const refinedPoints = solveDifferentialEquation(derivativeExpression, x0, y0, refinedStep, refinedSteps);
+    const referenceSeries = refinedPoints.map((point) => ({ x: point.x, y: point.heun }));
+    const methodGapSeries = points.map((point) => ({ x: point.x, y: roundValue(Math.abs(point.heun - point.euler), 8) }));
+    const referenceGapSeries = points.map((point) => {
+        const referenceValue = interpolatePlotSeriesY(referenceSeries, point.x) ?? point.heun;
+        return {
+            x: point.x,
+            y: roundValue(Math.abs(point.heun - referenceValue), 8),
+        };
+    });
+    const referenceGapValues = referenceGapSeries.map((point) => point.y);
+    const maxReferenceGap = Math.max(...referenceGapValues, 0);
+    const meanReferenceGap =
+        referenceGapValues.reduce((sum, value) => sum + value, 0) / Math.max(1, referenceGapValues.length);
+    const finalReferenceGap = referenceGapSeries[referenceGapSeries.length - 1]?.y ?? 0;
+    const trajectoryValues = points.flatMap((point) => [point.euler, point.heun]);
+    const yMin = Math.min(...trajectoryValues);
+    const yMax = Math.max(...trajectoryValues);
+    const phaseLine = sampleSingleEquationPhaseLine(derivativeExpression, x0, yMin, yMax);
+    const recommendedStep =
+        finalReferenceGap > Math.max(0.01, Math.abs(points[points.length - 1]?.heun ?? 0) * 0.03)
+            ? roundValue(Math.max(stepSize / 2, 0.001), 6)
+            : roundValue(stepSize, 6);
+
+    return {
+        referenceSeries,
+        referenceGapSeries,
+        methodGapSeries,
+        phaseLine,
+        refinedStep: roundValue(refinedStep, 6),
+        maxReferenceGap: roundValue(maxReferenceGap, 8),
+        meanReferenceGap: roundValue(meanReferenceGap, 8),
+        finalReferenceGap: roundValue(finalReferenceGap, 8),
+        recommendedStep,
+    };
+}
+
+export function buildSystemTrajectoryAudit(
+    points: ODESystemPoint[],
+    hasZ: boolean,
+): SystemTrajectoryAudit {
+    if (!points.length) {
+        throw new Error("Audit uchun system trajectory kerak.");
+    }
+
+    const radiusSeries = points.map((point) => ({
+        x: point.t,
+        y: roundValue(
+            Math.sqrt(
+                (point.vars.x || 0) ** 2 +
+                (point.vars.y || 0) ** 2 +
+                (hasZ ? (point.vars.z || 0) ** 2 : 0),
+            ),
+            8,
+        ),
+    }));
+    const speedSeries = points.slice(1).map((point, index) => {
+        const previous = points[index];
+        const dt = Math.max(point.t - previous.t, Number.EPSILON);
+        const dx = (point.vars.x || 0) - (previous.vars.x || 0);
+        const dy = (point.vars.y || 0) - (previous.vars.y || 0);
+        const dz = hasZ ? (point.vars.z || 0) - (previous.vars.z || 0) : 0;
+        return {
+            x: point.t,
+            y: roundValue(Math.sqrt(dx * dx + dy * dy + dz * dz) / dt, 8),
+        };
+    });
+
+    const xs = points.map((point) => point.vars.x || 0);
+    const ys = points.map((point) => point.vars.y || 0);
+    const zs = hasZ ? points.map((point) => point.vars.z || 0) : [0, 1];
+    const xSpan = Math.max(...xs) - Math.min(...xs);
+    const ySpan = Math.max(...ys) - Math.min(...ys);
+    const zSpan = hasZ ? Math.max(...zs) - Math.min(...zs) : 1;
+    const startRadius = radiusSeries[0]?.y ?? 0;
+    const finalRadius = radiusSeries[radiusSeries.length - 1]?.y ?? 0;
+    const speedValues = speedSeries.map((point) => point.y);
+    const peakSpeed = Math.max(...speedValues, 0);
+    const meanSpeed = speedValues.reduce((sum, value) => sum + value, 0) / Math.max(1, speedValues.length);
+    const first = points[0];
+    const last = points[points.length - 1];
+    const netDrift = roundValue(
+        Math.sqrt(
+            ((last?.vars.x || 0) - (first?.vars.x || 0)) ** 2 +
+            ((last?.vars.y || 0) - (first?.vars.y || 0)) ** 2 +
+            (hasZ ? ((last?.vars.z || 0) - (first?.vars.z || 0)) ** 2 : 0),
+        ),
+        8,
+    );
+
+    return {
+        radiusSeries,
+        speedSeries,
+        startRadius: roundValue(startRadius, 8),
+        finalRadius: roundValue(finalRadius, 8),
+        peakSpeed: roundValue(peakSpeed, 8),
+        meanSpeed: roundValue(meanSpeed, 8),
+        footprint: roundValue(Math.max(xSpan, 0.001) * Math.max(ySpan, 0.001) * Math.max(zSpan, 0.001), 8),
+        netDrift,
+    };
 }
 
 export function analyzeSeries(expression: string, startIndex: number, count: number): SeriesAnalysis {

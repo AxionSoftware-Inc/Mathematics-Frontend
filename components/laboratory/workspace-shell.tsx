@@ -30,7 +30,7 @@ export function LaboratoryWorkspaceShell({
     return (
         <LabEngineProvider>
             <div className="space-y-4">
-                <div className="site-panel border-border/60 px-4 py-3">
+                <div className="lab-shell-panel px-4 py-4">
                     <div className="flex flex-col gap-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
@@ -72,14 +72,14 @@ export function LaboratoryWorkspaceShell({
                             <p className="min-w-[280px] flex-1 text-sm leading-6 text-muted-foreground">
                                 {module.description || module.summary}
                             </p>
-                            <div className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="lab-shell-chip">
                                 {module.category}
                             </div>
-                            <div className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="lab-shell-chip">
                                 {modeLabel(module.computation_mode)}
                             </div>
                             <div
-                                className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${
+                                className={`lab-shell-chip ${
                                     definition ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" : "border-amber-500/20 bg-amber-500/10 text-amber-700"
                                 }`}
                             >
@@ -91,7 +91,9 @@ export function LaboratoryWorkspaceShell({
 
                 <main className="min-w-0">
                     {ModuleComponent ? (
-                        <ModuleComponent module={module} />
+                        <div className="lab-workspace-stage">
+                            <ModuleComponent module={module} />
+                        </div>
                     ) : (
                         <div className="site-panel-strong flex min-h-[500px] flex-col items-center justify-center p-12 text-center ring-1 ring-white/10 shadow-[0_50px_100px_-40px_rgba(0,0,0,0.4)]">
                             <div className="relative mb-8">
@@ -114,22 +116,22 @@ export function LaboratoryWorkspaceShell({
                     )}
                 </main>
 
-                <div className="site-panel border-border/60 px-4 py-3">
+                <div className="lab-shell-panel px-4 py-4">
                     <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <div className="lab-shell-chip">
                             <FlaskConical className="h-3.5 w-3.5 text-accent" />
                             {module.category}
                         </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <div className="lab-shell-chip">
                             <Settings2 className="h-3.5 w-3.5 text-accent" />
                             {modeLabel(module.computation_mode)}
                         </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <div className="lab-shell-chip">
                             <Info className="h-3.5 w-3.5 text-accent" />
                             {modules.length} modules
                         </div>
                         {capabilities.slice(0, 4).map((capability) => (
-                            <div key={capability} className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                            <div key={capability} className="lab-shell-chip">
                                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
                                 {capability}
                             </div>

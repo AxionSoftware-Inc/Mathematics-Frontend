@@ -2,9 +2,21 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, Pencil, Trash2, Calendar, Clock, BookOpen, Layers, Search, X } from "lucide-react";
-import { WriteTypeSelector } from "@/components/write-type-selector";
+import {
+    Plus,
+    FileText,
+    Pencil,
+    Trash2,
+    Calendar,
+    Clock,
+    BookOpen,
+    Layers,
+    Search,
+    X,
+    ScrollText,
+} from "lucide-react";
 
+import { WriteTypeSelector } from "@/components/write-type-selector";
 
 interface Paper {
     id: number;
@@ -16,6 +28,17 @@ interface Paper {
     created_at: string;
     updated_at: string;
 }
+
+const filterOptions: Array<{
+    id: "all" | "published" | "draft";
+    label: string;
+    icon: typeof Layers;
+    description: string;
+}> = [
+    { id: "all", label: "Barcha maqolalar", icon: Layers, description: "Arxivdagi barcha hujjatlar" },
+    { id: "published", label: "Nashr etilgan", icon: BookOpen, description: "Final holatdagi materiallar" },
+    { id: "draft", label: "Qoralamalar", icon: FileText, description: "Hali ishlanayotgan fayllar" },
+];
 
 export default function WriteIndexPage() {
     const [papers, setPapers] = useState<Paper[]>([]);
@@ -31,7 +54,7 @@ export default function WriteIndexPage() {
             const query = new URLSearchParams();
             if (filterStatus !== "all") query.append("status", filterStatus);
             if (searchQuery.trim()) query.append("q", searchQuery.trim());
-            
+
             const res = await fetch(`${apiUrl}/api/builder/papers/?${query.toString()}`);
             if (res.ok) {
                 const data = await res.json();
@@ -47,13 +70,13 @@ export default function WriteIndexPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchPapers();
-        }, 400); // debounce search
+        }, 400);
         return () => clearTimeout(timer);
     }, [fetchPapers]);
 
     const handleDelete = async (id: number) => {
         if (!confirm("Haqiqatan ham ushbu maqolani o'chirib tashlamoqchimisiz?")) return;
-        
+
         try {
             const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
             const res = await fetch(`${apiUrl}/api/builder/papers/${id}/`, {
@@ -65,192 +88,248 @@ export default function WriteIndexPage() {
         } catch (e) {
             console.error("Xatolik", e);
         }
-    }
+    };
+
+    const publishedCount = papers.filter((paper) => paper.status === "published").length;
+    const draftCount = papers.filter((paper) => paper.status === "draft").length;
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
-            {/* Professional Top Bar */}
-            <div className="w-full border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-40">
-                <div className="w-full max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="site-shell min-h-screen">
+            <div className="sticky top-20 z-40 border-b border-border/60 bg-background/82 backdrop-blur-xl">
+                <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between px-4 md:px-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded bg-foreground text-background flex items-center justify-center font-bold font-playfair shadow-md">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-foreground text-background font-serif text-sm font-black shadow-md">
                             M
                         </div>
-                        <h1 className="text-xl font-medium tracking-tight flex items-center gap-2">
-                            MathSphere <span className="text-muted-foreground font-normal">| Writer Workspace</span>
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={() => setIsWriteSelectorOpen(true)} 
-                            className="site-button-primary shadow-md hover:shadow-lg cursor-pointer"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Yangi Maqola
-                        </button>
-
+                        <div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                                MathSphere Writer
+                            </div>
+                            <div className="text-sm font-semibold md:text-base">Draft Archive & Editorial Workspace</div>
+                        </div>
                     </div>
 
+                    <button
+                        onClick={() => setIsWriteSelectorOpen(true)}
+                        className="site-button-primary cursor-pointer shadow-md"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Yangi hujjat
+                    </button>
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 w-full max-w-[1600px] mx-auto px-6 py-8 flex gap-8">
-                
-                {/* Left Sidebar Menu */}
-                <div className="w-64 hidden lg:flex flex-col gap-2 shrink-0">
-                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-3 mb-2">Boshqaruv</div>
-                    <button 
-                        onClick={() => setFilterStatus("all")}
-                        className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg font-medium text-sm transition-colors ${filterStatus === 'all' ? 'bg-muted text-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}>
-                        <Layers className="w-4 h-4" /> Barcha maqolalar
-                    </button>
-                    <button 
-                        onClick={() => setFilterStatus("published")}
-                        className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg font-medium text-sm transition-colors ${filterStatus === 'published' ? 'bg-muted text-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}>
-                        <BookOpen className="w-4 h-4" /> Nashr etilgan
-                    </button>
-                    <button 
-                        onClick={() => setFilterStatus("draft")}
-                        className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg font-medium text-sm transition-colors ${filterStatus === 'draft' ? 'bg-muted text-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}>
-                        <FileText className="w-4 h-4" /> Qoralamalar
-                    </button>
-                </div>
+            <div className="mx-auto flex w-full max-w-[1600px] gap-8 px-4 py-8 md:px-6">
+                <aside className="hidden w-72 shrink-0 lg:block">
+                    <div className="sticky top-[152px] space-y-5">
+                        <div className="site-panel-strong p-5">
+                            <div className="site-eyebrow">Workspace Control</div>
+                            <div className="mt-4 space-y-2">
+                                {filterOptions.map((item) => {
+                                    const active = item.id === filterStatus;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setFilterStatus(item.id)}
+                                            className={`w-full rounded-[1.35rem] border px-4 py-4 text-left transition-colors ${
+                                                active
+                                                    ? "border-[var(--accent)]/35 bg-[var(--accent-soft)]"
+                                                    : "border-border/60 bg-background/70 hover:bg-background"
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                                                    <item.icon className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-bold">{item.label}</div>
+                                                    <div className="mt-1 text-xs leading-5 text-muted-foreground">{item.description}</div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-                {/* Dashboard Grid */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                        <h2 className="text-2xl font-semibold tracking-tight">
-                            {filterStatus === 'all' && "Hujjatlar Arxivi"}
-                            {filterStatus === 'published' && "Nashr etilgan maqolalar"}
-                            {filterStatus === 'draft' && "Qoralamalar"}
-                        </h2>
-                        <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                <input 
-                                    type="text" 
-                                    placeholder="Maqola izlash..." 
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-9 pr-8 py-2 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm w-full md:w-64 transition-all"
-                                />
-                                {searchQuery && (
-                                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                                        <X className="w-4 h-4" />
+                        <div className="site-panel p-5">
+                            <div className="site-eyebrow">Archive Pulse</div>
+                            <div className="mt-4 grid gap-3">
+                                <div className="site-metric-card p-4">
+                                    <div className="site-display text-3xl">{papers.length}</div>
+                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Jami hujjatlar</div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="site-outline-card p-4">
+                                        <div className="text-sm font-bold">{draftCount}</div>
+                                        <div className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Draft</div>
+                                    </div>
+                                    <div className="site-outline-card p-4">
+                                        <div className="text-sm font-bold">{publishedCount}</div>
+                                        <div className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Published</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <main className="min-w-0 flex-1">
+                    <div className="site-panel-strong p-5 md:p-6">
+                        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                            <div className="flex-1">
+                                <div className="site-eyebrow">Search Archive</div>
+                                <div className="relative mt-4">
+                                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                        type="text"
+                                        placeholder="Maqola, abstract yoki tur bo&apos;yicha izlash..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="h-[52px] w-full rounded-full border border-border bg-white/55 pl-11 pr-10 text-sm outline-none transition-colors focus:border-[var(--accent)] dark:bg-white/5"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery("")}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <div className="flex shrink-0 flex-wrap gap-2 lg:hidden">
+                                {filterOptions.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setFilterStatus(item.id)}
+                                        className={`site-chip ${filterStatus === item.id ? "site-chip-active" : ""}`}
+                                    >
+                                        {item.label}
                                     </button>
-                                )}
+                                ))}
                             </div>
-                            <div className="text-sm text-muted-foreground font-medium whitespace-nowrap hidden sm:block">
-                                {papers.length} ta hujjat
-                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-between gap-4">
+                        <div>
+                            <div className="site-eyebrow">Document Shelf</div>
+                            <h2 className="mt-2 text-2xl font-black tracking-tight">
+                                {filterStatus === "all" && "Hujjatlar arxivi"}
+                                {filterStatus === "published" && "Nashr etilgan maqolalar"}
+                                {filterStatus === "draft" && "Qoralamalar"}
+                            </h2>
+                        </div>
+                        <div className="hidden rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm font-semibold text-muted-foreground sm:block">
+                            {papers.length} ta hujjat
                         </div>
                     </div>
 
                     {isLoading ? (
-                        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                             {[1, 2, 3].map(i => (
-                                 <div key={i} className="rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm p-6 h-48 flex flex-col justify-between">
-                                    <div className="space-y-4">
-                                        <div className="h-6 bg-muted/60 rounded w-3/4 animate-pulse"></div>
-                                        <div className="h-4 bg-muted/50 rounded w-full animate-pulse"></div>
-                                        <div className="h-4 bg-muted/50 rounded w-5/6 animate-pulse"></div>
-                                    </div>
-                                    <div className="flex gap-2 mt-4 pt-4 border-t">
-                                        <div className="h-4 bg-muted/40 rounded w-1/4 animate-pulse"></div>
-                                        <div className="h-4 bg-muted/40 rounded w-1/4 animate-pulse"></div>
-                                    </div>
-                                 </div>
-                             ))}
+                        <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="site-panel h-[280px] animate-pulse" />
+                            ))}
                         </div>
                     ) : papers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-border/50 rounded-2xl p-16 text-center h-[50vh] bg-muted/10">
-                            <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-6 border border-border/50 shadow-inner">
-                                <FileText className="w-8 h-8 text-muted-foreground" />
+                        <div className="mt-8 site-panel-strong flex min-h-[420px] flex-col items-center justify-center p-10 text-center">
+                            <div className="flex h-18 w-18 items-center justify-center rounded-[1.75rem] bg-[var(--accent-soft)] text-[var(--accent)]">
+                                <ScrollText className="h-8 w-8" />
                             </div>
-                            <h3 className="text-xl font-semibold tracking-tight">Hali ilmiy maqolalar yoʻq</h3>
-                            <p className="text-muted-foreground mt-2 max-w-md mb-8 leading-relaxed">
-                                Yangi loyihani boshlang. Ma&apos;lumotlar avtomatik tekshiriladi va xavfsiz muhitda tahrirlanadi. Latex formatlarini ham kiritish mumkin.
+                            <h3 className="mt-6 font-serif text-4xl font-black">Hali ilmiy hujjatlar yo&apos;q</h3>
+                            <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
+                                Yangi loyiha boshlang. Writer endi template, metadata va preview bilan tartibli ishlab
+                                beradigan premium workflow sifatida ishlaydi.
                             </p>
-                            <button 
-                                onClick={() => setIsWriteSelectorOpen(true)} 
-                                className="site-button-primary shadow-xl cursor-pointer"
+                            <button
+                                onClick={() => setIsWriteSelectorOpen(true)}
+                                className="site-button-primary mt-8 cursor-pointer"
                             >
-                                <Plus className="w-5 h-5 mr-2" />
+                                <Plus className="h-4 w-4" />
                                 Yangi qoralama yaratish
                             </button>
-
-
-
                         </div>
                     ) : (
-                        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                            {papers.map(paper => (
-                                <div key={paper.id} className="rounded-xl border border-border/50 bg-background hover:bg-muted/10 transition-all shadow-sm hover:shadow-md group flex flex-col overflow-hidden relative">
-                                    <div className="p-6 flex-1 flex flex-col">
-                                        <div className="flex items-center justify-between mb-4">
+                        <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                            {papers.map((paper) => (
+                                <div
+                                    key={paper.id}
+                                    className="site-panel group relative flex h-full flex-col overflow-hidden p-5 transition-all hover:-translate-y-1 hover:shadow-xl"
+                                >
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(29,78,216,0.06),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(15,118,110,0.08),transparent_24%)] opacity-0 transition-opacity group-hover:opacity-100" />
+                                    <div className="relative flex flex-1 flex-col">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${paper.status === 'published' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                                                    {paper.status === 'draft' ? "Qoralama" : "Nashr qilingan"}
+                                                <span
+                                                    className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
+                                                        paper.status === "published"
+                                                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                                            : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                                    }`}
+                                                >
+                                                    {paper.status === "draft" ? "Qoralama" : "Nashr qilingan"}
                                                 </span>
-                                                <span className="inline-flex items-center rounded-md bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">
+                                                <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                                                     {paper.document_kind || "paper"}
                                                 </span>
                                             </div>
-                                            
-                                            <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                <button 
+
+                                            <div className="relative z-20 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                                                <button
                                                     onClick={() => handleDelete(paper.id)}
-                                                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                                    className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                                                     title="O'chirish"
                                                 >
-                                                    <Trash2 className="w-4 h-4" />
+                                                    <Trash2 className="h-4 w-4" />
                                                 </button>
-                                                <Link 
+                                                <Link
                                                     href={`/write/${paper.id}`}
-                                                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                                    className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                                                     title="Tahrirlash"
                                                 >
-                                                    <Pencil className="w-4 h-4" />
+                                                    <Pencil className="h-4 w-4" />
                                                 </Link>
                                             </div>
                                         </div>
-                                        <h3 className="text-lg font-semibold leading-snug tracking-tight mb-3 line-clamp-2 pr-4 text-foreground cursor-pointer" title={paper.title || "Titul yo'q"} onClick={() => window.location.href = `/write/${paper.id}`}>
+
+                                        <h3 className="mt-5 pr-6 text-xl font-black leading-snug tracking-tight text-foreground">
                                             {paper.title || "Nomsiz maqola"}
                                         </h3>
-                                        <p className="text-sm text-muted-foreground line-clamp-3 mb-6 flex-1 leading-relaxed">
-                                            {paper.abstract || "Annotatsiya kiritilmagan yoxud hali yozilmoqda..."}
+                                        <p className="mt-3 line-clamp-4 flex-1 text-sm leading-7 text-muted-foreground">
+                                            {paper.abstract || "Annotatsiya kiritilmagan yoki hali shakllanmoqda."}
                                         </p>
-                                        <div className="mb-4 inline-flex rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                                            {paper.section_count || 1} sections
+
+                                        <div className="mt-5 flex flex-wrap gap-2">
+                                            <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                                {paper.section_count || 1} sections
+                                            </span>
                                         </div>
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t border-border/50 font-medium">
-                                            <div className="flex items-center gap-1.5">
-                                                <Calendar className="w-3.5 h-3.5" />
-                                                {new Date(paper.created_at).toLocaleDateString()}
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <Clock className="w-3.5 h-3.5" />
-                                                {new Date(paper.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+
+                                        <div className="mt-6 border-t border-border/60 pt-4 text-xs font-medium text-muted-foreground">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Calendar className="h-3.5 w-3.5" />
+                                                    {new Date(paper.created_at).toLocaleDateString()}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    {new Date(paper.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    {/* Link Overlay for entire card except buttons */}
-                                    <Link href={`/write/${paper.id}`} className="absolute inset-0 z-0"></Link>
-                                    <div className="absolute top-6 right-6 z-10 sm:hidden">
-                                       <Link href={`/write/${paper.id}`}><Pencil className="w-4 h-4 text-muted-foreground" /></Link>
-                                    </div>
+
+                                    <Link href={`/write/${paper.id}`} className="absolute inset-0 z-10" />
                                 </div>
                             ))}
                         </div>
                     )}
-                </div>
+                </main>
             </div>
-            <WriteTypeSelector 
-                isOpen={isWriteSelectorOpen} 
-                onClose={() => setIsWriteSelectorOpen(false)} 
-            />
+
+            <WriteTypeSelector isOpen={isWriteSelectorOpen} onClose={() => setIsWriteSelectorOpen(false)} />
         </div>
     );
 }

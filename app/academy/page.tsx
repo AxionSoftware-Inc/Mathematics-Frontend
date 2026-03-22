@@ -59,27 +59,27 @@ export default function AcademyPage() {
 
     const totalHours = courses.reduce((sum, course) => sum + Number(course.duration_hours || 0), 0);
     const instructors = new Set(courses.map((course) => course.instructor).filter(Boolean));
+    const pathwayCourses = filteredCourses.slice(0, 3);
 
     return (
         <div className="site-shell">
-            <SiteSection className="pb-10 pt-16 md:pt-24">
+            <SiteSection className="pb-8 pt-12 md:pt-16">
                 <SiteContainer>
-                    <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-                        <div className="space-y-7">
+                    <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+                        <div className="space-y-6">
                             <HeroBadge>
                                 <Sparkles className="h-4 w-4" />
                                 Structured Mathematical Learning
                             </HeroBadge>
-                            <div className="space-y-5">
-                                <h1 className="site-display text-5xl md:text-7xl xl:text-[5.25rem]">
+                            <div className="space-y-4">
+                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.5rem]">
                                     Akademiya endi
                                     <span className="site-kicker"> tartibli o'quv oqimi </span>
                                     va professor darajasidagi ko'rinish bilan ishlaydi.
                                 </h1>
                                 <p className="site-lead max-w-2xl">
-                                    Kurslar ro'yxati, instructor profillari va level bo'yicha navigatsiya bir xil
-                                    professional ritmda ko'rsatiladi. Foydalanuvchi qayerdan boshlashni darrov
-                                    tushunishi kerak.
+                                    Kurslar ro'yxati, instructor profillari va level bo'yicha navigatsiya endi bitta
+                                    tizimda. Thumbnail, meta va CTA bloklari har kartada bir xil ritmga keltirildi.
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-3">
@@ -93,32 +93,68 @@ export default function AcademyPage() {
                             </div>
                         </div>
 
-                        <div className="site-panel-strong p-8 md:p-10">
+                        <div className="site-panel-strong p-5 md:p-7 xl:p-8">
                             <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="site-display text-3xl">{courses.length}</div>
                                     <div className="mt-2 text-sm font-semibold text-muted-foreground">Faol kurslar</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="site-display text-3xl">{instructors.size}</div>
                                     <div className="mt-2 text-sm font-semibold text-muted-foreground">Instruktorlar</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="site-display text-3xl">{Math.round(totalHours || 0)}h</div>
                                     <div className="mt-2 text-sm font-semibold text-muted-foreground">Yig'ma davomiylik</div>
                                 </div>
-                                <div className="site-outline-card p-5">
+                                <div className="site-metric-card p-5">
                                     <div className="site-display text-3xl">{filteredCourses.length}</div>
                                     <div className="mt-2 text-sm font-semibold text-muted-foreground">Topilgan kurslar</div>
                                 </div>
                             </div>
-                            <div className="mt-6 site-outline-card p-6">
-                                <div className="site-eyebrow">Learning System</div>
-                                <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                    Har kurs cardida level, instructor, vaqt va asosiy yo'nalishlar bir qarashda
-                                    ko'rinadi. Bu akademiya bo'limini dekor emas, haqiqiy o'quv mahsulotiga
-                                    yaqinlashtiradi.
-                                </p>
+
+                            <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+                                <div className="site-media-frame p-5">
+                                    <div className="site-eyebrow">Learning Ladder</div>
+                                    <div className="mt-5 space-y-3">
+                                        {pathwayCourses.length ? (
+                                            pathwayCourses.map((course, index) => (
+                                                <div key={course.id} className="site-outline-card flex items-center justify-between gap-4 p-4">
+                                                    <div className="min-w-0">
+                                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                                                            Step {index + 1}
+                                                        </div>
+                                                        <div className="mt-2 line-clamp-1 text-sm font-semibold">{course.title}</div>
+                                                    </div>
+                                                    <div className="shrink-0 rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+                                                        {course.level_type || "Beginner"}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="rounded-[1.4rem] border border-dashed border-border px-4 py-10 text-center text-sm font-semibold text-muted-foreground">
+                                                Kurslar yuklanmoqda
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4">
+                                    <div className="site-outline-card p-5">
+                                        <div className="site-eyebrow">Visual Rule</div>
+                                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                                            Har bir kursda thumbnail alohida media frame ichida, qolgan content esa
+                                            pastdagi aniq tipografik blokda joylashadi.
+                                        </p>
+                                    </div>
+                                    <div className="site-outline-card p-5">
+                                        <div className="site-eyebrow">Decision Speed</div>
+                                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                                            Instructor, vaqt, level va asosiy taglar bir qarashda ko'rinadi. Foydalanuvchi
+                                            qayerdan boshlashni darrov tushunadi.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -127,33 +163,31 @@ export default function AcademyPage() {
 
             <SiteSection className="py-8">
                 <SiteContainer>
-                    <div className="site-panel flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-6">
-                        <div className="relative w-full md:max-w-md">
-                            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <input
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                placeholder="Kurs, instructor yoki tag bo'yicha qidiring"
-                                className="h-12 w-full rounded-full border border-border bg-transparent pl-11 pr-4 text-sm outline-none transition-colors focus:border-[var(--accent)]"
-                            />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {levelOptions.map((level) => {
-                                const active = level === activeLevel;
-                                return (
-                                    <button
-                                        key={level}
-                                        onClick={() => setActiveLevel(level)}
-                                        className={`rounded-full px-4 py-2 text-sm font-bold transition-colors ${
-                                            active
-                                                ? "bg-foreground text-background"
-                                                : "border border-border text-muted-foreground hover:text-foreground"
-                                        }`}
-                                    >
-                                        {level}
-                                    </button>
-                                );
-                            })}
+                    <div className="site-filter-shell flex flex-col gap-5 p-5 md:p-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="relative w-full lg:max-w-xl">
+                                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                    value={query}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    placeholder="Kurs, instructor yoki tag bo'yicha qidiring"
+                                    className="h-[52px] w-full rounded-full border border-border bg-white/55 pl-11 pr-4 text-sm outline-none transition-colors focus:border-[var(--accent)] dark:bg-white/5"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {levelOptions.map((level) => {
+                                    const active = level === activeLevel;
+                                    return (
+                                        <button
+                                            key={level}
+                                            onClick={() => setActiveLevel(level)}
+                                            className={`site-chip ${active ? "site-chip-active" : ""}`}
+                                        >
+                                            {level}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </SiteContainer>
@@ -164,13 +198,13 @@ export default function AcademyPage() {
                     <SectionHeading
                         eyebrow="Course Catalog"
                         title="Professional kurslar vitrini"
-                        description="Kontent ko'rinishi endi bir xil editorial estetikada, lekin ichida real mahsulot signali bor: level, instructor, vaqt, taglar va aniq CTA."
+                        description="Kontent ko'rinishi endi ancha tartibli: thumbnail sahnasi, instructor va duration signallari, keyin esa kursning o'ziga xos mazmuni."
                     />
 
                     {loading ? (
                         <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                             {Array.from({ length: 6 }).map((_, index) => (
-                                <div key={index} className="site-panel h-[420px] animate-pulse" />
+                                <div key={index} className="site-panel h-[460px] animate-pulse" />
                             ))}
                         </div>
                     ) : filteredCourses.length ? (
@@ -179,29 +213,37 @@ export default function AcademyPage() {
                                 <Link
                                     key={course.id}
                                     href={`/academy/${course.slug || course.id}`}
-                                    className="site-panel group flex h-full flex-col overflow-hidden"
+                                    className="site-panel group flex h-full flex-col p-4"
                                 >
-                                    <div className="relative aspect-[16/10] overflow-hidden border-b border-border">
-                                        {course.thumbnail ? (
-                                            <img
-                                                src={getMediaUrl(course.thumbnail)}
-                                                alt={course.title}
-                                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(15,118,110,0.18),transparent_40%)]">
-                                                <GraduationCap className="h-12 w-12 text-[var(--accent)]/45" />
+                                    <div className="site-media-frame p-4">
+                                        <div className="flex items-center justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                                            <span className="rounded-full bg-black/70 px-3 py-1 text-white">
+                                                {course.level_type || "Beginner"}
+                                            </span>
+                                            <span>{course.duration_hours || "12"}h</span>
+                                        </div>
+
+                                        <div className="mx-auto mt-4 max-w-[280px] rounded-[1.8rem] border border-white/50 bg-white/60 p-3 shadow-2xl shadow-slate-900/10">
+                                            <div className="relative aspect-[16/10] overflow-hidden rounded-[1.4rem] border border-border bg-white/75">
+                                                {course.thumbnail ? (
+                                                    <img
+                                                        src={getMediaUrl(course.thumbnail)}
+                                                        alt={course.title}
+                                                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                    />
+                                                ) : (
+                                                    <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(15,118,110,0.18),transparent_40%)]">
+                                                        <GraduationCap className="h-12 w-12 text-[var(--accent)]/45" />
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                        <div className="absolute left-5 top-5 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white">
-                                            {course.level_type || "Beginner"}
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-1 flex-col p-6">
-                                        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                                    <div className="flex flex-1 flex-col px-2 pb-2 pt-5">
+                                        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
                                             <span>{course.instructor || "MathSphere Faculty"}</span>
-                                            <span>{course.duration_hours || "12"}h</span>
+                                            <span>{course.tags_names?.length || 0} tags</span>
                                         </div>
                                         <h3 className="mt-4 font-serif text-3xl font-black leading-tight transition-colors group-hover:text-[var(--accent)]">
                                             {course.title}
@@ -212,35 +254,34 @@ export default function AcademyPage() {
 
                                         <div className="mt-5 flex flex-wrap gap-2">
                                             {(course.tags_names || []).slice(0, 3).map((tag) => (
-                                                <span
-                                                    key={tag}
-                                                    className="rounded-full border border-border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground"
-                                                >
+                                                <span key={tag} className="site-chip !px-3 !py-2 !text-[10px]">
                                                     {tag}
                                                 </span>
                                             ))}
                                         </div>
 
-                                        <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-5 text-sm">
-                                            <div className="site-outline-card flex items-center gap-3 px-4 py-3">
-                                                <Users className="h-4 w-4 text-[var(--accent)]" />
-                                                <span className="font-semibold">Instructor-led</span>
+                                        <div className="mt-auto border-t border-border pt-5 text-sm">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="site-outline-card flex items-center gap-3 px-4 py-3">
+                                                    <Users className="h-4 w-4 text-[var(--accent)]" />
+                                                    <span className="font-semibold">Instructor-led</span>
+                                                </div>
+                                                <div className="site-outline-card flex items-center gap-3 px-4 py-3">
+                                                    <Clock3 className="h-4 w-4 text-[var(--accent-alt)]" />
+                                                    <span className="font-semibold">Structured pace</span>
+                                                </div>
                                             </div>
-                                            <div className="site-outline-card flex items-center gap-3 px-4 py-3">
-                                                <Clock3 className="h-4 w-4 text-[var(--accent-alt)]" />
-                                                <span className="font-semibold">Structured pace</span>
-                                            </div>
-                                        </div>
 
-                                        <div className="mt-6 flex items-center justify-between pt-2 text-sm font-bold">
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <BookOpen className="h-4 w-4" />
-                                                Kurs tafsilotlari
+                                            <div className="mt-5 flex items-center justify-between font-bold">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                    <BookOpen className="h-4 w-4" />
+                                                    Kurs tafsilotlari
+                                                </div>
+                                                <span className="inline-flex items-center gap-2 text-[var(--accent)]">
+                                                    Ochish
+                                                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                                </span>
                                             </div>
-                                            <span className="inline-flex items-center gap-2 text-[var(--accent)]">
-                                                Ochish
-                                                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                                            </span>
                                         </div>
                                     </div>
                                 </Link>
@@ -253,8 +294,8 @@ export default function AcademyPage() {
                             </div>
                             <h3 className="mt-5 font-serif text-3xl font-black">Mos kurs topilmadi</h3>
                             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
-                                Qidiruv so'zini yoki level filtrini o'zgartiring. Kurslar vitrini endi real
-                                ma'lumot bilan ishlaydi va bo'sh holat ham toza ko'rsatiladi.
+                                Qidiruv so'zini yoki level filtrini o'zgartiring. Bo'sh holat ham shu vizual tizimda,
+                                aniq signal bilan ko'rsatiladi.
                             </p>
                         </div>
                     )}

@@ -80,10 +80,10 @@ function ActionIcon({
             <button
                 type="button"
                 onClick={onClick}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-background/80 text-muted-foreground transition-colors hover:text-foreground"
                 aria-label={label}
             >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" />
             </button>
         </HoverHint>
     );
@@ -115,24 +115,26 @@ export function WriterProjectPanel({
     onOpenTemplates: () => void;
 }) {
     return (
-        <div className="rounded-[1.6rem] border border-border/60 bg-background/85 p-3 shadow-sm">
-            <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                        <FolderTree className="h-3.5 w-3.5 text-teal-500" />
-                        Files
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 font-bold uppercase tracking-[0.14em]">
-                            {documentKind}
-                        </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 font-bold uppercase tracking-[0.14em]">
-                            {sections.length}
-                        </span>
+        <div className="overflow-hidden rounded-[1.6rem] border border-border/60 bg-background/85 p-3 shadow-sm">
+            <div className="rounded-[1.2rem] border border-border/50 bg-muted/10 p-3">
+                <div className="flex items-start justify-between gap-2.5">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                            <FolderTree className="h-3.5 w-3.5 text-teal-500" />
+                            Files
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 font-bold uppercase tracking-[0.14em]">
+                                {documentKind}
+                            </span>
+                            <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 font-bold uppercase tracking-[0.14em]">
+                                {sections.length}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="mt-3 grid grid-cols-5 gap-1.5">
                     <ActionIcon icon={FilePlus2} label="Yangi file yaratish" onClick={onAddSection} />
                     <ActionIcon icon={Copy} label="Hozirgi file nusxasini yaratish" onClick={onDuplicateSection} />
                     <ActionIcon icon={Sparkles} label="Aktiv file ichiga laboratoriya blokini qo'shish" onClick={onInsertLabBlock} />
@@ -141,21 +143,21 @@ export function WriterProjectPanel({
                 </div>
             </div>
 
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 max-h-[52vh] space-y-2 overflow-x-hidden overflow-y-auto pr-1">
                 {sections.map((section, index) => {
                     const sectionId = getWriterSectionKey(section);
                     const active = sectionId === activeSectionId;
 
-                        return (
-                            <div
-                                key={sectionId}
-                                className={`rounded-xl border px-2 py-2 transition ${getProgressTone(section.progress_state, active)}`}
-                            >
-                                <div className="flex items-center gap-2">
+                    return (
+                        <div
+                            key={sectionId}
+                            className={`overflow-hidden rounded-2xl border px-3 py-2.5 transition ${getProgressTone(section.progress_state, active)}`}
+                        >
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                                 <button
                                     type="button"
                                     onClick={() => onSelectSection(sectionId)}
-                                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                    className="flex min-w-0 items-center gap-2 text-left"
                                 >
                                     <div
                                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
@@ -170,7 +172,7 @@ export function WriterProjectPanel({
                                             <div className="truncate text-sm font-bold">{section.title}</div>
                                         </div>
                                         <div
-                                            className={`text-[10px] uppercase tracking-[0.16em] ${
+                                            className={`mt-1 truncate text-[10px] uppercase tracking-[0.16em] ${
                                                 active ? "text-background/70" : "text-muted-foreground"
                                             }`}
                                         >
@@ -178,7 +180,7 @@ export function WriterProjectPanel({
                                         </div>
                                     </div>
                                 </button>
-                                <div className="flex items-center gap-1">
+                                <div className="grid shrink-0 grid-cols-3 gap-1">
                                     <HoverHint label="File'ni yuqoriga surish">
                                         <button
                                             type="button"

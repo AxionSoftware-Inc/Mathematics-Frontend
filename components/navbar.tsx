@@ -22,10 +22,6 @@ export default function Navbar() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
 
-    if (pathname.startsWith("/write")) {
-        return null;
-    }
-
     return (
         <div className="sticky top-0 z-50 border-b border-border/80 bg-background/85 backdrop-blur-md">
             <SiteContainer className="flex h-20 items-center justify-between gap-6">

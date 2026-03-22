@@ -40,16 +40,16 @@ const metrics = [
 export default function Home() {
     return (
         <div className="site-shell">
-            <SiteSection className="pb-14 pt-16 md:pt-24">
+            <SiteSection className="pb-12 pt-12 md:pt-16">
                 <SiteContainer>
-                    <div className="grid items-end gap-10 xl:grid-cols-[1.2fr_0.8fr]">
-                        <div className="space-y-7">
+                    <div className="grid items-end gap-8 xl:grid-cols-[1.08fr_0.92fr]">
+                        <div className="space-y-6">
                             <HeroBadge>
                                 <Sparkles className="h-4 w-4" />
                                 Unified Mathematical Ecosystem
                             </HeroBadge>
-                            <div className="space-y-5">
-                                <h1 className="site-display text-5xl md:text-7xl xl:text-[5.6rem]">
+                            <div className="space-y-4">
+                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.6rem]">
                                     Matematik bilim,
                                     <span className="site-kicker"> ilmiy tartib </span>
                                     va professional raqamli muhit.
@@ -71,16 +71,16 @@ export default function Home() {
                             </div>
                         </div>
 
-                        <div className="site-panel-strong p-8 md:p-10">
+                        <div className="site-panel-strong p-6 md:p-8">
                             <div className="grid gap-4 sm:grid-cols-2">
                                 {metrics.map((metric) => (
-                                    <div key={metric.label} className="site-outline-card p-5">
+                                    <div key={metric.label} className="site-metric-card p-5">
                                         <div className="site-display text-3xl">{metric.value}</div>
                                         <div className="mt-2 text-sm font-semibold text-muted-foreground">{metric.label}</div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-6 site-outline-card p-6">
+                            <div className="mt-5 site-outline-card p-5">
                                 <div className="site-eyebrow">Core Principle</div>
                                 <p className="mt-3 text-sm leading-7 text-muted-foreground">
                                     Har modul mustaqil kuchli bo'lishi bilan birga, umumiy mahsulot ichida bir xil

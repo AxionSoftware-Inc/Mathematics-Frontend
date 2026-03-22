@@ -73,13 +73,13 @@ const workflow = [
 export function SiteFlagshipShowcase() {
     return (
         <>
-            <SiteSection className="pt-8">
+            <SiteSection className="pt-6">
                 <SiteContainer>
                     <div className="site-panel-strong overflow-hidden p-0">
                         <div className="grid xl:grid-cols-[0.82fr_1.18fr]">
-                            <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.18),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0.92))] p-8 md:p-10 xl:border-b-0 xl:border-r dark:bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.82),rgba(15,23,42,0.94))]">
+                            <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.18),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0.92))] p-7 md:p-8 xl:border-b-0 xl:border-r dark:bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.82),rgba(15,23,42,0.94))]">
                                 <div className="site-eyebrow">Flagship Experience</div>
-                                <h2 className="site-display mt-4 text-4xl md:text-5xl">
+                                <h2 className="site-display mt-4 text-3xl md:text-4xl xl:text-[3.5rem]">
                                     Lab, maqola, kitob va editorial oqim bir bosh sahifada kuchli ko&apos;rinishi kerak.
                                 </h2>
                                 <p className="site-lead mt-5 max-w-xl">
@@ -89,7 +89,7 @@ export function SiteFlagshipShowcase() {
 
                                 <div className="mt-8 grid gap-3 sm:grid-cols-3">
                                     {commandDeck.map((item) => (
-                                        <div key={item.label} className="site-outline-card p-4">
+                                        <div key={item.label} className="site-metric-card p-4">
                                             <div className="site-display text-3xl">{item.value}</div>
                                             <div className="mt-2 text-sm font-semibold text-muted-foreground">
                                                 {item.label}
@@ -119,11 +119,11 @@ export function SiteFlagshipShowcase() {
                                 </div>
                             </div>
 
-                            <div className="grid gap-5 p-6 md:grid-cols-2 md:p-8">
+                            <div className="grid gap-5 p-5 md:grid-cols-2 md:p-6">
                                 {flagshipFeatures.map((feature) => (
                                     <div
                                         key={feature.title}
-                                        className="group relative overflow-hidden rounded-[2rem] border border-border/60 bg-background/80 p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                                        className="group relative overflow-hidden rounded-[2rem] border border-border/60 bg-background/80 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                                     >
                                         <div
                                             className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${feature.accent} opacity-90`}

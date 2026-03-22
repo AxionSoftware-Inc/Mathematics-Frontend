@@ -5,6 +5,7 @@ export type WriterTemplateCategory =
     | "expository"
     | "report"
     | "thesis"
+    | "book"
     | "laboratory"
     | "draft";
 
@@ -63,6 +64,7 @@ export const DEFAULT_WRITER_PRESET_ID = "minimal";
 const legacyTemplateIdMap: Record<string, string> = {
     research: "research-paper",
     article: "expository-article",
+    book: "textbook-manuscript",
     simple: "simple-draft",
 };
 
@@ -231,6 +233,52 @@ Maqoladan chiqadigan asosiy fikrlar va keyingi o'qish yo'nalishi.
         keywords: "article, exposition, visualization",
     },
     {
+        id: "magazine-feature",
+        title: "Ready Article",
+        shortDescription: "Boshlanishi yozib qo'yilgan, tez nashrga mos premium maqola andozasi.",
+        description: "Lead paragraph, ritmli bo'limlar va vizual blok bilan ilmiy-ommabop maqolani bir necha daqiqada boshlash uchun yaratilgan.",
+        category: "expository",
+        icon: "newspaper",
+        accentClassName: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+        recommendedFor: ["Magazine feature", "Homepage editorial", "Public math story"],
+        recommendedAddOnIds: ["visualization-pack", "example-bank", "delivery-checklist"],
+        titleTemplate: "Maqola sarlavhasi",
+        abstractTemplate: "Mazkur maqola [mavzu]ni qiziqarli syujet, sodda izoh va tanlangan misollar orqali o'quvchiga yaqinlashtiradi.",
+        contentTemplate: `# Nega bu mavzu muhim?
+
+Har bir kuchli maqola bitta aniq kuzatuv bilan boshlanadi. Shu yerda o'quvchini darhol ichkariga olib kiradigan kirish paragrafini yozing: muammo nimada, u qayerda uchraydi va nega bunga e'tibor berish kerak?
+
+## Bir qarashda asosiy g'oya
+
+[Mavzu]ning markaziy fikrini 3-5 jumlada sodda tilda tushuntiring. Formulaga hali shoshilmang, avval intuitiv tasvirni bering.
+
+## O'quvchini olib kiradigan misol
+
+Masalani kundalik kuzatuv, geometrik tasavvur yoki kichik hisoblash misoli bilan ochib bering.
+
+## Muhim formula yoki model
+
+\`\`\`plot2d
+{
+  "f": "x^2 - 4*x + 3",
+  "domain": [-2, 8],
+  "title": "Maqola uchun namunaviy grafik"
+}
+\`\`\`
+
+Grafik, formula yoki qisqa jadval asosiy fikrni qanday mustahkamlashini izohlang.
+
+## Chuqurroq qatlam
+
+Bu yerda endi ancha formal tushuntirishga o'ting: muhim tenglama, teorema yoki strukturani kiriting.
+
+## Yakun
+
+Maqola oxirida bitta aniq takeaway qoldiring va o'quvchini keyingi savol yoki yo'nalishga olib boring.
+`,
+        keywords: "article, feature, storytelling",
+    },
+    {
         id: "project-report",
         title: "Project Report",
         shortDescription: "Loyiha yoki hisoblash ishlari uchun professional hisobot formati.",
@@ -305,6 +353,221 @@ Bob doirasida olingan yangi xulosalar.
 Keyingi bob bilan bog'lanish va o'tish.
 `,
         keywords: "thesis, chapter, academic writing",
+    },
+    {
+        id: "textbook-manuscript",
+        title: "Textbook Manuscript",
+        shortDescription: "Kitob yoki darslik yozish uchun chapter-based premium andoza.",
+        description: "Bo'lim maqsadlari, asosiy mavzu, misollar, mashqlar va yakuniy xulosalar bilan darslik yozishni tartibli boshlaydi.",
+        category: "book",
+        icon: "scroll-text",
+        accentClassName: "text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20",
+        recommendedFor: ["Course book", "Structured textbook", "Chapter-based manuscript"],
+        recommendedAddOnIds: ["theorem-pack", "example-bank", "citation-guide"],
+        titleTemplate: "Kitob nomi",
+        abstractTemplate: "Ushbu qo'lyozma [mavzu] bo'yicha bosqichma-bosqich tushuntirish, misollar va mashqlar orqali to'liq o'quv yo'lini taklif qiladi.",
+        contentTemplate: `# 1-bob. Kirish
+
+Bu bobda kitobning umumiy maqsadi, auditoriyasi va o'quvchi bu yerda nimani o'rganishi kutilayotgani yoziladi.
+
+## O'quv maqsadlari
+
+1. Bob oxirida o'quvchi nimalarni tushunishi kerak?
+2. Qaysi formulalar yoki metodlar egallanadi?
+3. Keyingi boblar uchun qanday tayanch quriladi?
+
+## Asosiy tushunchalar
+
+> **Ta'rif.** Darslikdagi birinchi fundamental tushuncha.
+
+## Tushuntiruvchi misol
+
+O'quvchiga mavzuni ochib beradigan aniq, sodda va bosqichma-bosqich misol yozing.
+
+## Teorema yoki qoida
+
+> **Teorema.** Asosiy natija.
+>
+> **Isbot g'oyasi.** O'quvchi uchun yengil, didaktik izoh.
+
+## Mashqlar
+
+1. Kirish darajasidagi savol.
+2. O'rta darajadagi mashq.
+3. Chuqurroq fikrlashni talab qiladigan topshiriq.
+
+## Bob yakuni
+
+Bobdan olinadigan asosiy xulosalarni qisqa va aniq jamlang.
+`,
+        keywords: "book, textbook, mathematics education",
+    },
+    {
+        id: "problem-book",
+        title: "Problem Book",
+        shortDescription: "Masalalar to'plami, yechim outline'i va difficulty oqimi uchun maxsus andoza.",
+        description: "Problem set, qisqa hint, to'liq yechim va yakuniy observation bilan masalalar kitobini tizimli yozish uchun mo'ljallangan.",
+        category: "book",
+        icon: "sigma",
+        accentClassName: "text-orange-500 bg-orange-500/10 border-orange-500/20",
+        recommendedFor: ["Problem collection", "Exercise book", "Contest training set"],
+        recommendedAddOnIds: ["example-bank", "delivery-checklist"],
+        titleTemplate: "Masalalar to'plami nomi",
+        abstractTemplate: "Ushbu masalalar kitobi [mavzu] bo'yicha saralangan savollar, hintlar va to'liq yechimlar orqali bosqichma-bosqich tayyorgarlik beradi.",
+        contentTemplate: `# 1-bo'lim. Masalalar to'plami
+
+Bu bo'limning asosiy mavzusi, qiyinchilik darajasi va nimani mashq qildirishini qisqacha yozing.
+
+## Tayanch formulalar
+
+Masalalarni yechishda qayta-qayta ishlatiladigan qisqa formulalar yoki faktlarni kiriting.
+
+## Masala 1
+
+Masala bayonini aniq va lo'nda yozing.
+
+### Hint
+
+Yechimni to'liq ochmasdan, yo'nalish beruvchi kichik ishora yozing.
+
+### Yechim
+
+Masalani bosqichma-bosqich yeching va har qadamda nima uchun shu usul tanlangani izohlang.
+
+## Masala 2
+
+Murakkabroq yoki avvalgi masalaning variatsiyasi bo'lgan savolni kiriting.
+
+### Qisqa observation
+
+Bu bo'limdagi umumiy pattern yoki foydali g'oyani jamlang.
+`,
+        keywords: "book, problem solving, exercises",
+    },
+    {
+        id: "lecture-book",
+        title: "Lecture Book",
+        shortDescription: "Kurs asosidagi lecture book uchun izchil, didaktik kitob andozasi.",
+        description: "Har bir bobda learning path, intuition, formal statement va checkpoint mashqlarini saqlab turadigan professional format.",
+        category: "book",
+        icon: "graduation-cap",
+        accentClassName: "text-teal-500 bg-teal-500/10 border-teal-500/20",
+        recommendedFor: ["Semester course", "Instructor book", "Guided lecture manuscript"],
+        recommendedAddOnIds: ["example-bank", "theorem-pack", "citation-guide"],
+        titleTemplate: "Lecture book nomi",
+        abstractTemplate: "Mazkur lecture book [mavzu]ni kurs ritmida, intuitiv tushuntirish, formal bayon va checkpoint mashqlar orqali o'rgatadi.",
+        contentTemplate: `# 1-lecture. Kursga kirish
+
+Bu lecture'ning maqsadi, oldindan talab qilinadigan bilim va asosiy savollarni yozing.
+
+## Learning path
+
+1. Avval nima tushuntiriladi?
+2. Qaysi teorema yoki metodga olib boriladi?
+3. Lecture oxirida nimalar mustahkamlanadi?
+
+## Intuitiv kirish
+
+Mavzuni sodda hikoya, geometrik tasavvur yoki tanish misol bilan oching.
+
+## Formal qism
+
+> **Ta'rif.** Asosiy tushuncha.
+>
+> **Teorema.** Shu lecture'dagi markaziy natija.
+
+## Checkpoint
+
+1. O'quvchi shu joyda o'zini tekshirish uchun kichik savol.
+2. Keyingi qismga o'tishdan oldin qisqa mashq.
+
+## Lecture summary
+
+Asosiy takeaway'larni 4-5 jumlada jamlang.
+`,
+        keywords: "book, lecture, course notes",
+    },
+    {
+        id: "monograph-manuscript",
+        title: "Monograph Manuscript",
+        shortDescription: "Tadqiqotga yaqin, keng qamrovli matematik kitob uchun formal andoza.",
+        description: "Kontekst, related work, markaziy natijalar va texnik appendix bilan monografiya yozishni professional oqimga tushiradi.",
+        category: "book",
+        icon: "book-open",
+        accentClassName: "text-lime-500 bg-lime-500/10 border-lime-500/20",
+        recommendedFor: ["Advanced monograph", "Research book", "Graduate-level reference"],
+        recommendedAddOnIds: ["citation-guide", "theorem-pack", "appendix-pack"],
+        titleTemplate: "Monografiya nomi",
+        abstractTemplate: "Mazkur monografiya [mavzu]ning nazariy asoslari, markaziy natijalari va ochiq savollarini yagona izchil qo'lyozmaga birlashtiradi.",
+        contentTemplate: `# Monografiyaga kirish
+
+Asarning ilmiy konteksti, ko'lami va asosiy da'vosini bir necha kuchli paragrafda bayon qiling.
+
+## Muammo makoni
+
+Mavzuning tarixiy yoki zamonaviy fondagi o'rnini tushuntiring.
+
+## Belgilashlar va tayanch farazlar
+
+Keyingi boblarda ishlatiladigan notation, fazolar, operatorlar yoki obyektlarni kiriting.
+
+## Markaziy natijalar
+
+> **Teorema A.** Asarning markaziy natijasi.
+>
+> **Izoh.** Natijaning qayerda kuchli ekanini ko'rsating.
+
+## Tuzilma xaritasi
+
+1. 1-bob nimani beradi?
+2. 2-bob qaysi texnik poydevorni quradi?
+3. Keyingi boblar qanday bog'lanadi?
+
+## Ochiq savollar
+
+Kelajakdagi tadqiqot yoki kengaytirish yo'nalishlarini sanab o'ting.
+`,
+        keywords: "book, monograph, mathematics research",
+    },
+    {
+        id: "olympiad-book",
+        title: "Olympiad Book",
+        shortDescription: "Olimpiada uslubidagi mavzu, strategy va level-based mashqlar uchun andoza.",
+        description: "Technique spotlight, challenge ladder va solution commentary bilan kuchli tayyorgarlik kitobini boshlash uchun yaratilgan.",
+        category: "book",
+        icon: "sparkles",
+        accentClassName: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+        recommendedFor: ["Math olympiad training", "Advanced contest prep", "Technique handbook"],
+        recommendedAddOnIds: ["example-bank", "theorem-pack", "delivery-checklist"],
+        titleTemplate: "Olimpiada kitobi nomi",
+        abstractTemplate: "Ushbu olimpiada kitobi [mavzu] bo'yicha asosiy texnikalar, difficulty ladder va chuqur yechim commentary orqali tayyorgarlikni kuchaytiradi.",
+        contentTemplate: `# 1-mavzu. Asosiy texnika
+
+Bu bobda bitta kuchli olimpiada texnikasi yoki pattern tanishtiriladi.
+
+## Qachon ishlatiladi?
+
+Masalaning qaysi belgilaridan bu texnikani tanlash kerakligini tushuntiring.
+
+## Technique spotlight
+
+Asosiy g'oya, muhim lemma yoki transformatsiyani sodda shaklda yozing.
+
+## Challenge ladder
+
+1. Level 1: Kirish masalasi.
+2. Level 2: Standart kombinatsiya.
+3. Level 3: Kutilmagan burilishli challenge.
+
+## To'liq yechim commentary
+
+Yechimni faqat hisob emas, fikrlash ritmi bilan yozing: nega shu qadam, nega boshqa yo'l emas.
+
+## Coach notes
+
+O'quvchilar eng ko'p yiqiladigan joylar va tezkor eslatmalarni kiriting.
+`,
+        keywords: "book, olympiad, contest mathematics",
     },
     {
         id: "lab-report",
@@ -491,11 +754,25 @@ export const writerTemplatePresets: WriterTemplatePreset[] = [
         addOnIds: [],
     },
     {
+        id: "ready-article",
+        title: "Ready Article",
+        description: "Lead paragraph, vizual blok va checklist bilan tayyor maqola starti.",
+        templateId: "magazine-feature",
+        addOnIds: ["visualization-pack", "example-bank", "delivery-checklist"],
+    },
+    {
         id: "journal-ready",
         title: "Journal Ready",
         description: "Formal research maqola va topshirish uchun kerakli bloklar.",
         templateId: "research-paper",
         addOnIds: ["citation-guide", "theorem-pack", "appendix-pack", "delivery-checklist"],
+    },
+    {
+        id: "book-ready",
+        title: "Book Starter",
+        description: "Kitob yoki darslik yozishni chapter-based premium skelet bilan boshlaydi.",
+        templateId: "textbook-manuscript",
+        addOnIds: ["theorem-pack", "example-bank", "citation-guide", "appendix-pack"],
     },
     {
         id: "teaching-ready",
@@ -545,7 +822,12 @@ export function createDraftFromTemplate(template: WriterTemplate, addOnIds: stri
     const sections = [
         createWriterProjectSection({
             title: template.title,
-            kind: template.category === "thesis" ? "chapter" : template.category === "report" ? "section" : "section",
+            kind:
+                template.category === "thesis" || template.category === "book"
+                    ? "chapter"
+                    : template.category === "report"
+                      ? "section"
+                      : "section",
             content,
             order: 1,
         }),
@@ -558,7 +840,12 @@ export function createDraftFromTemplate(template: WriterTemplate, addOnIds: stri
         authors: "",
         keywords: template.keywords,
         status: "draft",
-        document_kind: template.category === "thesis" ? "book" : template.category === "report" ? "report" : "paper",
+        document_kind:
+            template.category === "thesis" || template.category === "book"
+                ? "book"
+                : template.category === "report"
+                  ? "report"
+                  : "paper",
         branding_enabled: true,
         branding_label: "Powered by MathSphere Writer",
         sections,

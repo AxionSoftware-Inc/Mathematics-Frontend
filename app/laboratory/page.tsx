@@ -22,22 +22,26 @@ export default async function LaboratoryPage() {
 
     return (
         <div className="site-shell">
-            <SiteSection className="py-6 md:py-8">
+            <SiteSection className="py-6">
                 <SiteContainer className="max-w-[1760px] px-3 md:px-5 xl:px-8">
                     <div className="space-y-6">
-                        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-                            <div className="site-panel-strong relative overflow-hidden p-8 lg:p-12">
-                                <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(15,118,110,0.14),transparent_72%)]" />
-                                <div className="relative space-y-6">
-                                    <div className="site-eyebrow text-accent">Laboratoriya</div>
+                        <div className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+                            <div className="lab-shell-panel p-6 lg:p-8">
+                                <div className="space-y-5">
+                                    <div className="site-badge">
+                                        <Sparkles className="h-4 w-4" />
+                                        Laboratory System
+                                    </div>
                                     <div className="space-y-4">
-                                        <h1 className="max-w-4xl font-serif text-4xl font-black leading-tight lg:text-6xl">
-                                            Hisoblash, tahlil va yozuv uchun bitta ish maydoni.
+                                        <h1 className="site-display max-w-4xl text-4xl md:text-6xl xl:text-[4.45rem]">
+                                            Hisoblash, tahlil va yozuv uchun
+                                            <span className="site-kicker"> bitta premium </span>
+                                            ish maydoni.
                                         </h1>
                                         <p className="max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
-                                            MathSphere laboratoriyasi modullar orqali ishlaydi: integral, differensial, matritsa,
-                                            statistika va boshqa yo&apos;nalishlar bir xil interfeys ichida jamlangan. Har bir modul
-                                            tez tajriba, grafik ko&apos;rish va yozuvga eksport qilish oqimiga moslangan.
+                                            MathSphere laboratoriyasi modullar orqali ishlaydi: integral, differensial,
+                                            matritsa, statistika va boshqa yo'nalishlar bitta professional shell ichida
+                                            jamlangan. Endi public kirish sahifasi ham modul sifati bilan mos ko'rinadi.
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-3">
@@ -48,7 +52,7 @@ export default async function LaboratoryPage() {
                                             Birinchi modulni ochish
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
-                                        <Link href="/write/new" className="site-button-secondary border border-border/60">
+                                        <Link href="/write/new" className="site-button-secondary">
                                             Writer ochish
                                         </Link>
                                     </div>
@@ -88,7 +92,7 @@ export default async function LaboratoryPage() {
                         </div>
 
                         <div className="grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
-                            <section className="site-panel p-6 lg:p-8">
+                            <section className="lab-shell-panel p-6 lg:p-8">
                                 <div className="flex flex-col gap-5 border-b border-border/60 pb-6 md:flex-row md:items-end md:justify-between">
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 text-accent">
@@ -97,11 +101,11 @@ export default async function LaboratoryPage() {
                                         </div>
                                         <h2 className="font-serif text-3xl font-black md:text-4xl">Hisoblash va tahlil ish joylari</h2>
                                         <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
-                                            Kundalik hisob-kitob, model tekshirish va grafik ko&apos;rish uchun asosiy laboratoriya modullari.
-                                            Har bir karta qisqa tavsif, hisoblash rejimi va bo&apos;lim turini ko&apos;rsatadi.
+                                            Kundalik hisob-kitob, model tekshirish va grafik ko'rish uchun asosiy laboratoriya modullari.
+                                            Har bir karta qisqa tavsif, hisoblash rejimi va bo'lim turini ko'rsatadi.
                                         </p>
                                     </div>
-                                    <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-xs leading-6 text-muted-foreground">
+                                    <div className="site-outline-card px-4 py-3 text-xs leading-6 text-muted-foreground">
                                         Lokal modullar: <span className="font-bold text-foreground">{localCount}</span>
                                         <br />
                                         Gibrid modullar: <span className="font-bold text-foreground">{hybridCount}</span>
@@ -116,7 +120,7 @@ export default async function LaboratoryPage() {
                             </section>
 
                             <div className="space-y-5">
-                                <section className="site-panel p-6 lg:p-8">
+                                <section className="lab-shell-panel p-6 lg:p-8">
                                     <div className="flex items-center gap-2 text-accent">
                                         <Wand2 className="h-4 w-4" />
                                         <span className="text-[10px] font-black uppercase tracking-[0.28em]">Yordamchi studiyalar</span>
@@ -133,15 +137,15 @@ export default async function LaboratoryPage() {
                                     </div>
                                 </section>
 
-                                <section className="site-panel p-6 lg:p-8">
+                                <section className="lab-shell-panel p-6 lg:p-8">
                                     <div className="site-eyebrow text-accent">Ish tamoyili</div>
                                     <div className="mt-4 space-y-3">
                                         {[
                                             "Har modul mustaqil hisoblaydi, lekin umumiy laboratoriya shell ichida ishlaydi.",
                                             "Grafik, jadval va eksport bloklari bir xil logikada yig'ilgan.",
-                                            "Terminlar va visual hierarchy endi sokinroq, o'qilishi tezroq bo'lishi kerak.",
+                                            "Endi public laboratory va modul shell bir xil vizual darajada turadi.",
                                         ].map((item) => (
-                                            <div key={item} className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm leading-7 text-muted-foreground">
+                                            <div key={item} className="site-outline-card px-4 py-3 text-sm leading-7 text-muted-foreground">
                                                 {item}
                                             </div>
                                         ))}
@@ -177,7 +181,7 @@ function MetricCard({
     };
 
     return (
-        <div className="site-outline-card flex flex-col justify-between gap-5 p-6">
+        <div className="site-metric-card flex flex-col justify-between gap-5 p-6">
             <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border ${tones[tone]}`}>
                 <Icon className="h-5 w-5" />
             </div>
@@ -208,9 +212,7 @@ function ModuleCard({ module, compact = false }: { module: LaboratoryModuleMeta;
                         <h3 className="font-serif text-xl font-black leading-tight text-foreground">{module.title}</h3>
                     </div>
                 </div>
-                <div className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                    {modeLabel(module.computation_mode)}
-                </div>
+                <div className="lab-shell-chip">{modeLabel(module.computation_mode)}</div>
             </div>
 
             <p className={`mt-4 text-sm leading-7 text-muted-foreground ${compact ? "line-clamp-2" : "line-clamp-3"}`}>
