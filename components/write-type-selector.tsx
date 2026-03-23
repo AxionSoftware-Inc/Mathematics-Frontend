@@ -16,10 +16,12 @@ import {
     Sigma,
     Sparkles,
     X,
+    Wand2,
 } from "lucide-react";
 
 import {
     writerTemplateAddOns,
+    DEFAULT_WRITER_PRESET_ID,
     writerTemplatePresets,
     writerTemplates,
     DEFAULT_WRITER_TEMPLATE_ID,
@@ -77,11 +79,13 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
     const router = useRouter();
     const [activeCategory, setActiveCategory] = React.useState<"all" | WriterTemplateCategory>("all");
     const [selectedTemplateId, setSelectedTemplateId] = React.useState(DEFAULT_WRITER_TEMPLATE_ID);
+    const [selectedPresetId, setSelectedPresetId] = React.useState<string | null>(DEFAULT_WRITER_PRESET_ID);
 
     React.useEffect(() => {
         if (isOpen) {
             setActiveCategory("all");
-            setSelectedTemplateId("research-paper");
+            setSelectedTemplateId(DEFAULT_WRITER_TEMPLATE_ID);
+            setSelectedPresetId(DEFAULT_WRITER_PRESET_ID);
         }
     }, [isOpen]);
 
@@ -100,6 +104,10 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
         selectedTemplate.recommendedAddOnIds.includes(addOn.id),
     );
     const SelectedIcon = iconMap[selectedTemplate.icon];
+    const categoryCount = activeCategory === "all" ? writerTemplates.length : visibleTemplates.length;
+    const selectedPreset = selectedPresetId
+        ? writerTemplatePresets.find((preset) => preset.id === selectedPresetId) ?? null
+        : null;
 
     if (!isOpen) {
         return null;
@@ -121,19 +129,19 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-            <div className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px]" onClick={onClose} />
 
-            <div className="relative flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-background shadow-2xl">
-                <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.1),transparent_30%),radial-gradient(circle_at_top_right,rgba(15,118,110,0.08),transparent_24%)] px-6 py-5 md:px-8 md:py-6">
+            <div className="relative flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-background shadow-xl">
+                <div className="border-b border-border/60 bg-background/95 px-6 py-5 md:px-8 md:py-6">
                     <div className="flex items-start justify-between gap-4">
                         <div className="max-w-3xl">
-                            <div className="site-eyebrow">Writer Start</div>
+                            <div className="site-eyebrow">Writer Launchpad</div>
                             <h2 className="mt-2 font-serif text-3xl font-black tracking-tight md:text-4xl">
-                                Yangi hujjatni aniq andoza bilan boshlang
+                                Yangi hujjatni to'g'ri template bilan boshlang
                             </h2>
                             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-                                Avval tez boshlash presetini tanlang yoki pastdagi template'lardan birini belgilang.
-                                Tanlov o'ng tomonda darhol tushuntiriladi, so'ng bitta tugma bilan writer ochiladi.
+                                Quick start preset yoki to'liq template tanlang. O'ng tomonda tanlangan andozaning
+                                tuzilmasi, mos keladigan workflow'i va writerga yuborish tugmasi ko'rinadi.
                             </p>
                         </div>
 
@@ -147,37 +155,53 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                     </div>
                 </div>
 
-                <div className="grid min-h-0 flex-1 gap-0 xl:grid-cols-[1.15fr_0.85fr]">
-                    <div className="min-h-0 overflow-y-auto border-b border-border/60 p-6 md:p-8 xl:border-b-0 xl:border-r">
+                <div className="grid min-h-0 flex-1 gap-0 xl:grid-cols-[1.1fr_0.9fr]">
+                    <div className="min-h-0 overflow-y-auto border-b border-border/60 bg-background p-6 md:p-8 xl:border-b-0 xl:border-r">
                         <div className="site-eyebrow">Quick Start</div>
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                             {writerTemplatePresets.map((preset) => {
                                 const presetTemplate = writerTemplates.find((template) => template.id === preset.templateId);
                                 const PresetIcon = iconMap[presetTemplate?.icon || "sparkles"];
+                                const selected = selectedPresetId === preset.id;
 
                                 return (
                                     <button
                                         key={preset.id}
                                         type="button"
-                                        onClick={() => openDraftWithPreset(preset.id)}
-                                        className="group rounded-[1.7rem] border border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.58))] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/30 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.82),rgba(15,23,42,0.66))]"
+                                        onClick={() => {
+                                            setSelectedPresetId(preset.id);
+                                            if (presetTemplate) {
+                                                setSelectedTemplateId(presetTemplate.id);
+                                            }
+                                        }}
+                                        className={`rounded-[1.2rem] border p-3.5 text-left ${
+                                            selected
+                                                ? "border-[var(--accent)]/40 bg-[var(--accent-soft)]"
+                                                : "border-border/60 bg-background/80 hover:border-[var(--accent)]/30"
+                                        }`}
                                     >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
-                                                <PresetIcon className="h-5 w-5" />
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                                                    <PresetIcon className="h-4 w-4" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="truncate text-sm font-bold tracking-tight text-foreground">{preset.title}</div>
+                                                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                                        {presetTemplate ? templateCategoryLabel(presetTemplate.category) : "Preset"}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <span className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                                            <span className="rounded-full border border-border/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                                                 Preset
                                             </span>
                                         </div>
-                                        <div className="mt-5">
-                                            <div className="text-xl font-bold tracking-tight">{preset.title}</div>
-                                            <p className="mt-2 text-sm leading-7 text-muted-foreground">{preset.description}</p>
-                                        </div>
-                                        <div className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
-                                            Tez boshlash
-                                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                                        </div>
+                                        {selected ? (
+                                            <div className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-[var(--accent)]">
+                                                <CheckCircle2 className="h-4 w-4" />
+                                                Tanlangan
+                                            </div>
+                                        ) : null}
                                     </button>
                                 );
                             })}
@@ -185,13 +209,15 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
 
                         <div className="mt-8 flex items-center justify-between gap-4">
                             <div>
-                                <div className="site-eyebrow">All Templates</div>
+                                <div className="site-eyebrow">Template Library</div>
                                 <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                                    Ko'proq nazorat kerak bo'lsa, quyidan template tanlang. O'ng tomonda uning maqsadi va tavsiya etilgan bloklari ko'rinadi.
+                                    Ko'proq nazorat kerak bo'lsa, quyidan template tanlang. Tanlangan andoza bir marta
+                                    belgilanadi va o'ng tomonda darhol tekshiriladi.
                                 </p>
                             </div>
-                            <div className="hidden h-12 w-12 items-center justify-center rounded-2xl border border-border/60 bg-background/80 text-muted-foreground md:flex">
-                                <Layers3 className="h-5 w-5" />
+                            <div className="hidden items-center gap-3 rounded-2xl border border-border/60 bg-background/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground md:flex">
+                                <Layers3 className="h-4 w-4" />
+                                {categoryCount} templates
                             </div>
                         </div>
 
@@ -208,7 +234,7 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                             ))}
                         </div>
 
-                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                        <div className="mt-6 grid gap-3 md:grid-cols-2">
                             {visibleTemplates.map((template) => {
                                 const Icon = iconMap[template.icon];
                                 const selected = template.id === selectedTemplate.id;
@@ -217,10 +243,13 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                                     <button
                                         key={template.id}
                                         type="button"
-                                        onClick={() => setSelectedTemplateId(template.id)}
-                                        className={`rounded-[1.65rem] border p-5 text-left transition-all ${
+                                        onClick={() => {
+                                            setSelectedTemplateId(template.id);
+                                            setSelectedPresetId(null);
+                                        }}
+                                        className={`rounded-[1.35rem] border p-4 text-left ${
                                             selected
-                                                ? "border-[var(--accent)]/40 bg-[var(--accent-soft)] shadow-lg"
+                                                ? "border-[var(--accent)]/40 bg-[var(--accent-soft)]"
                                                 : "border-border/60 bg-background/70 hover:border-[var(--accent)]/20 hover:bg-background"
                                         }`}
                                     >
@@ -233,14 +262,11 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                                             </span>
                                         </div>
 
-                                        <div className="mt-5">
-                                            <div className="text-lg font-bold tracking-tight">{template.title}</div>
-                                            <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                                                {template.shortDescription}
-                                            </p>
+                                        <div className="mt-4">
+                                            <div className="text-base font-bold tracking-tight">{template.title}</div>
                                         </div>
 
-                                        <div className="mt-5 flex items-center justify-between gap-3">
+                                        <div className="mt-4 flex items-center justify-between gap-3">
                                             <div className="flex flex-wrap gap-1.5">
                                                 {template.recommendedFor.slice(0, 1).map((tag) => (
                                                     <span
@@ -264,8 +290,8 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                         </div>
                     </div>
 
-                    <aside className="min-h-0 overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.62),rgba(255,255,255,0.38))] p-6 md:p-8 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.72),rgba(15,23,42,0.54))]">
-                        <div className="site-panel-strong p-6 md:p-7">
+                    <aside className="min-h-0 overflow-y-auto bg-muted/20 p-6 md:p-8">
+                        <div className="site-panel-strong p-5 md:p-6">
                             <div className="flex items-start justify-between gap-4">
                                 <div className={`flex h-14 w-14 items-center justify-center rounded-[1.25rem] border ${selectedTemplate.accentClassName}`}>
                                     <SelectedIcon className="h-6 w-6" />
@@ -275,24 +301,39 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                                 </span>
                             </div>
 
-                            <h3 className="mt-5 font-serif text-3xl font-black">{selectedTemplate.title}</h3>
-                            <p className="mt-3 text-sm leading-7 text-muted-foreground">{selectedTemplate.description}</p>
+                            <h3 className="mt-4 font-serif text-2xl font-black">{selectedTemplate.title}</h3>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">{selectedTemplate.shortDescription}</p>
+
+                            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                                <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-2.5">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Category</div>
+                                    <div className="mt-2 text-sm font-bold text-foreground">{templateCategoryLabel(selectedTemplate.category)}</div>
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-2.5">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Audience</div>
+                                    <div className="mt-2 text-sm font-bold text-foreground">{selectedTemplate.recommendedFor.length}</div>
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-2.5">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Add-ons</div>
+                                    <div className="mt-2 text-sm font-bold text-foreground">{selectedAddOns.length}</div>
+                                </div>
+                            </div>
 
                             <button
                                 type="button"
-                                onClick={() => openDraftWithTemplate(selectedTemplate.id)}
+                                onClick={() => (selectedPreset ? openDraftWithPreset(selectedPreset.id) : openDraftWithTemplate(selectedTemplate.id))}
                                 className="site-button-primary mt-6 w-full"
                             >
-                                Shu andoza bilan davom etish
+                                {selectedPreset ? "Shu preset bilan davom etish" : "Shu andoza bilan davom etish"}
                                 <ArrowRight className="h-4 w-4" />
                             </button>
                         </div>
 
-                        <div className="mt-6 grid gap-6">
-                            <div className="site-panel p-6">
+                        <div className="mt-4 grid gap-4">
+                            <div className="site-panel p-4">
                                 <div className="site-eyebrow">Recommended For</div>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {selectedTemplate.recommendedFor.map((item) => (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {selectedTemplate.recommendedFor.slice(0, 4).map((item) => (
                                         <span key={item} className="site-chip !px-3 !py-2 !text-[10px]">
                                             {item}
                                         </span>
@@ -300,30 +341,39 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                                 </div>
                             </div>
 
-                            <div className="site-panel p-6">
+                            <div className="site-panel p-4">
                                 <div className="site-eyebrow">Included Structure</div>
-                                <div className="mt-4 space-y-3">
+                                <div className="mt-3 space-y-2">
                                     {selectedAddOns.length ? (
-                                        selectedAddOns.map((addOn) => (
-                                            <div key={addOn.id} className="site-outline-card p-4">
+                                        selectedAddOns.slice(0, 3).map((addOn) => (
+                                            <div key={addOn.id} className="site-outline-card px-3 py-3">
                                                 <div className="text-sm font-semibold">{addOn.title}</div>
-                                                <p className="mt-2 text-sm leading-7 text-muted-foreground">{addOn.description}</p>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="site-outline-card p-4 text-sm leading-7 text-muted-foreground">
+                                        <div className="site-outline-card px-3 py-3 text-sm leading-6 text-muted-foreground">
                                             Bu template minimal start uchun mo'ljallangan. Qo'shimcha bloklar talab qilinmaydi.
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="site-panel p-6">
-                                <div className="site-eyebrow">Selection Note</div>
-                                <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Agar tezroq kirish kerak bo'lsa, yuqoridagi presetlardan birini bosing. Agar strukturani
-                                    o'zingiz nazorat qilmoqchi bo'lsangiz, aynan shu template bilan davom eting.
-                                </p>
+                            <div className="site-panel p-4">
+                                <div className="site-eyebrow">Workflow Note</div>
+                                <div className="mt-3 rounded-[1.2rem] border border-border/60 bg-background/70 px-3 py-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                                            <Wand2 className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-foreground">Template first, editing second</div>
+                                            <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                                                Preset tanlansa u faqat yo'nalishni belgilaydi. Writer faqat o'ngdagi asosiy
+                                                tugma bosilganda ochiladi.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </aside>

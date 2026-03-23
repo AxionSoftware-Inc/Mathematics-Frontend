@@ -15,13 +15,13 @@ afterEach(() => {
 });
 
 describe("laboratory data fetchers", () => {
-    it("returns an empty array when the backend returns no modules", async () => {
+    it("falls back to integral studio when the backend returns no modules", async () => {
         fetchPublicMock.mockResolvedValue({
             ok: true,
             json: async () => [],
         });
 
-        await expect(fetchLaboratoryModules()).resolves.toEqual([]);
+        await expect(fetchLaboratoryModules()).resolves.toEqual(fallbackLaboratoryModules);
         expect(fetchPublicMock).toHaveBeenCalledWith("/api/laboratory/modules/?project=quantum-uz", { next: { revalidate: 60 } });
     });
 
@@ -30,7 +30,7 @@ describe("laboratory data fetchers", () => {
             ok: false,
         });
 
-        await expect(fetchLaboratoryModule("matrix-workbench")).resolves.toEqual(fallbackLaboratoryModules[0]);
-        expect(fetchPublicMock).toHaveBeenCalledWith("/api/laboratory/modules/matrix-workbench/?project=quantum-uz", { next: { revalidate: 60 } });
+        await expect(fetchLaboratoryModule("integral-studio")).resolves.toEqual(fallbackLaboratoryModules[0]);
+        expect(fetchPublicMock).toHaveBeenCalledWith("/api/laboratory/modules/integral-studio/?project=quantum-uz", { next: { revalidate: 60 } });
     });
 });

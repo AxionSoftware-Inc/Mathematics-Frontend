@@ -1,4 +1,7 @@
-import { type PlotPoint } from "@/components/laboratory/math-utils";
+export type PlotPoint = {
+    x: number;
+    y: number;
+};
 
 export const LIVE_WRITER_BRIDGE_CHANNEL = "mathsphere-live-writer-bridge";
 export const LIVE_WRITER_BLOCK_LANGUAGE = "lab-result";

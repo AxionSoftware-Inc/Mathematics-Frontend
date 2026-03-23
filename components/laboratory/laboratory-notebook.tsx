@@ -44,30 +44,39 @@ export function useLaboratoryNotebook<TBlockId extends string>(params: {
         }
     }, [activeBlocks, storageKey]);
 
-    function addBlock(blockId: TBlockId) {
+    // Stabilize reference-heavy dependencies to prevent infinite re-render loops
+    // in caller components that specify these in their own dependency arrays.
+    const definitionsKey = JSON.stringify(definitions);
+    const defaultBlocksKey = JSON.stringify(defaultBlocks);
+
+    const stableDefinitions = React.useMemo(() => JSON.parse(definitionsKey) as LaboratoryNotebookBlockDefinition<TBlockId>[], [definitionsKey]);
+    const stableDefaultBlocks = React.useMemo(() => JSON.parse(defaultBlocksKey) as TBlockId[], [defaultBlocksKey]);
+
+    const addBlock = React.useCallback((blockId: TBlockId) => {
         setActiveBlocks((current) => (current.includes(blockId) ? current : [...current, blockId]));
-    }
+    }, []);
 
-    function removeBlock(blockId: TBlockId) {
+    const removeBlock = React.useCallback((blockId: TBlockId) => {
         setActiveBlocks((current) => current.filter((item) => item !== blockId));
-    }
+    }, []);
 
-    function hasBlock(blockId: TBlockId) {
-        return activeBlocks.includes(blockId);
-    }
+    const hasBlock = React.useCallback((blockId: TBlockId) => activeBlocks.includes(blockId), [activeBlocks]);
 
-    function setBlocks(blockIds: readonly TBlockId[]) {
-        const valid = blockIds.filter((item): item is TBlockId => definitions.some((block) => block.id === item));
-        setActiveBlocks(valid.length ? [...valid] : [...defaultBlocks]);
-    }
+    const setBlocks = React.useCallback((blockIds: readonly TBlockId[]) => {
+        const valid = blockIds.filter((item): item is TBlockId => stableDefinitions.some((block) => block.id === item));
+        setActiveBlocks(valid.length ? [...valid] : [...stableDefaultBlocks]);
+    }, [stableDefinitions, stableDefaultBlocks]);
 
-    return {
-        activeBlocks,
-        addBlock,
-        removeBlock,
-        hasBlock,
-        setBlocks,
-    };
+    return React.useMemo(
+        () => ({
+            activeBlocks,
+            addBlock,
+            removeBlock,
+            hasBlock,
+            setBlocks,
+        }),
+        [activeBlocks, addBlock, hasBlock, removeBlock, setBlocks],
+    );
 }
 
 export function LaboratoryNotebookToolbar<TBlockId extends string>({

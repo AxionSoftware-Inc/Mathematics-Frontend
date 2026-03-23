@@ -63,7 +63,7 @@ export function MathKeyboard({ onInsert }: { onInsert: (snippet: string) => void
             <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400 transition-colors hover:bg-teal-500/20 shadow-sm"
+                className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-[var(--accent-soft)] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-accent transition-colors hover:opacity-90 shadow-sm"
                 title="LaTeX simvollar klaviaturasi"
             >
                 <Calculator className="h-4 w-4" />
@@ -73,11 +73,11 @@ export function MathKeyboard({ onInsert }: { onInsert: (snippet: string) => void
     }
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 w-80 md:w-96 rounded-2xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl transition-all overflow-hidden flex flex-col max-h-[500px]">
+        <div className="fixed bottom-6 right-6 z-50 flex max-h-[500px] w-80 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background shadow-xl transition-all md:w-96">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border/60 bg-muted/20 px-4 py-3 shrink-0">
                 <div className="flex items-center gap-2 text-sm font-black tracking-tight">
-                    <Calculator className="h-4 w-4 text-teal-500" />
+                    <Calculator className="h-4 w-4 text-accent" />
                     Math Keyboard
                 </div>
                 <button
@@ -96,7 +96,7 @@ export function MathKeyboard({ onInsert }: { onInsert: (snippet: string) => void
                         onClick={() => setActiveTab(cat)}
                         className={`whitespace-nowrap px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors ${
                             activeTab === cat
-                                ? "border-b-2 border-teal-500 text-teal-600 dark:text-teal-400"
+                                ? "border-b-2 border-accent text-accent"
                                 : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
@@ -106,7 +106,7 @@ export function MathKeyboard({ onInsert }: { onInsert: (snippet: string) => void
             </div>
 
             {/* Symbols Grid */}
-            <div className="p-3 overflow-y-auto flex-1 grid grid-cols-4 md:grid-cols-5 gap-2 content-start bg-background/40">
+            <div className="grid flex-1 content-start grid-cols-4 gap-2 overflow-y-auto bg-muted/10 p-3 md:grid-cols-5">
                 {SYMBOL_CATEGORIES[activeTab].map((symbol, idx) => (
                     <button
                         key={idx}
@@ -121,7 +121,7 @@ export function MathKeyboard({ onInsert }: { onInsert: (snippet: string) => void
                             }
                             onInsert(snippet);
                         }}
-                        className="flex h-12 flex-col items-center justify-center rounded-xl border border-border/50 bg-background/80 hover:bg-teal-500/10 hover:border-teal-500/30 hover:text-teal-600 transition-all active:scale-95 shadow-sm"
+                        className="flex h-12 flex-col items-center justify-center rounded-xl border border-border/50 bg-background/80 shadow-sm transition-colors hover:border-accent/30 hover:bg-[var(--accent-soft)] hover:text-accent active:scale-95"
                         title={symbol.tex}
                     >
                         <span className="font-mono text-xs font-medium opacity-80 mb-0.5 pointer-events-none">

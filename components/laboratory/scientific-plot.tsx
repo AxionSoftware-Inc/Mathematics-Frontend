@@ -273,9 +273,9 @@ export function buildPointCloudData(
             type: "scatter3d",
             mode: "markers",
             name: options.label || "Point cloud",
-            x: cleanPoints.map((point) => point.x),
-            y: cleanPoints.map((point) => point.y),
-            z: cleanPoints.map((point) => point.z as number),
+            x: cleanPoints.map((point) => point.x) as any,
+            y: cleanPoints.map((point) => point.y) as any,
+            z: cleanPoints.map((point) => point.z as number) as any,
             marker: {
                 size: markerSize,
                 color: markerValues,
@@ -285,7 +285,7 @@ export function buildPointCloudData(
                 line: { width: 0 },
             },
             hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<br>value=%{marker.color:.4f}<extra></extra>",
-        } as Data,
+        } as any as Data,
     ];
 }
 
@@ -394,7 +394,7 @@ export function buildSurfaceData(
                     },
                 },
                 hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
-            } as Data,
+            } as any as Data,
         ];
     }
 
@@ -434,7 +434,7 @@ export function buildParametricSurfaceData(
             showscale: options.showscale ?? false,
             opacity: options.opacity ?? 0.72,
             hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<extra></extra>",
-        } as Data,
+        } as any as Data,
     ];
 }
 
@@ -445,10 +445,37 @@ export function buildVolumeData(
         colorscale?: string;
     } = {},
 ) {
-    return buildPointCloudData(samples, {
-        label: options.label || "Volume density",
-        colorscale: options.colorscale || "Plasma",
-    });
+    if (!samples.length) return [] as Data[];
+
+    const x = samples.map(s => s.x);
+    const y = samples.map(s => s.y);
+    const z = samples.map(s => s.z);
+    const value = samples.map(s => s.value);
+
+    return [
+        {
+            type: "isosurface",
+            name: options.label || "Volumetric Density",
+            x: x,
+            y: y,
+            z: z,
+            value: value,
+            isomin: Math.min(...value),
+            isomax: Math.max(...value),
+            surface: { count: 3, fill: 0.7, pattern: 'odd' },
+            caps: {
+                x: { show: true },
+                y: { show: true },
+                z: { show: true }
+            },
+            spaceframe: { show: true, fill: 0.15 },
+            contour: { show: true, width: 2, color: 'white' },
+            colorscale: options.colorscale || "Plasma",
+            opacity: 0.35,
+            showscale: false,
+            hovertemplate: "x=%{x:.4f}<br>y=%{y:.4f}<br>z=%{z:.4f}<br>density=%{value:.4f}<extra></extra>",
+        } as any as Data
+    ];
 }
 
 export function ScientificPlot({

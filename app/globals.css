@@ -407,7 +407,5 @@ h6 {
 .lab-workspace-stage {
   @apply relative overflow-hidden;
   border-radius: calc(var(--radius-panel) + 0.35rem);
-  background:
-    radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.1), transparent 24%);
+  background: transparent;
 }

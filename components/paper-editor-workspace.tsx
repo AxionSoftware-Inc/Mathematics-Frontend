@@ -839,8 +839,8 @@ export function PaperEditorWorkspace({
 
     const statusTone =
         formData.status === "published"
-            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-            : "bg-amber-500/10 text-amber-600 border-amber-500/20";
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300";
 
     const saveStatusLabel =
         saveState === "submitting"
@@ -865,16 +865,16 @@ export function PaperEditorWorkspace({
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_24%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(29,78,216,0.08),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.10),transparent_35%)] bg-background text-foreground print:bg-white print:h-auto print:overflow-visible">
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground print:bg-white print:h-auto print:overflow-visible">
             <div className="flex h-full min-h-0 flex-1 flex-col print:h-auto print:block">
-                <div className="border-b border-border/40 bg-background/70 backdrop-blur-xl print:hidden">
+                <div className="border-b border-border/50 bg-muted/20 print:hidden">
                     <div className="px-2.5 py-2 sm:px-3">
-                        <div className="rounded-[1.5rem] border border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.58))] px-3 py-2.5 shadow-lg dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.84),rgba(15,23,42,0.66))]">
+                        <div className="rounded-[1.5rem] border border-border/60 bg-background px-3 py-2.5 shadow-sm">
                             <div className="flex w-full items-center gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-3">
                                     <Link
                                         href={backHref}
-                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-muted-foreground transition-colors hover:text-foreground"
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                                     >
                                         <ArrowLeft className="h-4 w-4" />
                                     </Link>
@@ -883,28 +883,28 @@ export function PaperEditorWorkspace({
                                             name="title"
                                             value={formData.title}
                                             onChange={(event) => setField("title", event.target.value)}
-                                            className="h-9 w-full bg-transparent text-base font-black tracking-tight outline-none placeholder:text-muted-foreground/45 md:text-xl"
+                                            className="h-9 w-full rounded-2xl bg-transparent text-base font-black tracking-tight outline-none placeholder:text-muted-foreground/45 md:text-xl"
                                             placeholder="Maqola sarlavhasini kiriting..."
                                         />
                                     </div>
                                 </div>
 
                                 <div className="min-w-0 overflow-x-auto">
-                                    <div className="flex min-w-max items-center gap-1.5 pl-1">
+                                    <div className="flex min-w-max items-center gap-2 pl-1">
                                         <button
                                             type="button"
                                             onClick={() => setShowInspector((value) => !value)}
-                                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-3 text-[11px] font-bold shadow-sm transition-all hover:bg-muted/80"
+                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-border/60 bg-background px-3 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
                                         >
                                             {showInspector ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeftOpen className="h-3.5 w-3.5" />}
                                             <span>{showInspector ? "Sidebar" : "Panels"}</span>
                                         </button>
 
-                                        <div className="inline-flex rounded-full border border-border/60 bg-background/60 p-1 shadow-sm">
+                                        <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-1">
                                             <button
                                                 type="button"
                                                 onClick={() => setViewMode("edit")}
-                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${viewMode === "edit" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${viewMode === "edit" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
                                             >
                                                 <PencilLine className="inline h-3 w-3 md:mr-1.5" />
                                                 <span>Edit</span>
@@ -913,7 +913,7 @@ export function PaperEditorWorkspace({
                                                 type="button"
                                                 onClick={() => setViewMode("split")}
                                                 disabled={!splitViewAvailable}
-                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${viewMode === "split" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${viewMode === "split" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
                                             >
                                                 <Layers2 className="inline h-3 w-3 md:mr-1.5" />
                                                 <span>Split</span>
@@ -921,35 +921,35 @@ export function PaperEditorWorkspace({
                                             <button
                                                 type="button"
                                                 onClick={() => setViewMode("preview")}
-                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${viewMode === "preview" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${viewMode === "preview" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
                                             >
                                                 <Eye className="inline h-3 w-3 md:mr-1.5" />
                                                 <span>Preview</span>
                                             </button>
                                         </div>
 
-                                        <div className="inline-flex rounded-full border border-border/60 bg-background/60 p-1 shadow-sm">
+                                        <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-1">
                                             <button
                                                 type="button"
                                                 onClick={() => setPreviewSyncMode("live")}
-                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${previewSyncMode === "live" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${previewSyncMode === "live" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
                                             >
                                                 Live Sync
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => setPreviewSyncMode("manual")}
-                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${previewSyncMode === "manual" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                                className={`rounded-full px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${previewSyncMode === "manual" ? "bg-accent text-white shadow-sm" : "text-muted-foreground hover:bg-background hover:text-foreground"}`}
                                             >
                                                 Manual Sync
                                             </button>
                                         </div>
 
                                         <details className="group relative">
-                                            <summary className="flex h-9 cursor-pointer list-none items-center justify-center rounded-full border border-border/60 bg-background/60 px-3 text-muted-foreground shadow-sm transition-all hover:bg-muted/80 hover:text-foreground [&::-webkit-details-marker]:hidden">
+                                            <summary className="flex h-9 cursor-pointer list-none items-center justify-center rounded-full border border-border/60 bg-background px-3 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </summary>
-                                            <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-border/60 bg-background/95 p-2 shadow-2xl backdrop-blur-xl">
+                                            <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-border/60 bg-background p-2 shadow-lg">
                                                 <div className={`mb-2 inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] ${statusTone}`}>
                                                     {formData.status === "published" ? (
                                                         <CheckCircle2 className="h-3.5 w-3.5" />
@@ -962,7 +962,7 @@ export function PaperEditorWorkspace({
                                                     <select
                                                         value={formData.status}
                                                         onChange={(event) => setField("status", event.target.value)}
-                                                        className="h-9 w-full rounded-xl border border-border/60 bg-background/80 px-3 text-xs font-semibold outline-none"
+                                                        className="h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-xs font-semibold outline-none"
                                                     >
                                                         <option value="draft">Qoralama</option>
                                                         <option value="published">Nashrga tayyor</option>
@@ -970,7 +970,7 @@ export function PaperEditorWorkspace({
                                                     <button
                                                         type="button"
                                                         onClick={refreshPreview}
-                                                        className="inline-flex h-9 w-full items-center justify-between rounded-xl border border-border/60 bg-background/80 px-3 text-[11px] font-bold text-foreground transition-all hover:bg-muted/80"
+                                                        className="inline-flex h-9 w-full items-center justify-between rounded-xl border border-border/60 bg-background px-3 text-[11px] font-bold text-foreground transition-colors hover:bg-muted/70"
                                                     >
                                                         <span>Refresh preview</span>
                                                         <RefreshCw className="h-3.5 w-3.5" />
@@ -978,7 +978,7 @@ export function PaperEditorWorkspace({
                                                     <button
                                                         type="button"
                                                         onClick={handleExportPDF}
-                                                        className="inline-flex h-9 w-full items-center justify-between rounded-xl border border-border/60 bg-background/80 px-3 text-[11px] font-bold text-foreground transition-all hover:bg-muted/80"
+                                                        className="inline-flex h-9 w-full items-center justify-between rounded-xl border border-border/60 bg-background px-3 text-[11px] font-bold text-foreground transition-colors hover:bg-muted/70"
                                                     >
                                                         <span>Export PDF</span>
                                                         <Printer className="h-3.5 w-3.5" />
@@ -991,7 +991,7 @@ export function PaperEditorWorkspace({
                                             type="button"
                                             onClick={() => void handleSave()}
                                             disabled={saveState === "submitting" || saveState === "success"}
-                                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-foreground px-3.5 text-[11px] font-bold text-background shadow-xl transition-all hover:scale-[1.02] disabled:pointer-events-none disabled:opacity-60"
+                                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-accent px-3.5 text-[11px] font-bold text-white transition-colors hover:opacity-95 disabled:pointer-events-none disabled:opacity-60"
                                         >
                                             {saveState === "submitting" ? (
                                                 <>
@@ -1106,10 +1106,10 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={() => setPreviewSyncMode("live")}
-                                        className={`rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] ${
+                                        className={`rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] transition-colors ${
                                             previewSyncMode === "live"
-                                                ? "bg-foreground text-background"
-                                                : "border border-border/60 bg-background/70 text-muted-foreground"
+                                                ? "bg-[var(--accent-soft)] text-accent border border-accent/20"
+                                                : "border border-border/60 bg-background text-muted-foreground hover:border-accent/25 hover:text-foreground"
                                         }`}
                                     >
                                         Live preview
@@ -1117,10 +1117,10 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={() => setPreviewSyncMode("manual")}
-                                        className={`rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] ${
+                                        className={`rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] transition-colors ${
                                             previewSyncMode === "manual"
-                                                ? "bg-foreground text-background"
-                                                : "border border-border/60 bg-background/70 text-muted-foreground"
+                                                ? "bg-[var(--accent-soft)] text-accent border border-accent/20"
+                                                : "border border-border/60 bg-background text-muted-foreground hover:border-accent/25 hover:text-foreground"
                                         }`}
                                     >
                                         Manual preview
@@ -1128,7 +1128,7 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={refreshPreview}
-                                        className="rounded-2xl border border-border/60 bg-background/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground"
+                                        className="rounded-2xl border border-border/60 bg-background px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
                                     >
                                         Refresh preview
                                     </button>
@@ -1335,7 +1335,7 @@ export function PaperEditorWorkspace({
                                             key={template.id}
                                             type="button"
                                             onClick={() => applyTemplate(template)}
-                                            className="w-full rounded-[1.2rem] border border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0.52))] px-3.5 py-3 text-left transition-all hover:border-teal-500/30 hover:bg-teal-500/5 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.76),rgba(15,23,42,0.58))]"
+                                            className="w-full rounded-[1.2rem] border border-border/60 bg-background px-3.5 py-3 text-left transition-colors hover:border-accent/30 hover:bg-muted/30"
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex min-w-0 items-start gap-3">
@@ -1345,7 +1345,7 @@ export function PaperEditorWorkspace({
                                                     <div className="min-w-0">
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <div className="text-sm font-black">{template.title}</div>
-                                                            <div className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                                            <div className="rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                                                                 {template.category}
                                                             </div>
                                                         </div>
@@ -1354,12 +1354,12 @@ export function PaperEditorWorkspace({
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="rounded-full border border-teal-500/20 bg-teal-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+                                                <div className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
                                                     Use
                                                 </div>
                                             </div>
                                             <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                                                <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 font-semibold">
+                                                <span className="rounded-full border border-border/60 bg-muted/15 px-2.5 py-1 font-semibold">
                                                     {template.recommendedFor[0]}
                                                 </span>
                                             </div>
@@ -1402,7 +1402,7 @@ export function PaperEditorWorkspace({
                             role="separator"
                             aria-orientation="vertical"
                             onPointerDown={startSidebarResize}
-                            className="hidden w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-teal-500/10 transition-colors lg:flex lg:items-center print:hidden"
+                            className="hidden w-1.5 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-[var(--accent-soft)] lg:flex lg:items-center print:hidden"
                         >
                             <div className="mx-auto h-12 w-[3px] rounded-full bg-border/40" />
                         </div>
@@ -1414,9 +1414,17 @@ export function PaperEditorWorkspace({
                         style={splitLayoutEnabled ? { gridTemplateColumns: `${splitRatio}fr 8px ${100 - splitRatio}fr` } : undefined}
                     >
                         {(viewMode === "edit" || viewMode === "split") && (
-                            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/50 bg-background/95 shadow-lg dark:bg-slate-900/90 print:hidden">
-                                <div className="border-b border-border/60 bg-background/58 px-4 py-3 backdrop-blur-sm md:px-5">
-                                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px_auto]">
+                            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-background shadow-sm print:hidden">
+                                <div className="border-b border-border/60 bg-muted/20 px-3 py-2 md:px-4">
+                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                        <div className="rounded-full border border-border/60 bg-background px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                            Section Editor
+                                        </div>
+                                        <div className="rounded-full border border-border/60 bg-muted/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                            {activeSection.kind} / {activeSection.progress_state}
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_168px_auto]">
                                         <input
                                             value={activeSection.title}
                                             onChange={(event) => {
@@ -1434,7 +1442,7 @@ export function PaperEditorWorkspace({
                                                     { syncPreview: false },
                                                 );
                                             }}
-                                            className="w-full rounded-2xl border border-border/60 bg-background/75 px-4 py-2.5 text-sm font-semibold outline-none transition-colors focus:border-teal-500/40"
+                                            className="w-full rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
                                             placeholder="Hozirgi file nomi"
                                         />
                                         <select
@@ -1454,7 +1462,7 @@ export function PaperEditorWorkspace({
                                                     { syncPreview: false },
                                                 );
                                             }}
-                                            className="rounded-2xl border border-border/60 bg-background/75 px-4 py-2.5 text-sm font-semibold outline-none transition-colors focus:border-teal-500/40"
+                                            className="rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
                                         >
                                             <option value="frontmatter">Frontmatter</option>
                                             <option value="chapter">Chapter</option>
@@ -1462,7 +1470,7 @@ export function PaperEditorWorkspace({
                                             <option value="appendix">Appendix</option>
                                             <option value="references">References</option>
                                         </select>
-                                        <div className="grid gap-2 sm:grid-cols-[160px_auto]">
+                                        <div className="grid gap-2 sm:grid-cols-[148px_auto]">
                                             <select
                                                 value={activeSection.progress_state}
                                                 onChange={(event) => {
@@ -1483,31 +1491,31 @@ export function PaperEditorWorkspace({
                                                         { syncPreview: false },
                                                     );
                                                 }}
-                                                className="rounded-2xl border border-border/60 bg-background/75 px-4 py-2.5 text-sm font-semibold outline-none transition-colors focus:border-teal-500/40"
+                                                className="rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
                                             >
                                                 <option value="todo">Todo</option>
                                                 <option value="drafting">Drafting</option>
                                                 <option value="done">Done</option>
                                             </select>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-1.5">
                                             <button
                                                 type="button"
                                                 onClick={handleAddSection}
-                                                className="rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-teal-500/30 hover:text-foreground"
+                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
                                             >
                                                 New
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={handleDuplicateSection}
-                                                className="rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-teal-500/30 hover:text-foreground"
+                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
                                             >
                                                 Clone
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={insertLiveBridgeBlock}
-                                                className="rounded-2xl border border-border/60 bg-background/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-teal-500/30 hover:text-foreground"
+                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
                                             >
                                                 Lab
                                             </button>
@@ -1516,24 +1524,24 @@ export function PaperEditorWorkspace({
                                     </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2 overflow-x-auto border-b border-border/60 bg-background/55 px-4 py-2.5 md:px-5">
+                                <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto border-b border-border/60 bg-muted/10 px-3 py-2 md:px-4">
                                     {blockPresets.map((preset) => (
                                         <button
                                             key={preset.label}
                                             type="button"
                                             onClick={() => insertSnippet(preset.snippet)}
-                                            className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:border-teal-500/25 hover:text-foreground"
+                                            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
                                         >
-                                            <preset.icon className="h-3.5 w-3.5" />
+                                            <preset.icon className="h-3 w-3" />
                                             {preset.label}
                                         </button>
                                     ))}
                                     <button
                                         type="button"
                                         onClick={insertLiveBridgeBlock}
-                                        className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:border-teal-500/25 hover:text-foreground"
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
                                     >
-                                        <Sparkles className="h-3.5 w-3.5" />
+                                        <Sparkles className="h-3 w-3" />
                                         Live Lab Block
                                     </button>
                                     <div className="ml-auto">
@@ -1541,21 +1549,23 @@ export function PaperEditorWorkspace({
                                     </div>
                                 </div>
 
-                                <div className="border-b border-border/60 bg-background/45 px-5 py-2.5 text-[11px] text-muted-foreground md:px-6">
+                                <div className="border-b border-border/60 bg-muted/5 px-4 py-2 text-[10px] text-muted-foreground md:px-5">
                                     Markdown, LaTeX, `plot2d`, `plot3d` va Python bloklari shu editor ichida ishlaydi.
                                     {previewSyncMode === "live"
                                         ? " Matnni yozayotgan paytda preview avtomatik yangilanadi."
                                         : " Preview manual rejimda, shuning uchun katta hujjatda FPS barqarorroq bo'ladi."}
                                 </div>
 
-                                <textarea
-                                    ref={textareaRef}
-                                    value={editorContent}
-                                    onChange={(event) => setEditorContent(event.target.value)}
-                                    className="min-h-0 flex-1 resize-none bg-transparent px-3 py-6 font-mono text-[15px] leading-8 text-foreground outline-none md:px-5 overflow-y-auto"
-                                    placeholder="Ilmiy maqolani yozishni boshlang... Bu yerda bo'limlar, formulalar, teoremalar va grafik bloklarini yozishingiz mumkin."
-                                    spellCheck={false}
-                                />
+                                <div className="min-h-0 flex-1 bg-muted/10 px-2.5 py-2.5 md:px-3">
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={editorContent}
+                                        onChange={(event) => setEditorContent(event.target.value)}
+                                        className="min-h-full w-full flex-1 resize-none rounded-[1.35rem] border border-border/60 bg-background px-4 py-4 font-mono text-[14px] leading-7 text-foreground outline-none transition-colors focus:border-accent/30 focus:bg-background md:px-4 overflow-y-auto"
+                                        placeholder="Ilmiy maqolani yozishni boshlang... Bu yerda bo'limlar, formulalar, teoremalar va grafik bloklarini yozishingiz mumkin."
+                                        spellCheck={false}
+                                    />
+                                </div>
                             </section>
                         )}
 
@@ -1564,14 +1574,14 @@ export function PaperEditorWorkspace({
                                 role="separator"
                                 aria-orientation="vertical"
                                 onPointerDown={startSplitResize}
-                                className="hidden cursor-col-resize items-stretch bg-transparent hover:bg-teal-500/10 transition-colors xl:flex print:hidden relative"
+                                className="relative hidden cursor-col-resize items-stretch bg-transparent transition-colors hover:bg-[var(--accent-soft)] xl:flex print:hidden"
                             >
                                 <div className="mx-auto h-24 w-[3px] rounded-full bg-border/40" />
                             </div>
                         ) : null}
 
                         {(viewMode === "preview" || viewMode === "split") && (
-                            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/50 bg-background/95 shadow-lg shadow-teal-900/5 dark:bg-slate-900/90 print:block print:w-full print:rounded-none print:bg-white print:overflow-visible">
+                            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/50 bg-background shadow-sm print:block print:w-full print:rounded-none print:bg-white print:overflow-visible">
                                 <div className="min-h-0 flex-1 overflow-y-auto">
                                     <div className="mx-auto flex w-full max-w-[78rem] flex-col gap-4 px-3 py-4 md:px-6 print:m-0 print:max-w-none print:p-0">
                                     {previewSyncMode === "manual" && previewIsStale ? (
@@ -1579,17 +1589,17 @@ export function PaperEditorWorkspace({
                                             Preview hozircha eski snapshotni ko&apos;rsatyapti. `Refresh` bossangiz yangi holat render bo&apos;ladi.
                                         </div>
                                     ) : null}
-                                    <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-background/88 shadow-[0_28px_80px_rgba(17,24,39,0.12)] print:border-none print:shadow-none print:bg-white print:rounded-none">
-                                        <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.16),transparent_22%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.54),rgba(255,255,255,0.18))] px-6 py-6 md:px-8 print:bg-none print:border-none print:p-0 print:pb-6 dark:bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_22%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.48),rgba(15,23,42,0.18))]">
+                                    <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-background print:border-none print:shadow-none print:bg-white print:rounded-none">
+                                        <div className="border-b border-border/60 bg-muted/20 px-6 py-6 md:px-8 print:bg-none print:border-none print:p-0 print:pb-6">
                                             <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
                                                 <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] ${statusTone}`}>
                                                     {formData.status}
                                                 </span>
-                                                <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                                <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
                                                     Professional Preview
                                                 </span>
                                                 {formData.branding_enabled ? (
-                                                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">
+                                                    <span className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-accent">
                                                         {formData.branding_label || "Powered by MathSphere Writer"}
                                                     </span>
                                                 ) : null}
@@ -1602,7 +1612,7 @@ export function PaperEditorWorkspace({
                                                     {authorList.map((author) => (
                                                         <span
                                                             key={author}
-                                                            className="rounded-full bg-foreground px-3 py-1.5 text-xs font-bold text-background"
+                                                            className="rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-bold text-foreground"
                                                         >
                                                             {author}
                                                         </span>
@@ -1614,7 +1624,7 @@ export function PaperEditorWorkspace({
                                                     {keywordList.map((keyword) => (
                                                         <span
                                                             key={keyword}
-                                                            className="rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground"
+                                                            className="rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground"
                                                         >
                                                             #{keyword}
                                                         </span>
@@ -1624,8 +1634,8 @@ export function PaperEditorWorkspace({
                                         </div>
 
                                         {deferredAbstract.trim() && (
-                                            <div className="border-b border-border/60 bg-teal-500/5 px-6 py-5 md:px-8 print:border-none print:px-0">
-                                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-teal-600 print:text-black">
+                                            <div className="border-b border-border/60 bg-muted/10 px-6 py-5 md:px-8 print:border-none print:px-0">
+                                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-accent print:text-black">
                                                     Abstract
                                                 </div>
                                                 <p className="max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
@@ -1637,7 +1647,7 @@ export function PaperEditorWorkspace({
                                         <div className="px-6 py-8 md:px-8 print:p-0 print:text-black">
                                             <ArticleRichContent
                                                 content={deferredPreviewContent}
-                                                className="prose prose-neutral max-w-none text-foreground dark:prose-invert prose-headings:font-playfair prose-headings:font-black prose-headings:tracking-tight prose-h1:text-4xl prose-h2:mt-14 prose-h2:text-3xl prose-h3:mt-10 prose-h3:text-2xl prose-p:text-[16px] prose-p:leading-8 prose-li:leading-8 prose-strong:text-foreground prose-code:rounded-md prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-pre:rounded-[1.5rem] prose-pre:border prose-pre:border-border prose-pre:bg-slate-950 prose-blockquote:rounded-[1.25rem] prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:bg-[var(--accent-soft)] prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:text-foreground/85 prose-img:rounded-[1.5rem] prose-img:border prose-img:border-border prose-hr:border-border print:text-black print:dark:prose-invert"
+                                                className="prose prose-neutral max-w-none text-foreground dark:prose-invert prose-headings:font-playfair prose-headings:font-black prose-headings:tracking-tight prose-h1:text-4xl prose-h2:mt-14 prose-h2:text-3xl prose-h3:mt-10 prose-h3:text-2xl prose-p:text-[16px] prose-p:leading-8 prose-li:leading-8 prose-strong:text-foreground prose-code:rounded-md prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-pre:rounded-[1.5rem] prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-blockquote:rounded-[1.25rem] prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:bg-[var(--accent-soft)] prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:text-foreground/85 prose-img:rounded-[1.5rem] prose-img:border prose-img:border-border prose-hr:border-border print:text-black print:dark:prose-invert"
                                             />
 
                                             {formData.branding_enabled ? (
@@ -1659,15 +1669,15 @@ export function PaperEditorWorkspace({
                     </div>
                 </div>
 
-                <div className={`border-t border-border/60 bg-background/82 px-4 py-2.5 text-[11px] backdrop-blur-sm print:hidden ${viewMode === 'edit' ? 'hidden' : ''}`}>
+                <div className={`border-t border-border/60 bg-muted/20 px-4 py-2.5 text-[11px] print:hidden ${viewMode === 'edit' ? 'hidden' : ''}`}>
                     <div className="flex flex-nowrap items-center gap-2 overflow-x-auto text-muted-foreground">
-                        <span className="rounded-full border border-teal-500/20 bg-teal-500/10 px-3 py-1 text-teal-700 dark:text-teal-300">
+                        <span className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-accent">
                             File {normalizedSections.findIndex((section) => getWriterSectionKey(section) === getWriterSectionKey(activeSection)) + 1}/{normalizedSections.length}
                         </span>
-                        <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-violet-700 dark:text-violet-300">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-foreground">
                             File: {activeSection.title}
                         </span>
-                        <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-sky-700 dark:text-sky-300">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-muted-foreground">
                             {activeSection.kind}
                         </span>
                         <span
@@ -1676,30 +1686,30 @@ export function PaperEditorWorkspace({
                                     ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                     : activeSection.progress_state === "drafting"
                                       ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                      : "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                                      : "border-border/60 bg-muted/20 text-muted-foreground"
                             }`}
                         >
                             {activeSection.progress_state}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
                             {formData.document_kind}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
                             {words} so&apos;z
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
                             {readingTime} min
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
                             Plot {totalPlots}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
                             3D {plot3DBlocks}
                         </span>
-                        <span className={`rounded-full border px-3 py-1 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border/60 bg-background/70"}`}>
+                        <span className={`rounded-full border px-3 py-1 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border/60 bg-background"}`}>
                             {saveStatusLabel}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1">
+                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
                             {previewSyncMode === "live" ? "Live preview" : "Manual preview"}
                         </span>
                         {mode === "new" ? (
@@ -1713,7 +1723,7 @@ export function PaperEditorWorkspace({
                             </span>
                         ) : null}
                         {performanceModeRecommended ? (
-                            <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-sky-700 dark:text-sky-300">
+                            <span className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-accent">
                                 Performance mode
                             </span>
                         ) : null}
