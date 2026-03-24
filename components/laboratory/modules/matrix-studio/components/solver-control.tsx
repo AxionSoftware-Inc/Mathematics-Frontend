@@ -162,24 +162,6 @@ export function SolverControl({
                         </div>
                     ) : null}
                 </div>
-
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Starter Families</div>
-                    <div className="mt-4 grid gap-2">
-                        {[
-                            "Determinant / trace / inverse",
-                            "Linear systems and elimination",
-                            "Eigen / decomposition",
-                            "2D transform visuals",
-                            "Least-squares and sparse audit",
-                            "Tensor unfolding and contraction",
-                        ].map((item) => (
-                            <div key={item} className="rounded-2xl border border-border/60 bg-muted/15 px-3 py-2 text-sm font-semibold text-foreground">
-                                {item}
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
         </div>
     );

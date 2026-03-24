@@ -31,6 +31,15 @@ export function SolveView({
             <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
+                    {state.analyticSolution?.exact.result_latex ? (
+                        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-5">
+                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Answer</div>
+                            <div className="mt-3 overflow-x-auto font-mono text-base font-semibold text-foreground">{state.analyticSolution.exact.result_latex}</div>
+                            {state.analyticSolution.exact.auxiliary_latex ? (
+                                <div className="mt-3 overflow-x-auto font-mono text-xs text-muted-foreground">{state.analyticSolution.exact.auxiliary_latex}</div>
+                            ) : null}
+                        </div>
+                    ) : null}
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         <MetricCard label="Determinant" value={state.summary.determinant ?? "pending"} />
                         <MetricCard label="Trace" value={state.summary.trace ?? "pending"} />
@@ -50,15 +59,6 @@ export function SolveView({
                         <MetricCard label="CP Probe" value={state.summary.cpSummary ?? "pending"} />
                         <MetricCard label="Tensor Eigen" value={state.summary.tensorEigenSummary ?? "pending"} />
                     </div>
-                    {state.analyticSolution?.exact.result_latex ? (
-                        <div className="mt-4 rounded-2xl border border-border/60 bg-muted/15 p-4">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Primary Result</div>
-                            <div className="mt-2 overflow-x-auto font-mono text-sm text-foreground">{state.analyticSolution.exact.result_latex}</div>
-                            {state.analyticSolution.exact.auxiliary_latex ? (
-                                <div className="mt-3 overflow-x-auto font-mono text-xs text-muted-foreground">{state.analyticSolution.exact.auxiliary_latex}</div>
-                            ) : null}
-                        </div>
-                    ) : null}
                     {state.solveErrorMessage ? (
                         <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
                             {state.solveErrorMessage}
