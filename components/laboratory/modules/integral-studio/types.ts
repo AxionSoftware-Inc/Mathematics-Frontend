@@ -116,6 +116,13 @@ export type IntegralAnalyticSolveResponse = {
     status: "exact" | "needs_numerical";
     message: string;
     can_offer_numerical: boolean;
+    diagnostics?: {
+        convergence: "convergent" | "divergent" | "unresolved" | "not_applicable";
+        convergence_detail: string;
+        singularity: "none" | "possible" | "endpoint";
+        domain_constraints: string[];
+        hazards: string[];
+    };
     parser: {
         expression_raw: string;
         expression_normalized: string;

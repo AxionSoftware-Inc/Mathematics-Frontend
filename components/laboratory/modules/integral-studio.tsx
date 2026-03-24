@@ -109,12 +109,21 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (solverWarning) {
             signals.push({ tone: "warn", label: "Solver Alert", text: error || solveErrorMessage });
         }
+        if (analyticSolution?.diagnostics?.convergence === "divergent") {
+            signals.push({ tone: "warn", label: "Divergence", text: analyticSolution.diagnostics.convergence_detail });
+        }
+        if (analyticSolution?.diagnostics?.convergence === "unresolved") {
+            signals.push({ tone: "warn", label: "Convergence", text: analyticSolution.diagnostics.convergence_detail });
+        }
+        if (analyticSolution?.diagnostics?.hazards?.length) {
+            signals.push({ tone: "warn", label: "Hazards", text: analyticSolution.diagnostics.hazards[0] });
+        }
         if (mode === "single" && summary) {
             const spread = singleDiagnostics?.relativeSpread || 0;
             if (spread > 0.08) signals.push({ tone: "warn", label: "Stability", text: "Method spread yuqori, segment sonini oshirish kerak." });
         }
         return signals;
-    }, [error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
+    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, analyticSolution?.diagnostics?.hazards, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
 
     const visibleSignals = React.useMemo(
         () => [...inputValidationSignals, ...warningSignals],
@@ -412,21 +421,28 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             assumptions.push("- 3D estimate sparse voxel sampling bilan quriladi; coordinate jacobian avtomatik qo'llanadi.");
         }
 
-        if (expression.includes("log(") || expression.includes("ln(")) {
-            assumptions.push("- Logarifmik argumentlar musbat bo'lishi kerak.");
+        if (analyticSolution?.diagnostics?.domain_constraints?.length) {
+            analyticSolution.diagnostics.domain_constraints.forEach((constraint) => assumptions.push(`- ${constraint}`));
+        } else {
+            if (expression.includes("log(") || expression.includes("ln(")) {
+                assumptions.push("- Logarifmik argumentlar musbat bo'lishi kerak.");
+            }
+            if (expression.includes("sqrt(")) {
+                assumptions.push("- Kvadrat ildiz ostidagi ifoda manfiy bo'lmasligi kerak.");
+            }
+            if (expression.includes("/")) {
+                assumptions.push("- Maxraj nolga teng bo'ladigan nuqtalar domain ichida bo'lmasligi kerak.");
+            }
         }
-        if (expression.includes("sqrt(")) {
-            assumptions.push("- Kvadrat ildiz ostidagi ifoda manfiy bo'lmasligi kerak.");
-        }
-        if (expression.includes("/")) {
-            assumptions.push("- Maxraj nolga teng bo'ladigan nuqtalar domain ichida bo'lmasligi kerak.");
+        if (analyticSolution?.diagnostics?.hazards?.length) {
+            analyticSolution.diagnostics.hazards.forEach((hazard) => assumptions.push(`- Hazard: ${hazard}`));
         }
         if (analyticSolution?.parser.notes.length) {
             assumptions.push(`- Parser normalization notes: ${analyticSolution.parser.notes.join(" ")}`);
         }
 
         return assumptions.join("\n");
-    }, [analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.diagnostics?.domain_constraints, analyticSolution?.diagnostics?.hazards, analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditMarkdown = React.useMemo(() => {
         if (mode === "single") {
@@ -434,6 +450,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 analyticSolution?.status === "exact"
                     ? `- Primary path: **${analyticSolution.exact.method_label || "Exact symbolic"}**.`
                     : "- Primary path: **Simpson** estimate.",
+                analyticSolution?.diagnostics?.convergence && analyticSolution.diagnostics.convergence !== "not_applicable"
+                    ? `- Convergence state: **${analyticSolution.diagnostics.convergence}**. ${analyticSolution.diagnostics.convergence_detail}`
+                    : "- Convergence audit bu lane uchun markaziy signal emas.",
                 "- Reference methods: midpoint va trapezoid parallel ko'riladi.",
                 `- Method spread: **${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6)}**.`,
                 `- Stability label: **${singleDiagnostics?.stability || "Pending"}**.`,
@@ -480,33 +499,44 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (classification.kind === "improper_infinite_bounds") {
             cards.push({
                 eyebrow: "Convergence",
-                value: analyticSolution?.status === "exact" ? "limit-resolved" : "needs review",
-                detail: analyticSolution?.status === "exact"
+                value: analyticSolution?.diagnostics?.convergence || (analyticSolution?.status === "exact" ? "limit-resolved" : "needs review"),
+                detail: analyticSolution?.diagnostics?.convergence_detail || (analyticSolution?.status === "exact"
                     ? "Cheksiz bound symbolic limit bilan baholandi."
-                    : "Improper integral uchun convergence audit talab qilinadi.",
-                tone: analyticSolution?.status === "exact" ? "success" : "warn",
+                    : "Improper integral uchun convergence audit talab qilinadi."),
+                tone: analyticSolution?.diagnostics?.convergence === "convergent" || analyticSolution?.status === "exact" ? "success" : "warn",
             });
         }
 
         if (classification.kind === "improper_endpoint_singularity") {
             cards.push({
                 eyebrow: "Pole risk",
-                value: analyticSolution?.status === "exact" ? "endpoint-resolved" : "endpoint singularity",
-                detail: analyticSolution?.status === "exact"
+                value: analyticSolution?.diagnostics?.singularity || (analyticSolution?.status === "exact" ? "endpoint-resolved" : "endpoint singularity"),
+                detail: analyticSolution?.diagnostics?.hazards?.[0] || (analyticSolution?.status === "exact"
                     ? "Boundary singularity symbolic lane orqali tekshirildi."
-                    : "Boundary yaqinida singularity bor, convergence signalini tekshirish kerak.",
+                    : "Boundary yaqinida singularity bor, convergence signalini tekshirish kerak."),
                 tone: analyticSolution?.status === "exact" ? "success" : "warn",
             });
         }
 
-        if (expression.includes("log(") || expression.includes("ln(")) {
-            cards.push({ eyebrow: "Log domain", value: "positive", detail: "Log argument musbat bo'lishi kerak.", tone: "warn" as const });
-        }
-        if (expression.includes("sqrt(")) {
-            cards.push({ eyebrow: "Root domain", value: "nonnegative", detail: "Sqrt ichidagi ifoda manfiy bo'lmasligi kerak.", tone: "warn" as const });
-        }
-        if (expression.includes("/")) {
-            cards.push({ eyebrow: "Denominator", value: "nonzero", detail: "Maxraj nol bo'ladigan nuqtalar domain ichida bo'lmasligi kerak.", tone: "warn" as const });
+        if (analyticSolution?.diagnostics?.domain_constraints?.length) {
+            analyticSolution.diagnostics.domain_constraints.slice(0, 2).forEach((constraint, index) => {
+                cards.push({
+                    eyebrow: index === 0 ? "Domain rule" : "Constraint",
+                    value: constraint.split(".")[0],
+                    detail: constraint,
+                    tone: "warn" as const,
+                });
+            });
+        } else {
+            if (expression.includes("log(") || expression.includes("ln(")) {
+                cards.push({ eyebrow: "Log domain", value: "positive", detail: "Log argument musbat bo'lishi kerak.", tone: "warn" as const });
+            }
+            if (expression.includes("sqrt(")) {
+                cards.push({ eyebrow: "Root domain", value: "nonnegative", detail: "Sqrt ichidagi ifoda manfiy bo'lmasligi kerak.", tone: "warn" as const });
+            }
+            if (expression.includes("/")) {
+                cards.push({ eyebrow: "Denominator", value: "nonzero", detail: "Maxraj nol bo'ladigan nuqtalar domain ichida bo'lmasligi kerak.", tone: "warn" as const });
+            }
         }
         if (analyticSolution?.parser.notes.length) {
             cards.push({
@@ -518,7 +548,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return cards.slice(0, 4);
-    }, [analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.diagnostics, analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditCards = React.useMemo(() => {
         const spreadTone: "success" | "warn" = (singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn";
@@ -555,8 +585,8 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                     detail:
                         classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? analyticSolution?.status === "exact"
-                                ? "Symbolic limit evaluation completed."
-                                : "Closed-form convergence hali tasdiqlanmagan."
+                                ? (analyticSolution?.diagnostics?.convergence_detail || "Symbolic limit evaluation completed.")
+                                : (analyticSolution?.diagnostics?.convergence_detail || "Closed-form convergence hali tasdiqlanmagan.")
                             : singleDiagnostics?.stability || "Pending",
                     tone:
                         classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
