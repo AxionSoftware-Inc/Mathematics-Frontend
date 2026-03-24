@@ -41,7 +41,7 @@ export function SolveView({
     assumptionCards,
 }: SolveViewProps) {
     return (
-        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
                 <SolverControl {...solverControlProps} />
                 <div className="space-y-4">

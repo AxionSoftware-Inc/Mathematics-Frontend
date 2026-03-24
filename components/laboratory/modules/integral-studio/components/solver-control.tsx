@@ -188,7 +188,7 @@ export function SolverControl({
 
             <div className="grid gap-4 p-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
                 <div className="space-y-4">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_190px] 2xl:grid-cols-[minmax(0,1.45fr)_190px_128px]">
+                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_190px] 2xl:grid-cols-[minmax(0,1.45fr)_190px_128px]">
                         <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 p-1">
                             <div className="mb-2 px-2 pt-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                                 Analysis Mode
@@ -232,7 +232,7 @@ export function SolverControl({
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-border/60 bg-background/70 px-2.5 py-3 lg:col-span-2 2xl:col-span-1">
+                        <div className="rounded-2xl border border-border/60 bg-background/70 px-2.5 py-3 xl:col-span-2 2xl:col-span-1">
                             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Variables</div>
                             <div className="mt-2 flex min-h-[44px] items-center rounded-xl border border-border/50 bg-muted/10 px-2.5 text-sm font-medium text-foreground">
                                 {variableHint}
@@ -262,7 +262,7 @@ export function SolverControl({
                             placeholder="Example: sin(x) + x^2 / 4"
                             className="mt-3 min-h-24 w-full resize-y rounded-2xl border-2 border-border/70 bg-background px-4 py-3 font-mono text-base leading-6 text-foreground outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
                         />
-                        <div className="mt-3 grid gap-3 lg:grid-cols-[1.05fr_0.95fr]">
+                        <div className="mt-3 grid gap-3 xl:grid-cols-[1.05fr_0.95fr]">
                             <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Rendered Preview</div>
                                 <div className="mt-2 text-sm">
