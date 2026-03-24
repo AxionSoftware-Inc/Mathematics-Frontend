@@ -39,6 +39,7 @@ import { LaboratorySignal } from "@/components/laboratory/laboratory-signal-pane
 import { IntegralClassificationService } from "./services/classification-service";
 import { LaboratoryMathService } from "./services/math-service";
 import { LaboratorySolveService } from "./services/solve-service";
+import { GeometryLaneService } from "./services/geometry-lane-service";
 
 // Shared Services
 import { LaboratoryFormattingService } from "@/components/laboratory/services/formatting-service";
@@ -188,11 +189,14 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
 
                 setAnalyticSolution(response);
                 setSolvePhase(response.status === "exact" ? "exact-ready" : "numerical-ready");
-            } catch {
+            } catch (errorValue: unknown) {
                 if (cancelled || !areSolveSnapshotsEqual(latestRequestRef.current, STUDIO_SHOWCASE_SNAPSHOT)) {
                     return;
                 }
 
+                if (errorValue instanceof Error && errorValue.message.includes("vaqt limiti")) {
+                    setSolveErrorMessage(errorValue.message);
+                }
                 setSolvePhase("numerical-ready");
             }
         })();
@@ -279,6 +283,14 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
     
     const inputValidationSignals = React.useMemo(() => {
         const signals: LaboratorySignal[] = [];
+        const geometryLaneActive =
+            classification.kind === "line_integral_candidate"
+            || classification.kind === "surface_integral_candidate"
+            || classification.kind === "contour_integral_candidate";
+        const skipScalarBoundsValidation =
+            geometryLaneActive
+            || classification.kind === "indefinite_single"
+            || classification.kind === "improper_infinite_bounds";
 
         if (!expression.trim()) {
             signals.push({
@@ -289,14 +301,13 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         }
 
         if (mode === "single") {
-            const isIndefinite = classification.kind === "indefinite_single";
-            if (!isIndefinite && (!isFiniteInput(lower) || !isFiniteInput(upper))) {
+            if (!skipScalarBoundsValidation && (!isFiniteInput(lower) || !isFiniteInput(upper))) {
                 signals.push({
                     tone: "danger",
                     label: "Invalid Interval",
                     text: "Single integral uchun lower va upper son bo'lishi kerak.",
                 });
-            } else if (!isIndefinite && parseBoundValue(lower) >= parseBoundValue(upper)) {
+            } else if (!skipScalarBoundsValidation && parseBoundValue(lower) >= parseBoundValue(upper)) {
                 signals.push({
                     tone: "danger",
                     label: "Interval Order",
@@ -372,8 +383,17 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
                     return;
                 }
 
+                const timeoutMessage = err?.message || "Analitik solve bajarilmadi.";
+                if (timeoutMessage.includes("vaqt limiti")) {
+                    setAnalyticSolution(null);
+                    setNumericalRequest(null);
+                    setSolvePhase("needs-numerical");
+                    setSolveErrorMessage(timeoutMessage);
+                    return;
+                }
+
                 setSolvePhase("error");
-                setSolveErrorMessage(err?.message || "Analitik solve bajarilmadi.");
+                setSolveErrorMessage(timeoutMessage);
             }
         }, 700);
 
@@ -467,8 +487,15 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
                 setSolveErrorMessage(response.message);
             }
         } catch (err: any) {
+            const timeoutMessage = err?.message || "Analitik solve bajarilmadi.";
+            if (timeoutMessage.includes("vaqt limiti")) {
+                setSolvePhase("needs-numerical");
+                setSolveErrorMessage(timeoutMessage);
+                return;
+            }
+
             setSolvePhase("error");
-            setSolveErrorMessage(err.message || "Analitik solve bajarilmadi.");
+            setSolveErrorMessage(timeoutMessage);
         }
     }
 
@@ -706,14 +733,99 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         if (!expression.trim()) return null;
 
         try {
+            const geometryLane = GeometryLaneService.detect(expression);
+            if (mode === "single" && geometryLane) {
+                const draft = GeometryLaneService.parse(expression, geometryLane);
+                if (draft.kind === "line") {
+                    return {
+                        kind: "geometry",
+                        lane: "line",
+                        plotKind: "curve",
+                        title: draft.dimension === "3d" ? "Parametric line path" : "Planar line path",
+                        details: [
+                            `parameter ${draft.parameter} in [${draft.intervalStart}, ${draft.intervalEnd}]`,
+                            draft.variant === "vector" ? "vector circulation lane" : "scalar arc-length lane",
+                        ],
+                        samples: LaboratoryMathService.buildParametricCurvePreview(
+                            draft.path,
+                            draft.parameter,
+                            parseBoundValue(draft.intervalStart),
+                            parseBoundValue(draft.intervalEnd),
+                            140,
+                        ),
+                    };
+                }
+                if (draft.kind === "surface") {
+                    return {
+                        kind: "geometry",
+                        lane: "surface",
+                        plotKind: "surface",
+                        title: "Surface patch preview",
+                        details: [
+                            `u in [${draft.uStart}, ${draft.uEnd}]`,
+                            `v in [${draft.vStart}, ${draft.vEnd}]`,
+                            `${draft.orientation} orientation`,
+                        ],
+                        samples: LaboratoryMathService.buildParametricSurfacePreview(
+                            draft.patch,
+                            parseBoundValue(draft.uStart),
+                            parseBoundValue(draft.uEnd),
+                            parseBoundValue(draft.vStart),
+                            parseBoundValue(draft.vEnd),
+                            16,
+                        ),
+                    };
+                }
+                return {
+                    kind: "geometry",
+                    lane: "contour",
+                    plotKind: "curve",
+                    title: "Contour path preview",
+                    details: [
+                        `parameter ${draft.parameter} in [${draft.intervalStart}, ${draft.intervalEnd}]`,
+                        `path ${draft.path}`,
+                    ],
+                    samples: LaboratoryMathService.buildParametricCurvePreview(
+                        [`re(${draft.path})`, `im(${draft.path})`],
+                        draft.parameter,
+                        parseBoundValue(draft.intervalStart),
+                        parseBoundValue(draft.intervalEnd),
+                        160,
+                    ),
+                };
+            }
             if (mode === "single") {
+                const rawLower = lower.trim();
+                const rawUpper = upper.trim();
+                const parsedLower = rawLower ? parseBoundValue(rawLower) : NaN;
+                const parsedUpper = rawUpper ? parseBoundValue(rawUpper) : NaN;
+                let previewLower = Number.isFinite(parsedLower) ? parsedLower : -6;
+                let previewUpper = Number.isFinite(parsedUpper) ? parsedUpper : 6;
+
+                if (!rawLower && !rawUpper) {
+                    previewLower = -6;
+                    previewUpper = 6;
+                } else if (!Number.isFinite(parsedLower) && Number.isFinite(parsedUpper)) {
+                    previewLower = parsedUpper - 12;
+                    previewUpper = parsedUpper + 2;
+                } else if (Number.isFinite(parsedLower) && !Number.isFinite(parsedUpper)) {
+                    previewLower = parsedLower - 2;
+                    previewUpper = parsedLower + 12;
+                } else if (!Number.isFinite(parsedLower) && !Number.isFinite(parsedUpper)) {
+                    previewLower = -12;
+                    previewUpper = 12;
+                } else if (previewUpper <= previewLower) {
+                    previewLower = parsedLower - 2;
+                    previewUpper = parsedUpper + 2;
+                }
+
                 return {
                     kind: "single",
                     gridLabel: `${normalizedSegments} segments`,
                     samples: LaboratoryMathService.buildTraceSamples(
                         expression,
-                        Number(lower),
-                        Number(upper),
+                        previewLower,
+                        previewUpper,
                         160,
                         coordinates,
                     ),

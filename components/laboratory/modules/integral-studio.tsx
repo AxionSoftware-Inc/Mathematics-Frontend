@@ -104,6 +104,20 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
 
     const solverWarning = Boolean(error || solveErrorMessage);
+    const diagnosticsSnapshot = React.useMemo(() => {
+        const diagnostics = analyticSolution?.diagnostics;
+        return {
+            diagnostics,
+            domainConstraints: diagnostics?.domain_analysis?.constraints || [],
+            domainAssumptions: diagnostics?.domain_analysis?.assumptions || [],
+            domainBlockers: diagnostics?.domain_analysis?.blockers || [],
+            hazardDetails: diagnostics?.hazard_details || [],
+            piecewiseRegions: diagnostics?.piecewise?.regions || [],
+            piecewiseSource: diagnostics?.piecewise?.source || "none",
+            convergenceReason: diagnostics?.convergence_reason || "standard_finite_interval",
+        };
+    }, [analyticSolution?.diagnostics]);
+
     const warningSignals = React.useMemo(() => {
         const signals: any[] = [];
         if (solverWarning) {
@@ -115,10 +129,10 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (analyticSolution?.diagnostics?.convergence === "unresolved") {
             signals.push({ tone: "warn", label: "Convergence", text: analyticSolution.diagnostics.convergence_detail });
         }
-        if (analyticSolution?.diagnostics?.hazards?.length) {
-            signals.push({ tone: "warn", label: "Hazards", text: analyticSolution.diagnostics.hazards[0] });
+        if (diagnosticsSnapshot.hazardDetails.length) {
+            signals.push({ tone: "warn", label: diagnosticsSnapshot.hazardDetails[0].label, text: diagnosticsSnapshot.hazardDetails[0].detail });
         }
-        if (analyticSolution?.diagnostics?.piecewise?.active) {
+        if (diagnosticsSnapshot.piecewiseRegions.length) {
             signals.push({ tone: "info", label: "Piecewise", text: "Expression regionlarga bo'linadi, branch audit active." });
         }
         if (mode === "single" && summary) {
@@ -126,7 +140,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             if (spread > 0.08) signals.push({ tone: "warn", label: "Stability", text: "Method spread yuqori, segment sonini oshirish kerak." });
         }
         return signals;
-    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, analyticSolution?.diagnostics?.hazards, analyticSolution?.diagnostics?.piecewise?.active, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
+    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.piecewiseRegions.length, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
 
     const visibleSignals = React.useMemo(
         () => [...inputValidationSignals, ...warningSignals],
@@ -203,8 +217,12 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 title: "Line integral lane",
                 body: [
                     "- Parametric path yoki circulation signali aniqlandi.",
-                    "- Keyingi lane uchun kerak bo'ladigan qismlar: vector field, path parametrization, parameter interval.",
-                    "- Hozirgi scalar composer bu oilani solve qilmaydi, lekin taxonomy va report guidance tayyor.",
+                    classification.support === "supported"
+                        ? "- Structured line(...) syntax active. Backend parametrik line solver ishlaydi."
+                        : "- To'liq solve uchun kerak bo'ladigan qismlar: vector field, path parametrization, parameter interval.",
+                    classification.support === "supported"
+                        ? "- Natija F(r(t)) · r'(t) yoki scalar arc-length lane orqali hisoblanadi."
+                        : "- Hozircha erkin matn line oilasini scalar solve qilmaydi; structured syntax kerak.",
                 ].join("\n"),
                 accent: "text-rose-600",
             };
@@ -214,8 +232,12 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 title: "Surface integral lane",
                 body: [
                     "- Flux yoki surface normal signali aniqlandi.",
-                    "- Keyingi lane uchun kerak bo'ladigan qismlar: surface parametrization, normal orientation, domain patch.",
-                    "- Hozirgi scalar composer bu oilani solve qilmaydi, lekin taxonomy va assumptions guidance tayyor.",
+                    classification.support === "supported"
+                        ? "- Structured surface(...) syntax active. Backend parametrik surface solver ishlaydi."
+                        : "- To'liq solve uchun kerak bo'ladigan qismlar: surface parametrization, normal orientation, domain patch.",
+                    classification.support === "supported"
+                        ? "- Natija patch normal yoki area element orqali surface lane’da hisoblanadi."
+                        : "- Hozircha erkin matn surface oilasini scalar solve qilmaydi; structured syntax kerak.",
                 ].join("\n"),
                 accent: "text-rose-600",
             };
@@ -225,14 +247,18 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 title: "Contour integral lane",
                 body: [
                     "- Complex contour yoki residue signali aniqlandi.",
-                    "- Keyingi lane uchun kerak bo'ladigan qismlar: contour definition, singular points, orientation, residue structure.",
-                    "- Hozirgi scalar composer bu oilani solve qilmaydi, lekin taxonomy va report guidance tayyor.",
+                    classification.support === "supported"
+                        ? "- Structured contour(...) syntax active. Backend contour pullback solver ishlaydi."
+                        : "- To'liq solve uchun kerak bo'ladigan qismlar: contour definition, singular points, orientation, residue structure.",
+                    classification.support === "supported"
+                        ? "- Natija z(t) va dz/dt orqali parameter integralga o'tkazilib hisoblanadi."
+                        : "- Hozircha erkin matn contour oilasini scalar solve qilmaydi; structured syntax kerak.",
                 ].join("\n"),
                 accent: "text-rose-600",
             };
         }
         return null;
-    }, [classification.kind]);
+    }, [classification.kind, classification.support]);
 
     const resultConsoleData = React.useMemo(() => {
         const warningCount = warningSignals.length;
@@ -464,25 +490,21 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             assumptions.push("- 3D estimate sparse voxel sampling bilan quriladi; coordinate jacobian avtomatik qo'llanadi.");
         }
 
-        if (analyticSolution?.diagnostics?.domain_constraints?.length) {
-            analyticSolution.diagnostics.domain_constraints.forEach((constraint) => assumptions.push(`- ${constraint}`));
-        } else {
-            if (expression.includes("log(") || expression.includes("ln(")) {
-                assumptions.push("- Logarifmik argumentlar musbat bo'lishi kerak.");
-            }
-            if (expression.includes("sqrt(")) {
-                assumptions.push("- Kvadrat ildiz ostidagi ifoda manfiy bo'lmasligi kerak.");
-            }
-            if (expression.includes("/")) {
-                assumptions.push("- Maxraj nolga teng bo'ladigan nuqtalar domain ichida bo'lmasligi kerak.");
-            }
+        if (diagnosticsSnapshot.domainConstraints.length) {
+            diagnosticsSnapshot.domainConstraints.forEach((constraint) => assumptions.push(`- ${constraint.label}: ${constraint.detail}`));
         }
-        if (analyticSolution?.diagnostics?.hazards?.length) {
-            analyticSolution.diagnostics.hazards.forEach((hazard) => assumptions.push(`- Hazard: ${hazard}`));
+        if (diagnosticsSnapshot.domainBlockers.length) {
+            assumptions.push(`- Active blockers: ${diagnosticsSnapshot.domainBlockers.join(", ")}.`);
         }
-        if (analyticSolution?.diagnostics?.piecewise?.active) {
-            assumptions.push("- Piecewise region analysis active.");
-            analyticSolution.diagnostics.piecewise.regions.forEach((branch) => {
+        if (diagnosticsSnapshot.domainAssumptions.length) {
+            diagnosticsSnapshot.domainAssumptions.forEach((assumption) => assumptions.push(`- ${assumption}`));
+        }
+        if (diagnosticsSnapshot.hazardDetails.length) {
+            diagnosticsSnapshot.hazardDetails.forEach((hazard) => assumptions.push(`- Hazard (${hazard.label}): ${hazard.detail}`));
+        }
+        if (diagnosticsSnapshot.piecewiseRegions.length) {
+            assumptions.push(`- Piecewise region analysis active: **${diagnosticsSnapshot.piecewiseSource}** source.`);
+            diagnosticsSnapshot.piecewiseRegions.forEach((branch) => {
                 assumptions.push(`- Region ${branch.region}: ${branch.behavior}`);
             });
         }
@@ -491,7 +513,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return assumptions.join("\n");
-    }, [analyticSolution?.diagnostics?.domain_constraints, analyticSolution?.diagnostics?.hazards, analyticSolution?.diagnostics?.piecewise, analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.parser.notes, diagnosticsSnapshot.domainAssumptions, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.piecewiseRegions, diagnosticsSnapshot.piecewiseSource, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditMarkdown = React.useMemo(() => {
         if (mode === "single") {
@@ -502,16 +524,19 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                       ? `- Primary path: **${analyticSolution.exact.method_label || "Exact symbolic"}**.`
                       : "- Primary path: **Simpson** estimate.",
                 analyticSolution?.diagnostics?.convergence && analyticSolution.diagnostics.convergence !== "not_applicable"
-                    ? `- Convergence state: **${analyticSolution.diagnostics.convergence}**. ${analyticSolution.diagnostics.convergence_detail}`
+                    ? `- Convergence state: **${analyticSolution.diagnostics.convergence}**. ${analyticSolution.diagnostics.convergence_detail} Reason: **${diagnosticsSnapshot.convergenceReason}**.`
                     : "- Convergence audit bu lane uchun markaziy signal emas.",
-                analyticSolution?.diagnostics?.piecewise?.active
-                    ? `- Piecewise branches: **${analyticSolution.diagnostics.piecewise.regions.length}** ta region detected.`
+                diagnosticsSnapshot.piecewiseRegions.length
+                    ? `- Piecewise branches: **${diagnosticsSnapshot.piecewiseRegions.length}** ta region detected from **${diagnosticsSnapshot.piecewiseSource}**.`
                     : "- Piecewise split aniqlanmadi.",
                 taxonomyLaneGuidance
                     ? "- Solver o'rniga lane mapping, assumptions va report guidance ko'rsatiladi."
                     : "- Reference methods: midpoint va trapezoid parallel ko'riladi.",
                 `- Method spread: **${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6)}**.`,
                 `- Stability label: **${singleDiagnostics?.stability || "Pending"}**.`,
+                diagnosticsSnapshot.domainBlockers.length
+                    ? `- Domain blockers: **${diagnosticsSnapshot.domainBlockers.join(", ")}**.`
+                    : "- Domain blockers aniqlanmadi.",
                 analyticSolution?.status === "exact"
                     ? "- Exact symbolic result numeric estimate bilan cross-check qilinadi."
                     : "- Closed-form topilmasa numerical confirmation oqimi ishlaydi.",
@@ -520,12 +545,13 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
 
         if (mode === "double") {
             return [
-                "- Primary path: **2D midpoint grid integration**.",
-                `- Active grid: **${normalizedXResolution} x ${normalizedYResolution}**.`,
-                `- Surface peak: **${LaboratoryFormattingService.formatMetric(doubleDiagnostics?.peak, 6)}**.`,
-                `- Surface mean: **${LaboratoryFormattingService.formatMetric(doubleDiagnostics?.mean, 6)}**.`,
-                "- Grid sweep compare tabida estimate driftni audit qiladi.",
-            ].join("\n");
+            "- Primary path: **2D midpoint grid integration**.",
+            `- Active grid: **${normalizedXResolution} x ${normalizedYResolution}**.`,
+            `- Surface peak: **${LaboratoryFormattingService.formatMetric(doubleDiagnostics?.peak, 6)}**.`,
+            `- Surface mean: **${LaboratoryFormattingService.formatMetric(doubleDiagnostics?.mean, 6)}**.`,
+            diagnosticsSnapshot.domainBlockers.length ? `- Domain blockers: **${diagnosticsSnapshot.domainBlockers.join(", ")}**.` : "- Domain blockers aniqlanmadi.",
+            "- Grid sweep compare tabida estimate driftni audit qiladi.",
+        ].join("\n");
         }
 
         return [
@@ -534,8 +560,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             `- Peak density: **${LaboratoryFormattingService.formatMetric(tripleDiagnostics?.peak, 6)}**.`,
             `- Mean density: **${LaboratoryFormattingService.formatMetric(tripleDiagnostics?.mean, 6)}**.`,
             `- Voxel volume: **${LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6)}**.`,
+            diagnosticsSnapshot.domainBlockers.length ? `- Domain blockers: **${diagnosticsSnapshot.domainBlockers.join(", ")}**.` : "- Domain blockers aniqlanmadi.",
         ].join("\n");
-    }, [analyticSolution, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.spread, singleDiagnostics?.stability, taxonomyLaneGuidance, tripleDiagnostics?.mean, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.piecewiseRegions.length, diagnosticsSnapshot.piecewiseSource, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.spread, singleDiagnostics?.stability, taxonomyLaneGuidance, tripleDiagnostics?.mean, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume]);
 
     const assumptionCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const cards: Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }> = [
@@ -564,35 +591,34 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         if (classification.kind === "improper_endpoint_singularity") {
+            const poleHazard = diagnosticsSnapshot.hazardDetails.find((item) => item.kind === "pole") || diagnosticsSnapshot.hazardDetails[0];
             cards.push({
                 eyebrow: "Pole risk",
                 value: analyticSolution?.diagnostics?.singularity || (analyticSolution?.status === "exact" ? "endpoint-resolved" : "endpoint singularity"),
-                detail: analyticSolution?.diagnostics?.hazards?.[0] || (analyticSolution?.status === "exact"
+                detail: poleHazard?.detail || (analyticSolution?.status === "exact"
                     ? "Boundary singularity symbolic lane orqali tekshirildi."
                     : "Boundary yaqinida singularity bor, convergence signalini tekshirish kerak."),
                 tone: analyticSolution?.status === "exact" ? "success" : "warn",
             });
         }
 
-        if (analyticSolution?.diagnostics?.domain_constraints?.length) {
-            analyticSolution.diagnostics.domain_constraints.slice(0, 2).forEach((constraint, index) => {
+        if (diagnosticsSnapshot.domainConstraints.length) {
+            diagnosticsSnapshot.domainConstraints.slice(0, 2).forEach((constraint, index) => {
                 cards.push({
                     eyebrow: index === 0 ? "Domain rule" : "Constraint",
-                    value: constraint.split(".")[0],
-                    detail: constraint,
-                    tone: "warn" as const,
+                    value: constraint.label,
+                    detail: constraint.detail,
+                    tone: constraint.severity === "blocker" ? "warn" as const : "info" as const,
                 });
             });
-        } else {
-            if (expression.includes("log(") || expression.includes("ln(")) {
-                cards.push({ eyebrow: "Log domain", value: "positive", detail: "Log argument musbat bo'lishi kerak.", tone: "warn" as const });
-            }
-            if (expression.includes("sqrt(")) {
-                cards.push({ eyebrow: "Root domain", value: "nonnegative", detail: "Sqrt ichidagi ifoda manfiy bo'lmasligi kerak.", tone: "warn" as const });
-            }
-            if (expression.includes("/")) {
-                cards.push({ eyebrow: "Denominator", value: "nonzero", detail: "Maxraj nol bo'ladigan nuqtalar domain ichida bo'lmasligi kerak.", tone: "warn" as const });
-            }
+        }
+        if (diagnosticsSnapshot.domainBlockers.length) {
+            cards.push({
+                eyebrow: "Blockers",
+                value: `${diagnosticsSnapshot.domainBlockers.length}`,
+                detail: diagnosticsSnapshot.domainBlockers.join(", "),
+                tone: "warn" as const,
+            });
         }
         if (analyticSolution?.parser.notes.length) {
             cards.push({
@@ -602,11 +628,11 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 tone: "neutral" as const,
             });
         }
-        if (analyticSolution?.diagnostics?.piecewise?.active) {
-            const firstRegion = analyticSolution.diagnostics.piecewise.regions[0];
+        if (diagnosticsSnapshot.piecewiseRegions.length) {
+            const firstRegion = diagnosticsSnapshot.piecewiseRegions[0];
             cards.push({
                 eyebrow: "Piecewise",
-                value: `${analyticSolution.diagnostics.piecewise.regions.length} regions`,
+                value: `${diagnosticsSnapshot.piecewiseRegions.length} regions`,
                 detail: firstRegion ? `${firstRegion.region}: ${firstRegion.behavior}` : "Branch split detected.",
                 tone: "info" as const,
             });
@@ -621,7 +647,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return cards.slice(0, 4);
-    }, [analyticSolution?.diagnostics, analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, expression, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, analyticSolution?.diagnostics?.singularity, analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.piecewiseRegions, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const spreadTone: "success" | "warn" = (singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn";
@@ -647,9 +673,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         taxonomyLaneGuidance
                             ? taxonomyLaneGuidance.body.split("\n")[1]?.replace(/^- /, "") || "Lane metadata tayyor."
                             : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
-                            ? analyticSolution?.message || "Improper integral convergence signalini ko'rsatadi."
-                            : analyticSolution?.diagnostics?.piecewise?.active
-                            ? `${analyticSolution.diagnostics.piecewise.regions.length} ta branch audit qilinmoqda.`
+                            ? `${analyticSolution?.message || "Improper integral convergence signalini ko'rsatadi."} (${diagnosticsSnapshot.convergenceReason})`
+                            : diagnosticsSnapshot.piecewiseRegions.length
+                            ? `${diagnosticsSnapshot.piecewiseRegions.length} ta branch audit qilinmoqda.`
                             : `${singleSummary?.samples.length || 0} plotted samples, ${singleSummary?.segmentsUsed || normalizedSegments} active segments.`,
                     tone: "neutral" as const,
                 },
@@ -694,7 +720,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             { eyebrow: "Grid", value: `${normalizedXResolution} x ${normalizedYResolution} x ${normalizedZResolution}`, detail: `${tripleDiagnostics?.sampleCount || 0} accepted volume samples.`, tone: "neutral" as const },
             { eyebrow: "Voxel", value: LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6), detail: "Measured cell volume used by the estimate.", tone: "success" as const },
         ];
-    }, [analyticSolution, classification.kind, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, taxonomyLaneGuidance, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, classification.kind, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.piecewiseRegions.length, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, taxonomyLaneGuidance, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
 
     const visualizeOverviewCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const staleTone: "warn" | "success" | "neutral" = isResultStale ? "warn" : summary ? "success" : "neutral";
@@ -946,20 +972,20 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             });
         }
 
-        if (expression.includes("/")) {
+        if (diagnosticsSnapshot.hazardDetails.length) {
             cards.push({
-                eyebrow: "Singularity risk",
-                value: "Denominator",
-                detail: "Maxraj nol bo'ladigan nuqtalarni compare qilish kerak.",
+                eyebrow: diagnosticsSnapshot.hazardDetails[0].label,
+                value: diagnosticsSnapshot.hazardDetails[0].severity === "warn" ? "Active" : "Watch",
+                detail: diagnosticsSnapshot.hazardDetails[0].detail,
                 tone: "warn",
             });
         }
 
-        if (expression.includes("log(") || expression.includes("ln(") || expression.includes("sqrt(")) {
+        if (diagnosticsSnapshot.domainConstraints.length) {
             cards.push({
                 eyebrow: "Domain risk",
-                value: "Restricted",
-                detail: "Function faqat ayrim subdomainlarda aniqlangan bo'lishi mumkin.",
+                value: diagnosticsSnapshot.domainConstraints[0].label,
+                detail: diagnosticsSnapshot.domainConstraints[0].detail,
                 tone: "warn",
             });
         }
@@ -974,7 +1000,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return cards.slice(0, 4);
-    }, [blockingValidationCount, expression, warningSignals]);
+    }, [blockingValidationCount, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, warningSignals]);
 
     const reportSkeletonMarkdown = React.useMemo(() => {
         if (!summary) return "- Solver natijasi tayyor bo'lgach report skeleton quriladi.";
@@ -1188,6 +1214,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         visualizerProps={visualizerProps}
                         staleOverlay={staleOverlay}
                         stalePanelClassName={stalePanelClassName}
+                        solveOverviewCards={solveOverviewCards}
                         analyticDerivationTitle={analyticSolution?.status === "exact" ? "Exact solution" : "Solver guidance"}
                         analyticDerivationContent={analyticSolution?.status === "exact" ? buildExactSolutionMarkdown(analyticSolution) : buildNumericalPromptMarkdown(mode, analyticSolution)}
                         analyticDerivationAccentClassName={analyticSolution?.status === "exact" ? "text-emerald-600" : "text-amber-600"}

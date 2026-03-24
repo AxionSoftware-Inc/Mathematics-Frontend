@@ -14,6 +14,7 @@ type SolveViewProps = {
     visualizerProps: React.ComponentProps<typeof VisualizerDeck>;
     staleOverlay: React.ReactNode;
     stalePanelClassName: string;
+    solveOverviewCards: StudioMetricCard[];
     analyticDerivationTitle: string;
     analyticDerivationContent: string;
     analyticDerivationAccentClassName: string;
@@ -30,6 +31,7 @@ export function SolveView({
     visualizerProps,
     staleOverlay,
     stalePanelClassName,
+    solveOverviewCards,
     analyticDerivationTitle,
     analyticDerivationContent,
     analyticDerivationAccentClassName,
@@ -44,6 +46,14 @@ export function SolveView({
         <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
                 <SolverControl {...solverControlProps} />
+                <div className="site-panel space-y-3 p-4">
+                    <div className="site-eyebrow text-accent">Final Result</div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {solveOverviewCards.map((card) => (
+                            <LaboratoryMetricCard key={`solve-${card.eyebrow}-${card.value}`} {...card} />
+                        ))}
+                    </div>
+                </div>
                 <div className="space-y-4">
                     <div className="relative">
                         {staleOverlay}

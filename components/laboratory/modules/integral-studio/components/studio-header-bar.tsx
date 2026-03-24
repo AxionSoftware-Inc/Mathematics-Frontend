@@ -100,8 +100,22 @@ export function StudioHeaderBar({
                 </div>
 
                 {templatesOpen ? (
-                    <div className="absolute right-0 top-[calc(100%+12px)] z-30 w-[min(720px,90vw)] rounded-3xl border border-border/70 bg-background/95 p-4 shadow-2xl backdrop-blur">
-                        <div className="grid gap-4 xl:grid-cols-[1.05fr_1.35fr]">
+                    <div className="absolute right-0 top-[calc(100%+12px)] z-30 w-[min(640px,92vw)] rounded-3xl border border-border/70 bg-background/95 p-4 shadow-2xl backdrop-blur">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Template Launchpad</div>
+                                <div className="mt-1 text-xs text-muted-foreground">Workflow va preset bir bosishda qo‘llanadi.</div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setTemplatesOpen(false)}
+                                className="rounded-xl border border-border/60 bg-background px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground transition hover:border-foreground/20 hover:text-foreground"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
                             <div className="space-y-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Workflow Templates</div>
                                 <div className="grid gap-2">
@@ -113,14 +127,20 @@ export function StudioHeaderBar({
                                                 applyWorkflowTemplate(template.id);
                                                 setTemplatesOpen(false);
                                             }}
-                                            className={`rounded-2xl border px-3 py-3 text-left transition-all ${
+                                            className={`rounded-2xl border px-3 py-2.5 text-left transition-all ${
                                                 activeTemplateId === template.id
                                                     ? "border-accent/40 bg-accent/10"
                                                     : "border-border/60 bg-background/70 hover:border-accent/30 hover:bg-accent/5"
                                             }`}
                                         >
-                                            <div className="text-[11px] font-black tracking-tight text-foreground">{template.title}</div>
-                                            <div className="mt-1 text-[10px] leading-5 text-muted-foreground">{template.description}</div>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="text-[11px] font-black tracking-tight text-foreground">{template.title}</div>
+                                                {activeTemplateId === template.id ? (
+                                                    <div className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-accent">
+                                                        Active
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </button>
                                     ))}
                                 </div>
@@ -137,20 +157,23 @@ export function StudioHeaderBar({
                                                 applyPreset(preset);
                                                 setTemplatesOpen(false);
                                             }}
-                                            className={`rounded-2xl border p-3 text-left transition-all ${
+                                            className={`rounded-2xl border px-3 py-2.5 text-left transition-all ${
                                                 activePresetLabel === preset.label
                                                     ? "border-foreground/20 bg-foreground text-background"
                                                     : "border-border/60 bg-background/70 hover:border-foreground/20 hover:bg-muted/30"
                                             }`}
                                         >
-                                            <div className={`text-[10px] font-black uppercase tracking-[0.14em] ${activePresetLabel === preset.label ? "text-background/80" : "text-muted-foreground"}`}>
-                                                {preset.mode}
-                                            </div>
-                                            <div className={`mt-2 text-sm font-black ${activePresetLabel === preset.label ? "text-background" : "text-foreground"}`}>
-                                                {preset.label}
-                                            </div>
-                                            <div className={`mt-1 text-[10px] leading-5 ${activePresetLabel === preset.label ? "text-background/75" : "text-muted-foreground"}`}>
-                                                {presetDescriptions[preset.label] || preset.expr}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className={`text-sm font-black ${activePresetLabel === preset.label ? "text-background" : "text-foreground"}`}>
+                                                    {preset.label}
+                                                </div>
+                                                <div className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${
+                                                    activePresetLabel === preset.label
+                                                        ? "border-background/20 text-background/80"
+                                                        : "border-border/60 text-muted-foreground"
+                                                }`}>
+                                                    {preset.mode}
+                                                </div>
                                             </div>
                                         </button>
                                     ))}

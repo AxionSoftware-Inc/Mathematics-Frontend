@@ -20,6 +20,7 @@ function normalizeExpression(expression: string) {
         .replace(/\u03C1/g, "rho")
         .replace(/[\u03B8\u03D1]/g, "theta")
         .replace(/[\u03C6\u03D5]/g, "phi")
+        .replace(/\bI\b/g, "i")
         .replace(/\bln\s*\(/gi, "log(")
         .trim();
 }
@@ -188,6 +189,76 @@ function buildTraceBounds(lower: number, upper: number) {
 }
 
 export class LaboratoryMathService {
+    static buildParametricCurvePreview(
+        pathExpressions: string[],
+        parameter: string,
+        start: number,
+        end: number,
+        sampleCount = 120,
+    ): PlotPoint[] {
+        ensureIncreasingBounds(start, end, "Parametric interval");
+        const xExpression = createCompiledExpression(pathExpressions[0] || "0").executor;
+        const yExpression = createCompiledExpression(pathExpressions[1] || "0").executor;
+        const points: PlotPoint[] = [];
+        const total = Math.max(2, sampleCount);
+
+        for (let index = 0; index < total; index += 1) {
+            const ratio = index / (total - 1);
+            const t = start + (end - start) * ratio;
+            const scope = { [parameter]: t, t };
+            const x = evaluateCompiledExpression(xExpression, scope);
+            const y = evaluateCompiledExpression(yExpression, scope);
+            if (x === null || y === null) {
+                continue;
+            }
+            points.push({ x, y });
+        }
+
+        if (!points.length) {
+            throw new Error("Parametric preview uchun yaroqli nuqta topilmadi.");
+        }
+
+        return points;
+    }
+
+    static buildParametricSurfacePreview(
+        patchExpressions: string[],
+        uStart: number,
+        uEnd: number,
+        vStart: number,
+        vEnd: number,
+        resolution = 14,
+    ) {
+        ensureIncreasingBounds(uStart, uEnd, "Surface u interval");
+        ensureIncreasingBounds(vStart, vEnd, "Surface v interval");
+        const xExpression = createCompiledExpression(patchExpressions[0] || "0").executor;
+        const yExpression = createCompiledExpression(patchExpressions[1] || "0").executor;
+        const zExpression = createCompiledExpression(patchExpressions[2] || "0").executor;
+        const safeResolution = clampPositiveInteger(resolution, 14, 4, 28);
+        const samples: Array<{ x: number; y: number; z: number }> = [];
+
+        for (let iu = 0; iu < safeResolution; iu += 1) {
+            const u = uStart + ((uEnd - uStart) * iu) / Math.max(1, safeResolution - 1);
+            for (let iv = 0; iv < safeResolution; iv += 1) {
+                const v = vStart + ((vEnd - vStart) * iv) / Math.max(1, safeResolution - 1);
+                const scope = { u, v };
+                const x = evaluateCompiledExpression(xExpression, scope);
+                const y = evaluateCompiledExpression(yExpression, scope);
+                const z = evaluateCompiledExpression(zExpression, scope);
+                if (x === null || y === null || z === null) {
+                    continue;
+                }
+                samples.push({ x, y, z });
+            }
+        }
+
+        if (!samples.length) {
+            throw new Error("Surface preview uchun yaroqli sample topilmadi.");
+        }
+
+        return samples;
+    }
+
     static buildTraceSamples(
         expression: string,
         lower: number,

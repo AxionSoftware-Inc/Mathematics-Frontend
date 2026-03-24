@@ -43,7 +43,7 @@ export type IntegralBlockId =
     | "bridge";
 
 export type IntegralMode = "single" | "double" | "triple";
-export type IntegralCoordinateSystem = "cartesian" | "polar" | "cylindrical" | "spherical";
+export type IntegralCoordinateSystem = "cartesian" | "polar" | "cylindrical" | "spherical" | "parametric" | "complex_plane";
 export type IntegralExperienceLevel = "beginner" | "advanced" | "research";
 export type IntegralWorkspaceTab = "solve" | "visualize" | "compare" | "report";
 export type IntegralDetectedType =
@@ -112,6 +112,29 @@ export type IntegralSolveSnapshot = {
     zResolution: string;
 };
 
+export type IntegralConstraintSeverity = "info" | "warn" | "blocker";
+
+export type IntegralDomainConstraint = {
+    kind: string;
+    label: string;
+    detail: string;
+    severity: IntegralConstraintSeverity;
+};
+
+export type IntegralHazardDetail = {
+    kind: string;
+    label: string;
+    detail: string;
+    severity: "info" | "warn";
+};
+
+export type IntegralPiecewiseRegion = {
+    kind: string;
+    region: string;
+    behavior: string;
+    boundary: string;
+};
+
 export type IntegralAnalyticSolveResponse = {
     status: "exact" | "needs_numerical";
     message: string;
@@ -119,15 +142,21 @@ export type IntegralAnalyticSolveResponse = {
     diagnostics?: {
         convergence: "convergent" | "divergent" | "unresolved" | "not_applicable";
         convergence_detail: string;
+        convergence_reason: string;
         singularity: "none" | "possible" | "endpoint";
         domain_constraints: string[];
         hazards: string[];
+        domain_analysis: {
+            constraints: IntegralDomainConstraint[];
+            assumptions: string[];
+            blockers: string[];
+        };
+        hazard_details: IntegralHazardDetail[];
         piecewise: {
             active: boolean;
-            regions: Array<{
-                region: string;
-                behavior: string;
-            }>;
+            source: string;
+            split_count: number;
+            regions: IntegralPiecewiseRegion[];
         };
     };
     parser: {

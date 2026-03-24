@@ -1,6 +1,8 @@
 import { fetchPublic } from "@/lib/api";
 import { IntegralSolveSnapshot, IntegralAnalyticSolveResponse } from "../types";
 
+const ANALYTIC_SOLVE_TIMEOUT_MS = 15000;
+
 export class LaboratorySolveService {
     /**
      * Request analytic solve from backend
@@ -19,10 +21,19 @@ export class LaboratorySolveService {
             z_max: snapshot.zMax,
         };
 
-        const response = await fetchPublic("/api/laboratory/solve/integral/", {
-            method: "POST",
-            body: JSON.stringify(body),
-        });
+        let response: Response;
+        try {
+            response = await fetchPublic("/api/laboratory/solve/integral/", {
+                method: "POST",
+                body: JSON.stringify(body),
+                timeoutMs: ANALYTIC_SOLVE_TIMEOUT_MS,
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new Error("Analitik solve vaqt limiti oshdi. Ifoda juda og'ir bo'lishi mumkin, numerik yoki soddalashtirilgan oqim tavsiya etiladi.");
+            }
+            throw error;
+        }
 
         if (!response.ok) {
             const error = await response.json();

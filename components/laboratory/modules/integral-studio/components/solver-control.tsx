@@ -2,6 +2,7 @@ import React from "react";
 import { Activity, ChevronDown, Orbit, SlidersHorizontal, Sparkles } from "lucide-react";
 import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
 import { IntegralClassification, IntegralCoordinateSystem, IntegralMode } from "../types";
+import { GeometryLaneBuilder } from "./geometry-lane-builder";
 
 interface SolverControlProps {
     mode: IntegralMode;
@@ -96,15 +97,33 @@ export function SolverControl({
     classification,
     isResultStale,
 }: SolverControlProps) {
+    const geometryLaneActive =
+        classification.kind === "line_integral_candidate"
+        || classification.kind === "surface_integral_candidate"
+        || classification.kind === "contour_integral_candidate";
     const coordinateOptions: Array<{ id: IntegralCoordinateSystem; label: string }> = [
         { id: "cartesian", label: "Cartesian" },
+        ...(geometryLaneActive ? [{ id: "parametric" as const, label: "Parametric" }] : []),
+        ...(classification.kind === "contour_integral_candidate" ? [{ id: "complex_plane" as const, label: "Complex Plane" }] : []),
         ...(mode === "single" || mode === "double" ? [{ id: "polar" as const, label: "Polar" }] : []),
         ...(mode === "triple" ? [{ id: "cylindrical" as const, label: "Cylindrical" }] : []),
         ...(mode === "triple" ? [{ id: "spherical" as const, label: "Spherical" }] : []),
     ];
 
     const variableHint =
-        mode === "single"
+        geometryLaneActive
+            ? classification.kind === "line_integral_candidate"
+                ? coordinates === "parametric"
+                    ? "t, x(t), y(t), z(t)"
+                    : "x, y, z, t"
+                : classification.kind === "surface_integral_candidate"
+                    ? coordinates === "parametric"
+                        ? "u, v, x(u,v), y(u,v), z(u,v)"
+                        : "x, y, z, u, v"
+                    : coordinates === "complex_plane"
+                        ? "z, t, Re(z), Im(z)"
+                        : "z, t"
+            : mode === "single"
             ? coordinates === "polar"
                 ? "r, theta, x, y"
                 : "x"
@@ -164,14 +183,31 @@ export function SolverControl({
                     { key: "x", label: "x-range", min: xMin, max: xMax, setMin: setXMin, setMax: setXMax, minPlaceholder: "x min", maxPlaceholder: "x max" },
                     { key: "y", label: "y-range", min: yMin, max: yMax, setMin: setYMin, setMax: setYMax, minPlaceholder: "y min", maxPlaceholder: "y max" },
                 ]
-              : [
-                    { key: "x", label: "x-range", min: xMin, max: xMax, setMin: setXMin, setMax: setXMax, minPlaceholder: "x min", maxPlaceholder: "x max" },
-                    { key: "y", label: "y-range", min: yMin, max: yMax, setMin: setYMin, setMax: setYMax, minPlaceholder: "y min", maxPlaceholder: "y max" },
-                    { key: "z", label: "z-range", min: zMin, max: zMax, setMin: setZMin, setMax: setZMax, minPlaceholder: "z min", maxPlaceholder: "z max" },
+            : [
+                    { 
+                        key: "x", 
+                        label: coordinates === "spherical" ? "ρ-range" : (coordinates === "polar" || coordinates === "cylindrical" ? "r-range" : "x-range"), 
+                        min: xMin, max: xMax, setMin: setXMin, setMax: setXMax, 
+                        minPlaceholder: coordinates === "spherical" ? "ρ min" : (coordinates === "polar" || coordinates === "cylindrical" ? "r min" : "x min"),
+                        maxPlaceholder: coordinates === "spherical" ? "ρ max" : (coordinates === "polar" || coordinates === "cylindrical" ? "r max" : "x max")
+                    },
+                    { 
+                        key: "y", 
+                        label: coordinates === "spherical" || coordinates === "polar" || coordinates === "cylindrical" ? "θ-range" : "y-range", 
+                        min: yMin, max: yMax, setMin: setYMin, setMax: setYMax, 
+                        minPlaceholder: coordinates === "spherical" || coordinates === "polar" || coordinates === "cylindrical" ? "θ min" : "y min",
+                        maxPlaceholder: coordinates === "spherical" || coordinates === "polar" || coordinates === "cylindrical" ? "θ max" : "y max"
+                    },
+                    { 
+                        key: "z", 
+                        label: coordinates === "spherical" ? "φ-range" : "z-range", 
+                        min: zMin, max: zMax, setMin: setZMin, setMax: setZMax, 
+                        minPlaceholder: coordinates === "spherical" ? "φ min" : "z min",
+                        maxPlaceholder: coordinates === "spherical" ? "φ max" : "z max"
+                    },
                 ];
-
     return (
-        <div className="site-panel overflow-hidden">
+        <div className="site-panel">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background/80 px-5 py-4">
                 <div className="flex items-center gap-2">
                     <div className="site-eyebrow text-accent">Problem Composer</div>
@@ -270,6 +306,11 @@ export function SolverControl({
                             placeholder="Example: sin(x) + x^2 / 4"
                             className="mt-3 min-h-24 w-full resize-y rounded-2xl border-2 border-border/70 bg-background px-4 py-3 font-mono text-base leading-6 text-foreground outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
                         />
+                        {geometryLaneActive ? (
+                            <div className="mt-3">
+                                <GeometryLaneBuilder expression={expression} setExpression={setExpression} classification={classification} />
+                            </div>
+                        ) : null}
                         <div className="mt-3 grid gap-3 xl:grid-cols-[0.95fr_1.05fr]">
                             <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -281,10 +322,12 @@ export function SolverControl({
                                 <div className="mt-2 text-sm font-black text-foreground">{classification.label}</div>
                                 <div className="mt-1 text-xs leading-5 text-muted-foreground line-clamp-3">{classification.summary}</div>
                             </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Rendered Preview</div>
-                                <div className="mt-2 text-sm">
-                                    <LaboratoryInlineMathMarkdown content={renderedProblemContent} />
+                                <div className="mt-2 overflow-x-auto text-sm">
+                                    <div className="min-w-0 break-words">
+                                        <LaboratoryInlineMathMarkdown content={renderedProblemContent} />
+                                    </div>
                                 </div>
                             </div>
                             <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
@@ -303,58 +346,70 @@ export function SolverControl({
 
                 <div className="space-y-4">
                     <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
-                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Bounds</div>
-                        <div className={`mt-3 grid gap-3 ${mode === "triple" ? "md:grid-cols-2 2xl:grid-cols-3" : mode === "double" ? "md:grid-cols-2" : ""}`}>
-                            {axisGroups.map((axis) => (
-                                <div key={axis.key} className="rounded-2xl border border-border/60 bg-background p-3">
-                                    <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-                                        {axis.label}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input
-                                            value={axis.min}
-                                            onChange={(e) => axis.setMin(e.target.value)}
-                                            placeholder={axis.minPlaceholder}
-                                            className={`${controlMonoInputClassName} text-center`}
-                                        />
-                                        <input
-                                            value={axis.max}
-                                            onChange={(e) => axis.setMax(e.target.value)}
-                                            placeholder={axis.maxPlaceholder}
-                                            className={`${controlMonoInputClassName} text-center`}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        {mode === "single" ? (
-                            <div className="mt-3 rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                                {classification.kind === "indefinite_single"
-                                    ? "Chegaralar bo'sh bo'lsa system buni aniqmas integral deb ko'radi va symbolic primitive lane orqali yechishga urinadi."
-                                    : "Chegaralar kiritilgan bo'lsa system buni definite integral deb ko'radi va analytic yoki numerical audit lane tanlaydi."}
+                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">{geometryLaneActive ? "Lane Inputs" : "Bounds"}</div>
+                        {geometryLaneActive ? (
+                            <div className="mt-3 rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-3 text-xs leading-5 text-muted-foreground">
+                                Structured geometry lane active. Parametric interval va path/patch builder chap tomonda expressionni avtomatik yig‘adi.
                             </div>
-                        ) : null}
+                        ) : (
+                            <>
+                                <div className={`mt-3 grid gap-3 ${mode === "triple" ? "grid-cols-1" : mode === "double" ? "sm:grid-cols-2" : "grid-cols-1"}`}>
+                                    {axisGroups.map((axis) => (
+                                        <div key={axis.key} className="rounded-2xl border border-border/60 bg-background p-3">
+                                            <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                                {axis.label}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input
+                                                    value={axis.min}
+                                                    onChange={(e) => axis.setMin(e.target.value)}
+                                                    placeholder={axis.minPlaceholder}
+                                                    className={`${controlMonoInputClassName} text-center`}
+                                                />
+                                                <input
+                                                    value={axis.max}
+                                                    onChange={(e) => axis.setMax(e.target.value)}
+                                                    placeholder={axis.maxPlaceholder}
+                                                    className={`${controlMonoInputClassName} text-center`}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {mode === "single" ? (
+                                    <div className="mt-3 rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+                                        {classification.kind === "indefinite_single"
+                                            ? "Chegaralar bo'sh bo'lsa system buni aniqmas integral deb ko'radi va symbolic primitive lane orqali yechishga urinadi."
+                                            : "Chegaralar kiritilgan bo'lsa system buni definite integral deb ko'radi va analytic yoki numerical audit lane tanlaydi."}
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
                     </div>
 
                     <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
                         <label className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-accent">
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Sampling
+                            {geometryLaneActive ? "Lane Execution" : "Sampling"}
                         </label>
-                        {mode === "single" ? (
+                        {!geometryLaneActive && mode === "single" ? (
                             <input
                                 type="text"
                                 value={segments}
                                 onChange={(e) => setSegments(e.target.value)}
                                 className={controlMonoInputClassName}
                             />
-                        ) : (
-                            <div className={`grid gap-2 ${mode === "triple" ? "md:grid-cols-2 2xl:grid-cols-3" : "md:grid-cols-2"}`}>
+                        ) : !geometryLaneActive ? (
+                            <div className={`grid gap-2 ${mode === "triple" ? "grid-cols-1 md:grid-cols-3" : "md:grid-cols-2"}`}>
                                 <input type="text" value={xResolution} onChange={(e) => setXResolution(e.target.value)} placeholder="x res" className={controlMonoInputClassName} />
                                 <input type="text" value={yResolution} onChange={(e) => setYResolution(e.target.value)} placeholder="y res" className={controlMonoInputClassName} />
                                 {mode === "triple" ? (
                                     <input type="text" value={zResolution} onChange={(e) => setZResolution(e.target.value)} placeholder="z res" className={controlMonoInputClassName} />
                                 ) : null}
+                            </div>
+                        ) : (
+                            <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-3 text-xs leading-5 text-muted-foreground">
+                                Geometry lane analytic solver ishlaydi. Bu oilalar uchun numerical grid sampling hozir ishlatilmaydi.
                             </div>
                         )}
                     </div>

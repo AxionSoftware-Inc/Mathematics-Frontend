@@ -9,6 +9,7 @@ import {
 } from "./types";
 import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 import { LaboratoryFormattingService } from "@/components/laboratory/services/formatting-service";
+import { evaluate } from "mathjs";
 
 export const { formatMetric, toTexExpression, clampInteger } = LaboratoryFormattingService;
 
@@ -47,7 +48,7 @@ export function areSolveSnapshotsEqual(left: IntegralSolveSnapshot, right: Integ
 export function isFiniteInput(value: string) {
     const trimmed = value.trim().toLowerCase();
     if (["inf", "+inf", "infinity", "+infinity", "-inf", "-infinity"].includes(trimmed)) return true;
-    return trimmed.length > 0 && Number.isFinite(Number(value));
+    return trimmed.length > 0 && Number.isFinite(parseBoundValue(value));
 }
 
 export function parseBoundValue(value: string | number) {
@@ -55,7 +56,24 @@ export function parseBoundValue(value: string | number) {
     const trimmed = value.trim().toLowerCase();
     if (["inf", "+inf", "infinity", "+infinity"].includes(trimmed)) return Infinity;
     if (["-inf", "-infinity"].includes(trimmed)) return -Infinity;
-    return Number(value);
+    const directNumeric = Number(value);
+    if (Number.isFinite(directNumeric)) {
+        return directNumeric;
+    }
+
+    try {
+        const normalized = value
+            .replace(/\u2212/g, "-")
+            .replace(/[\u00D7\u22C5\u00B7]/g, "*")
+            .replace(/[\u00F7]/g, "/")
+            .replace(/\u03C0/g, "pi")
+            .replace(/\bln\s*\(/gi, "log(")
+            .trim();
+        const computed = Number(evaluate(normalized));
+        return Number.isFinite(computed) ? computed : Number.NaN;
+    } catch {
+        return Number.NaN;
+    }
 }
 
 export function buildAveragedProfile(

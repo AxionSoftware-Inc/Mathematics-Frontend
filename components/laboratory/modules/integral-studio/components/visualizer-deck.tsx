@@ -54,6 +54,36 @@ export function VisualizerDeck({
               ? (summary as SingleIntegralSummary).samples
               : [];
     const showSinglePreview = mode === "single" && previewVisualization?.kind === "single" && (isResultStale || !summary);
+    const showGeometryPreview = mode === "single" && previewVisualization?.kind === "geometry";
+    const renderGeometryPreview = () => {
+        if (!showGeometryPreview) {
+            return null;
+        }
+
+        if (previewVisualization.plotKind === "surface") {
+            return (
+                <ScientificPlot
+                    type="surface"
+                    data={previewVisualization.samples as Array<Record<string, unknown>>}
+                    title={previewVisualization.title}
+                    insights={["parametric patch preview", "lightweight geometry surface"]}
+                />
+            );
+        }
+
+        return (
+            <CartesianPlot
+                title={previewVisualization.title}
+                series={[
+                    {
+                        label: previewVisualization.lane === "contour" ? "Contour path" : "Parametric path",
+                        color: "var(--accent)",
+                        points: previewVisualization.samples,
+                    },
+                ]}
+            />
+        );
+    };
 
     return (
         <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
@@ -77,7 +107,22 @@ export function VisualizerDeck({
                     {summary || showSinglePreview ? (
                         <>
                             <div className="w-full">
-                                {mode === "single" ? (
+                                {showGeometryPreview ? (
+                                    <div className="grid gap-4">
+                                        {renderGeometryPreview()}
+                                        <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Geometry Preview</div>
+                                            <div className="mt-2 text-lg font-black text-foreground">{previewVisualization.title}</div>
+                                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                                {previewVisualization.details.map((detail: string) => (
+                                                    <div key={detail} className="rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-sm font-medium text-foreground">
+                                                        {detail}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : mode === "single" ? (
                                     <CartesianPlot 
                                         title={showSinglePreview ? "Function preview" : "Function trace"}
                                         highlightInterval={{ start: Number(lower), end: Number(upper) }}
@@ -107,6 +152,25 @@ export function VisualizerDeck({
                                         <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Midpoint</div><div className="mt-1 font-serif text-xl font-black">{formatMetric((summary as SingleIntegralSummary).midpoint, 6)}</div></div>
                                         <div className="site-outline-card p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Trapezoid</div><div className="mt-1 font-serif text-xl font-black">{formatMetric((summary as SingleIntegralSummary).trapezoid, 6)}</div></div>
                                         <div className="site-outline-card bg-muted/5 p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Spread</div><div className="mt-1 font-serif text-xl font-black">{formatMetric(singleDiagnostics?.relativeSpread || 0, 6)}</div><div className="mt-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{singleDiagnostics?.stability}</div></div>
+                                    </>
+                                ) : showGeometryPreview ? (
+                                    <>
+                                        <div className="site-outline-card border-sky-500/20 bg-sky-500/10 p-4">
+                                            <div className="text-[9px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">Geometry lane</div>
+                                            <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.lane}</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Preview state</div>
+                                            <div className="mt-2 text-sm font-bold text-foreground">Parametric setup ready</div>
+                                        </div>
+                                        <div className="site-outline-card p-4">
+                                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Solve path</div>
+                                            <div className="mt-2 text-sm font-bold text-foreground">Backend geometry solver</div>
+                                        </div>
+                                        <div className="site-outline-card bg-background p-4">
+                                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Next step</div>
+                                            <div className="mt-2 text-sm font-bold text-foreground">Analyze and solve</div>
+                                        </div>
                                     </>
                                 ) : mode === "single" ? (
                                     <>
@@ -163,7 +227,22 @@ export function VisualizerDeck({
                                 Bu yengil preview. To&apos;liq natija, jadval va compare metric&apos;lar numerik solve tasdiqlangandan keyin chiqadi.
                             </div>
                             <div className="w-full">
-                                {previewVisualization.kind === "single" ? (
+                                {previewVisualization.kind === "geometry" ? (
+                                    <div className="grid gap-4">
+                                        {renderGeometryPreview()}
+                                        <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Geometry Preview</div>
+                                            <div className="mt-2 text-lg font-black text-foreground">{previewVisualization.title}</div>
+                                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                                {previewVisualization.details.map((detail: string) => (
+                                                    <div key={detail} className="rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-sm font-medium text-foreground">
+                                                        {detail}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : previewVisualization.kind === "single" ? (
                                     <CartesianPlot 
                                         title="Function preview" 
                                         highlightInterval={{ start: Number(lower), end: Number(upper) }}
@@ -188,11 +267,11 @@ export function VisualizerDeck({
                             <div className="grid gap-4 sm:grid-cols-3">
                                 <div className="site-outline-card bg-background p-4 shadow-sm">
                                     <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Preview status</div>
-                                    <div className="mt-2 text-sm font-bold text-foreground">Lightweight visual ready</div>
+                                    <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.kind === "geometry" ? "Geometry setup ready" : "Lightweight visual ready"}</div>
                                 </div>
                                 <div className="site-outline-card bg-background p-4 shadow-sm">
                                     <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Mode</div>
-                                    <div className="mt-2 text-sm font-bold text-foreground">{mode === "single" ? "Function trace" : mode === "double" ? "Surface preview" : "Volume preview"}</div>
+                                    <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.kind === "geometry" ? `${previewVisualization.lane} lane` : mode === "single" ? "Function trace" : mode === "double" ? "Surface preview" : "Volume preview"}</div>
                                 </div>
                                 <div className="site-outline-card bg-background p-4 shadow-sm">
                                     <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Next step</div>

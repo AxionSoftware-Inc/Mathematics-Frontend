@@ -9,15 +9,15 @@ function looksBlank(value: string) {
 }
 
 function expressionHasVectorPathSignals(expression: string) {
-    return /\bdr\b|\bds\b|\bdt\b|r\(t\)|c\(t\)|curve|path/i.test(expression);
+    return /^\s*line\(/i.test(expression) || /\bdr\b|\bds\b|\bdt\b|r\(t\)|c\(t\)|curve|path/i.test(expression);
 }
 
 function expressionHasSurfaceSignals(expression: string) {
-    return /\bdS\b|\bdA\b|normal|surface/i.test(expression);
+    return /^\s*surface\(/i.test(expression) || /\bdS\b|\bdA\b|normal|surface/i.test(expression);
 }
 
 function expressionHasContourSignals(expression: string) {
-    return /\bdz\b|\bcomplex\b|contour|residue/i.test(expression);
+    return /^\s*contour\(/i.test(expression) || /\bdz\b|\bcomplex\b|contour|residue/i.test(expression);
 }
 
 function hasEndpointSingularity(expression: string, lower: string, upper: string) {
@@ -56,8 +56,10 @@ export class IntegralClassificationService {
             return {
                 kind: "contour_integral_candidate",
                 label: "Contour candidate",
-                support: "unsupported",
-                summary: "Ifoda contour yoki complex integralga o'xshaydi. Hozirgi studio bu oilani hali solve qilmaydi.",
+                support: /^\s*contour\(/i.test(expression) ? "supported" : "partial",
+                summary: /^\s*contour\(/i.test(expression)
+                    ? "Contour lane syntax topildi. Parametric complex path backend contour solverga uzatiladi."
+                    : "Ifoda contour yoki complex integralga o'xshaydi. To'liq solve uchun structured contour(...) syntax kerak.",
                 notes: ["Contour/complex signals detected"],
             };
         }
@@ -66,8 +68,10 @@ export class IntegralClassificationService {
             return {
                 kind: "surface_integral_candidate",
                 label: "Surface candidate",
-                support: "unsupported",
-                summary: "Ifoda surface integral belgilari beradi. Bu family uchun alohida solver lane kerak.",
+                support: /^\s*surface\(/i.test(expression) ? "supported" : "partial",
+                summary: /^\s*surface\(/i.test(expression)
+                    ? "Surface lane syntax topildi. Parametric patch backend surface solverga uzatiladi."
+                    : "Ifoda surface integral belgilari beradi. To'liq solve uchun structured surface(...) syntax kerak.",
                 notes: ["Surface/normal markers detected"],
             };
         }
@@ -76,8 +80,10 @@ export class IntegralClassificationService {
             return {
                 kind: "line_integral_candidate",
                 label: "Line candidate",
-                support: "unsupported",
-                summary: "Ifoda line integral yoki parametric path signal beradi. Hozirgi composer definite scalar integralga yo'naltirilgan.",
+                support: /^\s*line\(/i.test(expression) ? "supported" : "partial",
+                summary: /^\s*line\(/i.test(expression)
+                    ? "Line lane syntax topildi. Parametric path backend line solverga uzatiladi."
+                    : "Ifoda line integral yoki parametric path signal beradi. To'liq solve uchun structured line(...) syntax kerak.",
                 notes: ["Parametric/path markers detected"],
             };
         }
