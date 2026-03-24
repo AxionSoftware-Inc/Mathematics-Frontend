@@ -118,12 +118,15 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (analyticSolution?.diagnostics?.hazards?.length) {
             signals.push({ tone: "warn", label: "Hazards", text: analyticSolution.diagnostics.hazards[0] });
         }
+        if (analyticSolution?.diagnostics?.piecewise?.active) {
+            signals.push({ tone: "info", label: "Piecewise", text: "Expression regionlarga bo'linadi, branch audit active." });
+        }
         if (mode === "single" && summary) {
             const spread = singleDiagnostics?.relativeSpread || 0;
             if (spread > 0.08) signals.push({ tone: "warn", label: "Stability", text: "Method spread yuqori, segment sonini oshirish kerak." });
         }
         return signals;
-    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, analyticSolution?.diagnostics?.hazards, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
+    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, analyticSolution?.diagnostics?.hazards, analyticSolution?.diagnostics?.piecewise?.active, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
 
     const visibleSignals = React.useMemo(
         () => [...inputValidationSignals, ...warningSignals],
@@ -477,12 +480,18 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (analyticSolution?.diagnostics?.hazards?.length) {
             analyticSolution.diagnostics.hazards.forEach((hazard) => assumptions.push(`- Hazard: ${hazard}`));
         }
+        if (analyticSolution?.diagnostics?.piecewise?.active) {
+            assumptions.push("- Piecewise region analysis active.");
+            analyticSolution.diagnostics.piecewise.regions.forEach((branch) => {
+                assumptions.push(`- Region ${branch.region}: ${branch.behavior}`);
+            });
+        }
         if (analyticSolution?.parser.notes.length) {
             assumptions.push(`- Parser normalization notes: ${analyticSolution.parser.notes.join(" ")}`);
         }
 
         return assumptions.join("\n");
-    }, [analyticSolution?.diagnostics?.domain_constraints, analyticSolution?.diagnostics?.hazards, analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.diagnostics?.domain_constraints, analyticSolution?.diagnostics?.hazards, analyticSolution?.diagnostics?.piecewise, analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditMarkdown = React.useMemo(() => {
         if (mode === "single") {
@@ -495,6 +504,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 analyticSolution?.diagnostics?.convergence && analyticSolution.diagnostics.convergence !== "not_applicable"
                     ? `- Convergence state: **${analyticSolution.diagnostics.convergence}**. ${analyticSolution.diagnostics.convergence_detail}`
                     : "- Convergence audit bu lane uchun markaziy signal emas.",
+                analyticSolution?.diagnostics?.piecewise?.active
+                    ? `- Piecewise branches: **${analyticSolution.diagnostics.piecewise.regions.length}** ta region detected.`
+                    : "- Piecewise split aniqlanmadi.",
                 taxonomyLaneGuidance
                     ? "- Solver o'rniga lane mapping, assumptions va report guidance ko'rsatiladi."
                     : "- Reference methods: midpoint va trapezoid parallel ko'riladi.",
@@ -590,6 +602,15 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 tone: "neutral" as const,
             });
         }
+        if (analyticSolution?.diagnostics?.piecewise?.active) {
+            const firstRegion = analyticSolution.diagnostics.piecewise.regions[0];
+            cards.push({
+                eyebrow: "Piecewise",
+                value: `${analyticSolution.diagnostics.piecewise.regions.length} regions`,
+                detail: firstRegion ? `${firstRegion.region}: ${firstRegion.behavior}` : "Branch split detected.",
+                tone: "info" as const,
+            });
+        }
         if (taxonomyLaneGuidance) {
             cards.push({
                 eyebrow: "Lane",
@@ -627,6 +648,8 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                             ? taxonomyLaneGuidance.body.split("\n")[1]?.replace(/^- /, "") || "Lane metadata tayyor."
                             : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? analyticSolution?.message || "Improper integral convergence signalini ko'rsatadi."
+                            : analyticSolution?.diagnostics?.piecewise?.active
+                            ? `${analyticSolution.diagnostics.piecewise.regions.length} ta branch audit qilinmoqda.`
                             : `${singleSummary?.samples.length || 0} plotted samples, ${singleSummary?.segmentsUsed || normalizedSegments} active segments.`,
                     tone: "neutral" as const,
                 },

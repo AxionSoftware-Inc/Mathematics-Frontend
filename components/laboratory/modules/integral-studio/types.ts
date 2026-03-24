@@ -122,6 +122,13 @@ export type IntegralAnalyticSolveResponse = {
         singularity: "none" | "possible" | "endpoint";
         domain_constraints: string[];
         hazards: string[];
+        piecewise: {
+            active: boolean;
+            regions: Array<{
+                region: string;
+                behavior: string;
+            }>;
+        };
     };
     parser: {
         expression_raw: string;
