@@ -194,6 +194,43 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                     ? "Solver warning"
                     : "Solve kutilmoqda";
 
+    const taxonomyLaneGuidance = React.useMemo(() => {
+        if (classification.kind === "line_integral_candidate") {
+            return {
+                title: "Line integral lane",
+                body: [
+                    "- Parametric path yoki circulation signali aniqlandi.",
+                    "- Keyingi lane uchun kerak bo'ladigan qismlar: vector field, path parametrization, parameter interval.",
+                    "- Hozirgi scalar composer bu oilani solve qilmaydi, lekin taxonomy va report guidance tayyor.",
+                ].join("\n"),
+                accent: "text-rose-600",
+            };
+        }
+        if (classification.kind === "surface_integral_candidate") {
+            return {
+                title: "Surface integral lane",
+                body: [
+                    "- Flux yoki surface normal signali aniqlandi.",
+                    "- Keyingi lane uchun kerak bo'ladigan qismlar: surface parametrization, normal orientation, domain patch.",
+                    "- Hozirgi scalar composer bu oilani solve qilmaydi, lekin taxonomy va assumptions guidance tayyor.",
+                ].join("\n"),
+                accent: "text-rose-600",
+            };
+        }
+        if (classification.kind === "contour_integral_candidate") {
+            return {
+                title: "Contour integral lane",
+                body: [
+                    "- Complex contour yoki residue signali aniqlandi.",
+                    "- Keyingi lane uchun kerak bo'ladigan qismlar: contour definition, singular points, orientation, residue structure.",
+                    "- Hozirgi scalar composer bu oilani solve qilmaydi, lekin taxonomy va report guidance tayyor.",
+                ].join("\n"),
+                accent: "text-rose-600",
+            };
+        }
+        return null;
+    }, [classification.kind]);
+
     const resultConsoleData = React.useMemo(() => {
         const warningCount = warningSignals.length;
         if (analyticSolution?.status === "exact") {
@@ -313,7 +350,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             return {
                 eyebrow: "Analytic Status",
                 title: classification.label,
-                body: classification.summary,
+                body: taxonomyLaneGuidance?.body || classification.summary,
                 badge: classification.support === "partial" ? "Partial" : "Unsupported",
                 toneClass:
                     classification.support === "partial"
@@ -339,7 +376,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             badge: "Guidance",
             toneClass: "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
         };
-    }, [analyticSolution, classification, mode, solvePhase, summary]);
+    }, [analyticSolution, classification, mode, solvePhase, summary, taxonomyLaneGuidance]);
 
     const fallbackExactSteps = React.useMemo(() => {
         if (analyticSolution?.status !== "exact") {
@@ -410,6 +447,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
     const assumptionsMarkdown = React.useMemo(() => {
         const assumptions: string[] = [];
         assumptions.push(`- Coordinate system: **${state.coordinates}**.`);
+        if (taxonomyLaneGuidance) {
+            assumptions.push(`- Research lane: **${taxonomyLaneGuidance.title}**.`);
+        }
         if (mode === "single") {
             assumptions.push(`- Bound ordering enforced: **${lower} < ${upper}**.`);
             assumptions.push("- Variable support shu rejimda faqat integralning faol o'zgaruvchilariga bog'langan.");
@@ -442,18 +482,22 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return assumptions.join("\n");
-    }, [analyticSolution?.diagnostics?.domain_constraints, analyticSolution?.diagnostics?.hazards, analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.diagnostics?.domain_constraints, analyticSolution?.diagnostics?.hazards, analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditMarkdown = React.useMemo(() => {
         if (mode === "single") {
             return [
-                analyticSolution?.status === "exact"
-                    ? `- Primary path: **${analyticSolution.exact.method_label || "Exact symbolic"}**.`
-                    : "- Primary path: **Simpson** estimate.",
+                taxonomyLaneGuidance
+                    ? `- Active taxonomy lane: **${taxonomyLaneGuidance.title}**.`
+                    : analyticSolution?.status === "exact"
+                      ? `- Primary path: **${analyticSolution.exact.method_label || "Exact symbolic"}**.`
+                      : "- Primary path: **Simpson** estimate.",
                 analyticSolution?.diagnostics?.convergence && analyticSolution.diagnostics.convergence !== "not_applicable"
                     ? `- Convergence state: **${analyticSolution.diagnostics.convergence}**. ${analyticSolution.diagnostics.convergence_detail}`
                     : "- Convergence audit bu lane uchun markaziy signal emas.",
-                "- Reference methods: midpoint va trapezoid parallel ko'riladi.",
+                taxonomyLaneGuidance
+                    ? "- Solver o'rniga lane mapping, assumptions va report guidance ko'rsatiladi."
+                    : "- Reference methods: midpoint va trapezoid parallel ko'riladi.",
                 `- Method spread: **${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6)}**.`,
                 `- Stability label: **${singleDiagnostics?.stability || "Pending"}**.`,
                 analyticSolution?.status === "exact"
@@ -479,9 +523,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             `- Mean density: **${LaboratoryFormattingService.formatMetric(tripleDiagnostics?.mean, 6)}**.`,
             `- Voxel volume: **${LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6)}**.`,
         ].join("\n");
-    }, [analyticSolution, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.spread, singleDiagnostics?.stability, tripleDiagnostics?.mean, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.spread, singleDiagnostics?.stability, taxonomyLaneGuidance, tripleDiagnostics?.mean, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume]);
 
-    const assumptionCards = React.useMemo(() => {
+    const assumptionCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const cards: Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }> = [
             {
                 eyebrow: "Coordinates",
@@ -546,19 +590,29 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 tone: "neutral" as const,
             });
         }
+        if (taxonomyLaneGuidance) {
+            cards.push({
+                eyebrow: "Lane",
+                value: taxonomyLaneGuidance.title,
+                detail: "Scalar solver o'rniga taxonomy guidance va future lane mapping ishlaydi.",
+                tone: "info" as const,
+            });
+        }
 
         return cards.slice(0, 4);
-    }, [analyticSolution?.diagnostics, analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.diagnostics, analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, expression, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
-    const methodAuditCards = React.useMemo(() => {
+    const methodAuditCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const spreadTone: "success" | "warn" = (singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn";
         if (mode === "single") {
             const singleSummary = summary as SingleIntegralSummary | null;
             return [
                 {
                     eyebrow: "Primary",
-                    value: analyticSolution?.status === "exact" ? analyticSolution.exact.method_label || "Exact" : classification.kind === "improper_endpoint_singularity" ? "Improper audit" : "Simpson composite",
-                    detail: analyticSolution?.status === "exact"
+                    value: taxonomyLaneGuidance ? taxonomyLaneGuidance.title : analyticSolution?.status === "exact" ? analyticSolution.exact.method_label || "Exact" : classification.kind === "improper_endpoint_singularity" ? "Improper audit" : "Simpson composite",
+                    detail: taxonomyLaneGuidance
+                        ? "Line/surface/contour oilalari uchun alohida solver lane hali ajratilmoqda."
+                        : analyticSolution?.status === "exact"
                         ? "Backend exact solver verified the result."
                         : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                           ? "Improper integral symbolic audit lane active."
@@ -567,29 +621,37 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 },
                 {
                     eyebrow: "Cross-check",
-                    value: classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Convergence lane" : "Midpoint + Trap",
+                    value: taxonomyLaneGuidance ? "Lane requirements" : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Convergence lane" : "Midpoint + Trap",
                     detail:
-                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                        taxonomyLaneGuidance
+                            ? taxonomyLaneGuidance.body.split("\n")[1]?.replace(/^- /, "") || "Lane metadata tayyor."
+                            : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? analyticSolution?.message || "Improper integral convergence signalini ko'rsatadi."
                             : `${singleSummary?.samples.length || 0} plotted samples, ${singleSummary?.segmentsUsed || normalizedSegments} active segments.`,
                     tone: "neutral" as const,
                 },
                 {
-                    eyebrow: classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Status" : "Spread",
+                    eyebrow: taxonomyLaneGuidance ? "Status" : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Status" : "Spread",
                     value:
-                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                        taxonomyLaneGuidance
+                            ? "taxonomy-only"
+                            : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? analyticSolution?.status === "exact"
                                 ? "convergent"
                                 : "watch"
                             : LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6),
                     detail:
-                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                        taxonomyLaneGuidance
+                            ? "Solver implementation keyingi lane bosqichida ulanadi."
+                            : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? analyticSolution?.status === "exact"
                                 ? (analyticSolution?.diagnostics?.convergence_detail || "Symbolic limit evaluation completed.")
                                 : (analyticSolution?.diagnostics?.convergence_detail || "Closed-form convergence hali tasdiqlanmagan.")
                             : singleDiagnostics?.stability || "Pending",
                     tone:
-                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                        taxonomyLaneGuidance
+                            ? "info"
+                            : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? (analyticSolution?.status === "exact" ? "success" : "warn")
                             : spreadTone,
                 },
@@ -609,7 +671,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             { eyebrow: "Grid", value: `${normalizedXResolution} x ${normalizedYResolution} x ${normalizedZResolution}`, detail: `${tripleDiagnostics?.sampleCount || 0} accepted volume samples.`, tone: "neutral" as const },
             { eyebrow: "Voxel", value: LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6), detail: "Measured cell volume used by the estimate.", tone: "success" as const },
         ];
-    }, [analyticSolution, classification.kind, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, classification.kind, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, taxonomyLaneGuidance, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
 
     const visualizeOverviewCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const staleTone: "warn" | "success" | "neutral" = isResultStale ? "warn" : summary ? "success" : "neutral";
@@ -1106,7 +1168,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         analyticDerivationTitle={analyticSolution?.status === "exact" ? "Exact solution" : "Solver guidance"}
                         analyticDerivationContent={analyticSolution?.status === "exact" ? buildExactSolutionMarkdown(analyticSolution) : buildNumericalPromptMarkdown(mode, analyticSolution)}
                         analyticDerivationAccentClassName={analyticSolution?.status === "exact" ? "text-emerald-600" : "text-amber-600"}
-                        showMethodTrace={mode === "single"}
+                        showMethodTrace={mode === "single" && !taxonomyLaneGuidance}
                         methodTraceContent={buildExactMethodMarkdown(analyticSolution)}
                         exactSteps={visibleExactSteps}
                         methodAuditCards={methodAuditCards}
