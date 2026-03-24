@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, AreaChart, Blocks, FlaskConical, Sigma } from "lucide-react";
+import { Activity, ArrowRight, AreaChart, Blocks, FlaskConical, Sigma } from "lucide-react";
 
 import { HeroBadge, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchLaboratoryModules } from "@/lib/laboratory";
@@ -21,6 +21,12 @@ const focusCards = [
         text: "Kerakli kartalarni yuqoridagi workspace orqali yoqib-o'chirish mumkin.",
     },
 ];
+
+const moduleIcons = {
+    "integral-studio": Sigma,
+    "differential-studio": Activity,
+    "matrix-studio": Blocks,
+} as const;
 
 export default async function LaboratoryPage() {
     const modules = await fetchLaboratoryModules();
@@ -57,7 +63,10 @@ export default async function LaboratoryPage() {
                                     <div>
                                         <div className="flex items-center justify-between">
                                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-background">
-                                                {module.slug === "integral-studio" ? <Sigma className="h-6 w-6" /> : <AreaChart className="h-6 w-6" />}
+                                                {(() => {
+                                                    const Icon = moduleIcons[module.slug as keyof typeof moduleIcons] ?? AreaChart;
+                                                    return <Icon className="h-6 w-6" />;
+                                                })()}
                                             </div>
                                             <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
                                                 {module.category}

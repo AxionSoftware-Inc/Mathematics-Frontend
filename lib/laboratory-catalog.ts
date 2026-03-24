@@ -51,6 +51,25 @@ export const laboratoryModuleCatalog: readonly LaboratoryModuleCatalogEntry[] = 
             defaultPoint: "1, 1.5",
         },
     },
+    {
+        slug: "matrix-studio",
+        title: "Matrix Studio",
+        summary: "Matritsa algebra, spektral tahlil va transformatsiyalar uchun starter laboratoriya.",
+        description:
+            "Determinant, inverse, linear systems, eigen-analysis va transform workflows uchun professional workspace skeletoni.",
+        category: "matrix",
+        icon_name: "Blocks",
+        accent_color: "amber",
+        computation_mode: "client",
+        estimated_minutes: 8,
+        sort_order: 3,
+        config: {
+            defaultMode: "algebra",
+            defaultExpression: "2 1; 1 3",
+            defaultSecondary: "1; 0",
+            defaultDimension: "2x2",
+        },
+    },
 ];
 
 export const supportedLaboratorySlugs = laboratoryModuleCatalog.map((entry) => entry.slug);
