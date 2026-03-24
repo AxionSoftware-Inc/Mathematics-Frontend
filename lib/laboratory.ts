@@ -72,13 +72,23 @@ export async function fetchLaboratoryModules() {
         if (response.ok) {
             const payload = await response.json();
             if (Array.isArray(payload)) {
-                const modules = payload
+                const apiModules = payload
                     .map((item) => normalizeModule(item as Record<string, unknown>))
-                    .filter((item): item is LaboratoryModuleMeta => Boolean(item))
+                    .filter((item): item is LaboratoryModuleMeta => Boolean(item));
+
+                // Merge API results with fallback for local studios not in backend
+                const merged = [...apiModules];
+                fallbackLaboratoryModules.forEach((fb) => {
+                    if (!merged.some(m => m.slug === fb.slug)) {
+                        merged.push(fb);
+                    }
+                });
+
+                const filtered = merged
                     .filter((item) => supportedLaboratorySlugs.includes(item.slug) && item.is_enabled !== false);
 
-                if (modules.length) {
-                    return sortModules(modules);
+                if (filtered.length) {
+                    return sortModules(filtered);
                 }
             }
         }

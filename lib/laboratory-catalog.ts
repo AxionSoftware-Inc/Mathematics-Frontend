@@ -32,6 +32,25 @@ export const laboratoryModuleCatalog: readonly LaboratoryModuleCatalogEntry[] = 
             defaultSegments: 24,
         },
     },
+    {
+        slug: "differential-studio",
+        title: "Differential Studio",
+        summary: "Differensial hisob va funksiyalarni tahlil qilish laboratoriyasi.",
+        description:
+            "Hosila, xususiy hosilalar, Jacobian va Hessian masalalarini symbolic parser, slope-field va visualizer bilan tahlil qiling.",
+        category: "differential",
+        icon_name: "Activity",
+        accent_color: "indigo",
+        computation_mode: "hybrid",
+        estimated_minutes: 10,
+        sort_order: 2,
+        config: {
+            defaultMode: "jacobian",
+            defaultExpression: "[x^2 * y, sin(x) + cos(y)]",
+            defaultVariable: "x, y",
+            defaultPoint: "1, 1.5",
+        },
+    },
 ];
 
 export const supportedLaboratorySlugs = laboratoryModuleCatalog.map((entry) => entry.slug);
