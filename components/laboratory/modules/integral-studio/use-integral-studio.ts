@@ -36,6 +36,7 @@ import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { LaboratorySignal } from "@/components/laboratory/laboratory-signal-panel";
 
 // Services (Moved to local)
+import { IntegralClassificationService } from "./services/classification-service";
 import { LaboratoryMathService } from "./services/math-service";
 import { LaboratorySolveService } from "./services/solve-service";
 
@@ -137,6 +138,10 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
             zResolution,
         }),
         [coordinates, expression, lower, mode, segments, upper, xMax, xMin, xResolution, yMax, yMin, yResolution, zMax, zMin, zResolution],
+    );
+    const classification = React.useMemo(
+        () => IntegralClassificationService.classify(currentRequest),
+        [currentRequest],
     );
     const latestRequestRef = React.useRef(currentRequest);
     const showcaseBootstrappedRef = React.useRef(false);
@@ -284,13 +289,14 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         }
 
         if (mode === "single") {
-            if (!isFiniteInput(lower) || !isFiniteInput(upper)) {
+            const isIndefinite = classification.kind === "indefinite_single";
+            if (!isIndefinite && (!isFiniteInput(lower) || !isFiniteInput(upper))) {
                 signals.push({
                     tone: "danger",
                     label: "Invalid Interval",
                     text: "Single integral uchun lower va upper son bo'lishi kerak.",
                 });
-            } else if (parseBoundValue(lower) >= parseBoundValue(upper)) {
+            } else if (!isIndefinite && parseBoundValue(lower) >= parseBoundValue(upper)) {
                 signals.push({
                     tone: "danger",
                     label: "Interval Order",
@@ -325,12 +331,12 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         }
 
         return signals;
-    }, [expression, lower, mode, xMax, xMin, yMax, yMin, zMax, zMin, upper]);
+    }, [classification.kind, expression, lower, mode, xMax, xMin, yMax, yMin, zMax, zMin, upper]);
 
     const blockingValidationCount = inputValidationSignals.filter((item) => item.tone === "danger").length;
 
     React.useEffect(() => {
-        if (!showcaseBootstrappedRef.current || mode !== "single" || blockingValidationCount > 0) {
+        if (!showcaseBootstrappedRef.current || mode !== "single" || blockingValidationCount > 0 || classification.support !== "supported") {
             return;
         }
 
@@ -351,10 +357,15 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
                 setSolvedRequest(currentRequest);
                 setAnalyticSolution(response);
                 if (response.status === "exact") {
-                    setNumericalRequest(currentRequest);
+                    setNumericalRequest(response.can_offer_numerical ? currentRequest : null);
                     setSolvePhase("exact-ready");
-                } else {
+                } else if (response.can_offer_numerical) {
+                    setNumericalRequest(null);
                     setSolvePhase("needs-numerical");
+                } else {
+                    setNumericalRequest(null);
+                    setSolvePhase("error");
+                    setSolveErrorMessage(response.message);
                 }
             } catch (err: any) {
                 if (autoSolveTokenRef.current !== requestToken || !areSolveSnapshotsEqual(latestRequestRef.current, currentRequest)) {
@@ -367,7 +378,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         }, 700);
 
         return () => window.clearTimeout(handle);
-    }, [blockingValidationCount, currentRequest, mode]);
+    }, [blockingValidationCount, classification.support, currentRequest, mode]);
 
     const applyPreset = (preset: any) => {
         setActiveTemplateId(null);
@@ -375,8 +386,8 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         setCoordinates("cartesian");
         setExpression(preset.expr || "sin(x) + x^2 / 5");
         if (preset.mode === "single") {
-            setLower(preset.lower || "0");
-            setUpper(preset.upper || "1");
+            setLower("lower" in preset ? String(preset.lower) : "0");
+            setUpper("upper" in preset ? String(preset.upper) : "1");
             if ("segments" in preset && preset.segments) {
                 setSegments(String(preset.segments));
             }
@@ -420,14 +431,22 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
             return;
         }
 
+        if (classification.support !== "supported") {
+            setSolvePhase("error");
+            setSolveErrorMessage(classification.summary);
+            setAnalyticSolution(null);
+            setNumericalRequest(null);
+            return;
+        }
+
         setSolveErrorMessage("");
         setExportState("idle");
         setGuideMode(null);
         setSolvedRequest(currentRequest);
+        setNumericalRequest(null);
 
         if (mode !== "single") {
             setAnalyticSolution(null);
-            setNumericalRequest(null);
             setSolvePhase("needs-numerical");
             return;
         }
@@ -438,7 +457,15 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
         try {
             const response = await LaboratorySolveService.requestAnalyticSolve(currentRequest);
             setAnalyticSolution(response);
-            setSolvePhase(response.status === "exact" ? "exact-ready" : "needs-numerical");
+            if (response.status === "exact") {
+                setNumericalRequest(response.can_offer_numerical ? currentRequest : null);
+                setSolvePhase("exact-ready");
+            } else if (response.can_offer_numerical) {
+                setSolvePhase("needs-numerical");
+            } else {
+                setSolvePhase("error");
+                setSolveErrorMessage(response.message);
+            }
         } catch (err: any) {
             setSolvePhase("error");
             setSolveErrorMessage(err.message || "Analitik solve bajarilmadi.");
@@ -757,6 +784,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
             activeWorkflowTemplate: INTEGRAL_WORKFLOW_TEMPLATES.find((t) => t.id === activeTemplateId) || null,
             inputValidationSignals,
             blockingValidationCount,
+            classification,
             singleDiagnostics,
             doubleDiagnostics,
             tripleDiagnostics,

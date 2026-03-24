@@ -80,6 +80,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         summary,
         inputValidationSignals,
         blockingValidationCount,
+        classification,
         singleDiagnostics,
         doubleDiagnostics,
         tripleDiagnostics,
@@ -299,6 +300,19 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
     }, [doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, resultConsoleData, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, tripleDiagnostics?.voxelVolume]);
 
     const analyticStatusCard = React.useMemo(() => {
+        if (classification.support !== "supported") {
+            return {
+                eyebrow: "Analytic Status",
+                title: classification.label,
+                body: classification.summary,
+                badge: classification.support === "partial" ? "Partial" : "Unsupported",
+                toneClass:
+                    classification.support === "partial"
+                        ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        : "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+            };
+        }
+
         if (analyticSolution?.status === "exact") {
             return {
                 eyebrow: "Analytic Status",
@@ -316,7 +330,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             badge: "Guidance",
             toneClass: "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
         };
-    }, [analyticSolution, mode, solvePhase, summary]);
+    }, [analyticSolution, classification, mode, solvePhase, summary]);
 
     const fallbackExactSteps = React.useMemo(() => {
         if (analyticSolution?.status !== "exact") {
@@ -358,13 +372,16 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
     const renderedProblemContent = React.useMemo(() => {
         const texExpression = LaboratoryFormattingService.toTexExpression(expression);
         if (mode === "single") {
+            if (classification.kind === "indefinite_single") {
+                return `$$I = \\int (${texExpression}) \\, dx$$`;
+            }
             return `$$I = \\int_{${lower}}^{${upper}} (${texExpression}) \\, dx$$`;
         }
         if (mode === "double") {
             return `$$I = \\int_{${xMin}}^{${xMax}} \\int_{${yMin}}^{${yMax}} (${texExpression}) \\, dy \\, dx$$`;
         }
         return `$$I = \\int_{${xMin}}^{${xMax}} \\int_{${yMin}}^{${yMax}} \\int_{${zMin}}^{${zMax}} (${texExpression}) \\, dz \\, dy \\, dx$$`;
-    }, [expression, lower, mode, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [classification.kind, expression, lower, mode, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
     const stalePanelClassName = isResultStale ? "opacity-45 grayscale-[0.35] transition-all" : "";
     const staleOverlay = isResultStale ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-background/55 backdrop-blur-[2px]">
@@ -460,6 +477,28 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             },
         ];
 
+        if (classification.kind === "improper_infinite_bounds") {
+            cards.push({
+                eyebrow: "Convergence",
+                value: analyticSolution?.status === "exact" ? "limit-resolved" : "needs review",
+                detail: analyticSolution?.status === "exact"
+                    ? "Cheksiz bound symbolic limit bilan baholandi."
+                    : "Improper integral uchun convergence audit talab qilinadi.",
+                tone: analyticSolution?.status === "exact" ? "success" : "warn",
+            });
+        }
+
+        if (classification.kind === "improper_endpoint_singularity") {
+            cards.push({
+                eyebrow: "Pole risk",
+                value: analyticSolution?.status === "exact" ? "endpoint-resolved" : "endpoint singularity",
+                detail: analyticSolution?.status === "exact"
+                    ? "Boundary singularity symbolic lane orqali tekshirildi."
+                    : "Boundary yaqinida singularity bor, convergence signalini tekshirish kerak.",
+                tone: analyticSolution?.status === "exact" ? "success" : "warn",
+            });
+        }
+
         if (expression.includes("log(") || expression.includes("ln(")) {
             cards.push({ eyebrow: "Log domain", value: "positive", detail: "Log argument musbat bo'lishi kerak.", tone: "warn" as const });
         }
@@ -479,7 +518,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return cards.slice(0, 4);
-    }, [analyticSolution?.parser.notes, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, expression, lower, mode, state.coordinates, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditCards = React.useMemo(() => {
         const spreadTone: "success" | "warn" = (singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn";
@@ -488,21 +527,41 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             return [
                 {
                     eyebrow: "Primary",
-                    value: analyticSolution?.status === "exact" ? analyticSolution.exact.method_label || "Exact" : "Simpson composite",
-                    detail: analyticSolution?.status === "exact" ? "Backend exact solver verified the result." : "Frontend numerical estimate is currently leading.",
+                    value: analyticSolution?.status === "exact" ? analyticSolution.exact.method_label || "Exact" : classification.kind === "improper_endpoint_singularity" ? "Improper audit" : "Simpson composite",
+                    detail: analyticSolution?.status === "exact"
+                        ? "Backend exact solver verified the result."
+                        : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                          ? "Improper integral symbolic audit lane active."
+                          : "Frontend numerical estimate is currently leading.",
                     tone: analyticSolution?.status === "exact" ? ("success" as const) : ("info" as const),
                 },
                 {
                     eyebrow: "Cross-check",
-                    value: "Midpoint + Trap",
-                    detail: `${singleSummary?.samples.length || 0} plotted samples, ${singleSummary?.segmentsUsed || normalizedSegments} active segments.`,
+                    value: classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Convergence lane" : "Midpoint + Trap",
+                    detail:
+                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                            ? analyticSolution?.message || "Improper integral convergence signalini ko'rsatadi."
+                            : `${singleSummary?.samples.length || 0} plotted samples, ${singleSummary?.segmentsUsed || normalizedSegments} active segments.`,
                     tone: "neutral" as const,
                 },
                 {
-                    eyebrow: "Spread",
-                    value: LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6),
-                    detail: singleDiagnostics?.stability || "Pending",
-                    tone: spreadTone,
+                    eyebrow: classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Status" : "Spread",
+                    value:
+                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                            ? analyticSolution?.status === "exact"
+                                ? "convergent"
+                                : "watch"
+                            : LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6),
+                    detail:
+                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                            ? analyticSolution?.status === "exact"
+                                ? "Symbolic limit evaluation completed."
+                                : "Closed-form convergence hali tasdiqlanmagan."
+                            : singleDiagnostics?.stability || "Pending",
+                    tone:
+                        classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
+                            ? (analyticSolution?.status === "exact" ? "success" : "warn")
+                            : spreadTone,
                 },
             ];
         }
@@ -520,7 +579,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             { eyebrow: "Grid", value: `${normalizedXResolution} x ${normalizedYResolution} x ${normalizedZResolution}`, detail: `${tripleDiagnostics?.sampleCount || 0} accepted volume samples.`, tone: "neutral" as const },
             { eyebrow: "Voxel", value: LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6), detail: "Measured cell volume used by the estimate.", tone: "success" as const },
         ];
-    }, [analyticSolution, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, classification.kind, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
 
     const visualizeOverviewCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const staleTone: "warn" | "success" | "neutral" = isResultStale ? "warn" : summary ? "success" : "neutral";
@@ -919,6 +978,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         analyticStatusBody: analyticStatusCard.body,
         analyticStatusBadge: analyticStatusCard.badge,
         analyticStatusToneClass: analyticStatusCard.toneClass,
+        classification,
         isResultStale,
     };
 

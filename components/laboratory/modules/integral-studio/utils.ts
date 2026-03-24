@@ -85,20 +85,29 @@ export function buildExactSolutionMarkdown(solution: IntegralAnalyticSolveRespon
     if (!solution || solution.status !== "exact") {
         return "- Analitik yechim hali tayyor emas.";
     }
+    const isDefinite = Boolean(solution.exact.definite_integral_latex);
     return [
-        "- Backend `SymPy` orqali definite integralni analitik yechishga urinib ko'rdi.",
+        isDefinite
+            ? "- Backend `SymPy` orqali definite integralni analitik yechishga urinib ko'rdi."
+            : "- Backend `SymPy` orqali aniqmas integral uchun symbolic primitive qidirdi.",
         solution.exact.method_label
             ? `- Asosiy symbolic yo'nalish: **${solution.exact.method_label}**.`
             : "- Symbolic yechim strategiyasi ajratilmadi.",
         solution.exact.antiderivative_latex
             ? `$$F(x) = ${solution.exact.antiderivative_latex}$$`
-            : "- Antiderivative closed-form ko'rinishda ajratilmadi, lekin definite integral baholandi.",
+            : isDefinite
+              ? "- Antiderivative closed-form ko'rinishda ajratilmadi, lekin definite integral baholandi."
+              : "- Primitive closed-form ko'rinishda ajratilmadi.",
         solution.exact.definite_integral_latex && solution.exact.evaluated_latex
             ? `$$${solution.exact.definite_integral_latex} = ${solution.exact.evaluated_latex}$$`
-            : "- Yakuniy analitik ifoda qaytarilmadi.",
+            : solution.exact.evaluated_latex
+              ? `$$${solution.exact.evaluated_latex}$$`
+              : "- Yakuniy analitik ifoda qaytarilmadi.",
         solution.exact.numeric_approximation
             ? `- Sonli ko'rinish: **${solution.exact.numeric_approximation}**`
-            : "- Sonli approksimatsiya qaytarilmadi.",
+            : isDefinite
+              ? "- Sonli approksimatsiya qaytarilmadi."
+              : "- Aniqmas integral uchun sonli approksimatsiya talab qilinmadi.",
         solution.exact.contains_special_functions
             ? "- Yechim maxsus funksiyalar orqali yozilgan bo'lishi mumkin; bu ham analitik natija hisoblanadi."
             : "- Natija elementary yoki to'g'ridan-to'g'ri symbolic ko'rinishda qaytdi.",
@@ -109,8 +118,9 @@ export function buildExactMethodMarkdown(solution: IntegralAnalyticSolveResponse
     if (!solution || solution.status !== "exact") {
         return "- Avval analitik solve ishga tushiriladi, keyin symbolic natija shu yerga yoziladi.";
     }
+    const isDefinite = Boolean(solution.exact.definite_integral_latex);
     return [
-        "**Analitik oqim**",
+        isDefinite ? "**Definite analytic flow**" : "**Indefinite analytic flow**",
         "",
         "1. Integrand `SymPy` parser orqali xavfsiz symbolic ifodaga aylantiriladi.",
         solution.parser.notes.length
@@ -120,7 +130,7 @@ export function buildExactMethodMarkdown(solution: IntegralAnalyticSolveResponse
             ? `3. Strategy: **${solution.exact.method_label || "Symbolic Reduction"}**. ${solution.exact.method_summary}`
             : "3. SymPy primitive topish uchun umumiy symbolic reduction ishlatdi.",
         "4. Avval antiderivative topiladi.",
-        "5. So'ng definite integral chegaralarda baholanadi.",
+        isDefinite ? "5. So'ng definite integral chegaralarda baholanadi." : "5. Primitive `+ C` bilan yakuniy symbolic ko'rinishga keltiriladi.",
         "6. Agar closed-form mavjud bo'lsa, latex ko'rinishda qaytariladi.",
         solution.exact.antiderivative_latex
             ? `- Topilgan antiderivative: $$${solution.exact.antiderivative_latex}$$`
@@ -133,6 +143,13 @@ export function buildNumericalPromptMarkdown(
     solution: IntegralAnalyticSolveResponse | null,
 ) {
     if (mode === "single") {
+        if (solution && !solution.can_offer_numerical) {
+            return [
+                solution.message || "Bu solve lane numerik fallback bermaydi.",
+                "- Hozirgi integral turi symbolic yoki convergence tahlili bilan tugaydi.",
+                "- Numerik confirmation bu lane uchun ochiq emas.",
+            ].join("\n");
+        }
         return [
             solution?.message || "Analitik closed-form yechim topilmadi.",
             "- Shu ifoda uchun numerik estimate ishlatish mumkin.",

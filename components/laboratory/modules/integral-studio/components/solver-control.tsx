@@ -1,7 +1,7 @@
 import React from "react";
 import { Activity, ChevronDown, Orbit, SlidersHorizontal, Sparkles } from "lucide-react";
 import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
-import { IntegralCoordinateSystem, IntegralMode } from "../types";
+import { IntegralClassification, IntegralCoordinateSystem, IntegralMode } from "../types";
 
 interface SolverControlProps {
     mode: IntegralMode;
@@ -43,6 +43,7 @@ interface SolverControlProps {
     analyticStatusBody: string;
     analyticStatusBadge: string;
     analyticStatusToneClass: string;
+    classification: IntegralClassification;
     isResultStale?: boolean;
 }
 
@@ -92,6 +93,7 @@ export function SolverControl({
     analyticStatusBody,
     analyticStatusBadge,
     analyticStatusToneClass,
+    classification,
     isResultStale,
 }: SolverControlProps) {
     const coordinateOptions: Array<{ id: IntegralCoordinateSystem; label: string }> = [
@@ -131,6 +133,12 @@ export function SolverControl({
         mode === "single"
             ? `${segments || "--"} segments`
             : `${xResolution || "--"} x ${yResolution || "--"}${mode === "triple" ? ` x ${zResolution || "--"}` : ""}`;
+    const classificationToneClass =
+        classification.support === "supported"
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            : classification.support === "partial"
+              ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              : "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300";
 
     const insertSnippet = (snippet: string) => {
         if (snippet === "pi") {
@@ -262,7 +270,17 @@ export function SolverControl({
                             placeholder="Example: sin(x) + x^2 / 4"
                             className="mt-3 min-h-24 w-full resize-y rounded-2xl border-2 border-border/70 bg-background px-4 py-3 font-mono text-base leading-6 text-foreground outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
                         />
-                        <div className="mt-3 grid gap-3 xl:grid-cols-[1.05fr_0.95fr]">
+                        <div className="mt-3 grid gap-3 xl:grid-cols-[0.95fr_1.05fr]">
+                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Detected Type</div>
+                                    <div className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${classificationToneClass}`}>
+                                        {classification.support}
+                                    </div>
+                                </div>
+                                <div className="mt-2 text-sm font-black text-foreground">{classification.label}</div>
+                                <div className="mt-1 text-xs leading-5 text-muted-foreground line-clamp-3">{classification.summary}</div>
+                            </div>
                             <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Rendered Preview</div>
                                 <div className="mt-2 text-sm">
@@ -311,7 +329,9 @@ export function SolverControl({
                         </div>
                         {mode === "single" ? (
                             <div className="mt-3 rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                                Hozirgi research flow definite integral bilan ishlaydi. Aniqmas integral uchun lower va upper chegaralari kerak.
+                                {classification.kind === "indefinite_single"
+                                    ? "Chegaralar bo'sh bo'lsa system buni aniqmas integral deb ko'radi va symbolic primitive lane orqali yechishga urinadi."
+                                    : "Chegaralar kiritilgan bo'lsa system buni definite integral deb ko'radi va analytic yoki numerical audit lane tanlaydi."}
                             </div>
                         ) : null}
                     </div>

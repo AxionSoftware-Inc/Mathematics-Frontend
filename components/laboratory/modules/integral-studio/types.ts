@@ -46,6 +46,25 @@ export type IntegralMode = "single" | "double" | "triple";
 export type IntegralCoordinateSystem = "cartesian" | "polar" | "cylindrical" | "spherical";
 export type IntegralExperienceLevel = "beginner" | "advanced" | "research";
 export type IntegralWorkspaceTab = "solve" | "visualize" | "compare" | "report";
+export type IntegralDetectedType =
+    | "definite_single"
+    | "indefinite_single"
+    | "improper_infinite_bounds"
+    | "improper_endpoint_singularity"
+    | "definite_double"
+    | "definite_triple"
+    | "line_integral_candidate"
+    | "surface_integral_candidate"
+    | "contour_integral_candidate"
+    | "unknown";
+
+export type IntegralClassification = {
+    kind: IntegralDetectedType;
+    label: string;
+    support: "supported" | "partial" | "unsupported";
+    summary: string;
+    notes: string[];
+};
 
 export type SingleIntegralSummary = IntegralSummary;
 export type IntegralComputationSummary = SingleIntegralSummary | DoubleIntegralSummary | TripleIntegralSummary;
