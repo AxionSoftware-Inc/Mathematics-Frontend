@@ -50,7 +50,7 @@ export function VisualizeView({
     setSweepEnd,
 }: VisualizeViewProps) {
     return (
-        <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
                 <div className="relative">
                     {staleOverlay}
@@ -60,7 +60,7 @@ export function VisualizeView({
                 </div>
                 <div className="relative">
                     {staleOverlay}
-                    <div className={`grid gap-8 xl:grid-cols-2 ${stalePanelClassName}`}>
+                    <div className={`grid gap-8 lg:grid-cols-2 ${stalePanelClassName}`}>
                         <LaboratoryDataTable eyebrow="Metrics" title="Computation Audit" columns={["Metric", "Value", "Notes"]} rows={methodTableRows} emptyMessage="No metrics" />
                         <LaboratoryDataTable
                             eyebrow="Samples"
@@ -77,12 +77,12 @@ export function VisualizeView({
                     {staleOverlay}
                     <div className={`site-panel space-y-4 p-5 ${stalePanelClassName}`}>
                         <div className="site-eyebrow text-accent">Visual Audit</div>
-                        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
                             {visualizeOverviewCards.map((card) => (
                                 <LaboratoryMetricCard key={`visual-${card.eyebrow}-${card.value}`} {...card} />
                             ))}
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
                             {methodAuditCards.map((card) => (
                                 <LaboratoryMetricCard key={`visual-audit-${card.eyebrow}-${card.value}`} {...card} />
                             ))}
@@ -132,4 +132,3 @@ export function VisualizeView({
         </div>
     );
 }
-

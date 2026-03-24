@@ -41,7 +41,7 @@ export function SolveView({
     assumptionCards,
 }: SolveViewProps) {
     return (
-        <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
                 <SolverControl {...solverControlProps} />
                 <div className="space-y-4">
@@ -97,7 +97,7 @@ export function SolveView({
                 </div>
                 <div className="relative">
                     {staleOverlay}
-                    <div className={`grid gap-4 xl:grid-cols-1 ${stalePanelClassName}`}>
+                    <div className={`grid gap-4 ${stalePanelClassName}`}>
                         <div className="site-panel space-y-3 p-4">
                             <div className="site-eyebrow text-sky-600">Method Audit</div>
                             <div className="grid gap-3 sm:grid-cols-3">
@@ -121,4 +121,3 @@ export function SolveView({
         </div>
     );
 }
-

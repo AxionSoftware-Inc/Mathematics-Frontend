@@ -5,7 +5,7 @@ import { LaboratoryResultLevelsPanel } from "@/components/laboratory/laboratory-
 
 import { ScenarioPanel } from "../components/scenario-panel";
 import { TrustPanel } from "../components/trust-panel";
-import { StudioMetricCard, StudioSignal } from "../presentation-types";
+import { StudioMetricCard } from "../presentation-types";
 
 type CompareViewProps = {
     compareOverviewCards: StudioMetricCard[];
@@ -31,7 +31,7 @@ export function CompareView({
                     <LaboratoryMetricCard key={`compare-summary-${card.eyebrow}-${card.value}`} {...card} />
                 ))}
             </div>
-            <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="space-y-8">
                     <TrustPanel {...trustPanelProps} />
                     <LaboratoryResultLevelsPanel
@@ -43,7 +43,7 @@ export function CompareView({
                 <div className="space-y-8">
                     <div className="site-panel space-y-4 p-5">
                         <div className="site-eyebrow text-amber-600">Risk Register</div>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                             {riskRegisterCards.map((card) => (
                                 <LaboratoryMetricCard key={`risk-${card.eyebrow}-${card.value}`} {...card} />
                             ))}
@@ -51,7 +51,7 @@ export function CompareView({
                     </div>
                     <div className="site-panel space-y-4 p-5">
                         <div className="site-eyebrow text-sky-600">Method Audit Snapshot</div>
-                        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
                             {methodAuditCards.map((card) => (
                                 <LaboratoryMetricCard key={`compare-audit-${card.eyebrow}-${card.value}`} {...card} />
                             ))}
@@ -63,4 +63,3 @@ export function CompareView({
         </div>
     );
 }
-
