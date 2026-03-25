@@ -3,6 +3,7 @@
 import { IntegralStudioModule } from "@/components/laboratory/modules/integral-studio";
 import { DifferentialStudioModule } from "@/components/laboratory/modules/differential-studio";
 import { MatrixStudioModule } from "@/components/laboratory/modules/matrix-studio";
+import { ProbabilityStudioModule } from "@/components/laboratory/modules/probability-studio";
 import { defineLaboratoryModule, type LaboratoryModuleDefinition } from "@/components/laboratory/module-contract";
 
 export const laboratoryModuleRegistry: Record<string, LaboratoryModuleDefinition> = {
@@ -36,6 +37,17 @@ export const laboratoryModuleRegistry: Record<string, LaboratoryModuleDefinition
             "Eigen & decomposition roadmap",
             "Transformation visual lane",
             "Research report scaffold",
+        ],
+        analysisTabs: ["solve", "visualize", "compare", "report"],
+    }),
+    "probability-studio": defineLaboratoryModule({
+        component: ProbabilityStudioModule,
+        capabilities: [
+            "Descriptive statistics lane",
+            "Distribution audit flow",
+            "Inference and AB testing",
+            "Regression starter workspace",
+            "Monte Carlo sandbox",
         ],
         analysisTabs: ["solve", "visualize", "compare", "report"],
     }),

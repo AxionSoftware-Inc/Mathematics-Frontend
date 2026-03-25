@@ -70,6 +70,25 @@ export const laboratoryModuleCatalog: readonly LaboratoryModuleCatalogEntry[] = 
             defaultDimension: "2x2",
         },
     },
+    {
+        slug: "probability-studio",
+        title: "Probability Studio",
+        summary: "Ehtimollik, statistika va inferensiya uchun yangi laboratoriya.",
+        description:
+            "Descriptive statistics, distributions, inference, regression va Monte Carlo workflows uchun starter research workspace.",
+        category: "probability",
+        icon_name: "ChartColumn",
+        accent_color: "cyan",
+        computation_mode: "client",
+        estimated_minutes: 9,
+        sort_order: 4,
+        config: {
+            defaultMode: "descriptive",
+            defaultExpression: "12, 15, 13, 17, 19, 18, 14, 16, 20, 22",
+            defaultSecondary: "bins=6",
+            defaultDimension: "1d",
+        },
+    },
 ];
 
 export const supportedLaboratorySlugs = laboratoryModuleCatalog.map((entry) => entry.slug);
