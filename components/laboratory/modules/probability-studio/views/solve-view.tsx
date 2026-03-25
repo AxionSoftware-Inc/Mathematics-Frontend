@@ -14,6 +14,8 @@ export function SolveView({
         setDimension: (value: string) => void;
     };
 }) {
+    const metrics = buildMetricCards(state);
+
     return (
         <div className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
@@ -36,16 +38,9 @@ export function SolveView({
                 <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <MetricCard label="Sample Size" value={state.summary.sampleSize ?? "pending"} />
-                        <MetricCard label="Mean" value={state.summary.mean ?? "pending"} />
-                        <MetricCard label="Variance" value={state.summary.variance ?? "pending"} />
-                        <MetricCard label="Std Dev" value={state.summary.stdDev ?? "pending"} />
-                        <MetricCard label="Family" value={state.summary.distributionFamily ?? "pending"} />
-                        <MetricCard label="CI" value={state.summary.confidenceInterval ?? "pending"} />
-                        <MetricCard label="p-value" value={state.summary.pValue ?? "pending"} />
-                        <MetricCard label="Regression" value={state.summary.regressionFit ?? "pending"} />
-                        <MetricCard label="Monte Carlo" value={state.summary.monteCarloEstimate ?? "pending"} />
-                        <MetricCard label="Risk" value={state.summary.riskSignal ?? "pending"} />
+                        {metrics.map((metric) => (
+                            <MetricCard key={metric.label} label={metric.label} value={metric.value} />
+                        ))}
                     </div>
                     {state.analyticSolution?.exact.result_latex || state.result.finalFormula ? (
                         <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
@@ -97,4 +92,71 @@ function MetricCard({ label, value }: { label: string; value: string }) {
             <div className="mt-2 text-lg font-black tracking-tight text-foreground">{value}</div>
         </div>
     );
+}
+
+function buildMetricCards(state: ProbabilityStudioState) {
+    const common = [{ label: "Sample Size", value: state.summary.sampleSize ?? "pending" }];
+    switch (state.mode) {
+        case "descriptive":
+            return [
+                ...common,
+                { label: "Mean", value: state.summary.mean ?? "pending" },
+                { label: "Variance", value: state.summary.variance ?? "pending" },
+                { label: "Std Dev", value: state.summary.stdDev ?? "pending" },
+                { label: "Risk", value: state.summary.riskSignal ?? "pending" },
+            ];
+        case "distributions":
+            return [
+                ...common,
+                { label: "Family", value: state.summary.distributionFamily ?? "pending" },
+                { label: "Mean", value: state.summary.mean ?? "pending" },
+                { label: "Std Dev", value: state.summary.stdDev ?? "pending" },
+                { label: "CDF", value: state.summary.confidenceInterval ?? "pending" },
+            ];
+        case "inference":
+            return [
+                ...common,
+                { label: "p-value", value: state.summary.pValue ?? "pending" },
+                { label: "CI", value: state.summary.confidenceInterval ?? "pending" },
+                { label: "Risk", value: state.summary.riskSignal ?? "pending" },
+            ];
+        case "regression":
+            return [
+                ...common,
+                { label: "Fit", value: state.summary.regressionFit ?? "pending" },
+                { label: "Quality", value: state.summary.riskSignal ?? "pending" },
+                { label: "Forecast", value: state.summary.forecast ?? "pending" },
+            ];
+        case "bayesian":
+            return [
+                ...common,
+                { label: "Posterior Mean", value: state.summary.posteriorMean ?? "pending" },
+                { label: "Credible Interval", value: state.summary.credibleInterval ?? "pending" },
+                { label: "Family", value: state.summary.distributionFamily ?? "pending" },
+            ];
+        case "multivariate":
+            return [
+                ...common,
+                { label: "Means", value: state.summary.mean ?? "pending" },
+                { label: "Covariance", value: state.summary.covarianceSignal ?? "pending" },
+                { label: "Correlation", value: state.summary.correlationSignal ?? "pending" },
+            ];
+        case "time-series":
+            return [
+                ...common,
+                { label: "Drift", value: state.summary.drift ?? "pending" },
+                { label: "Forecast", value: state.summary.forecast ?? "pending" },
+                { label: "Stationarity", value: state.summary.stationarity ?? "pending" },
+                { label: "Lag Signal", value: state.summary.riskSignal ?? "pending" },
+            ];
+        case "monte-carlo":
+            return [
+                ...common,
+                { label: "Estimate", value: state.summary.monteCarloEstimate ?? "pending" },
+                { label: "Error", value: state.summary.variance ?? "pending" },
+                { label: "Risk", value: state.summary.riskSignal ?? "pending" },
+            ];
+        default:
+            return common;
+    }
 }

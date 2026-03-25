@@ -25,6 +25,24 @@ const modeCopy: Record<ProbabilityMode, { label: string; helper: string; dataset
         datasetPlaceholder: "(1,2.1), (2,2.9), (3,4.2), (4,5.1)",
         paramPlaceholder: "model=linear",
     },
+    bayesian: {
+        label: "Bayesian Inference",
+        helper: "Prior va observation kiriting, posterior mean va credible interval shu lane'da quriladi.",
+        datasetPlaceholder: "successes=58; trials=100",
+        paramPlaceholder: "prior_alpha=2; prior_beta=3",
+    },
+    multivariate: {
+        label: "Multivariate Statistics",
+        helper: "Har qator bir observation, ustunlar esa variables. Covariance va correlation shu lane'da chiqadi.",
+        datasetPlaceholder: "4.2, 1.1, 8.2; 4.8, 1.4, 8.9; 5.1, 1.7, 9.4",
+        paramPlaceholder: "labels=signal, lag, output",
+    },
+    "time-series": {
+        label: "Time Series",
+        helper: "Ketma-ket kuzatuvlar, moving average, drift va qisqa forecast signalini quradi.",
+        datasetPlaceholder: "112, 118, 121, 126, 133, 129, 138, 144",
+        paramPlaceholder: "window=3; horizon=2",
+    },
     "monte-carlo": {
         label: "Monte Carlo",
         helper: "Simulation estimate, sampling uncertainty va convergence intuition uchun scenario kiriting.",
@@ -80,6 +98,9 @@ export function SolverControl({
                         <option value="distributions">Distributions</option>
                         <option value="inference">Inference</option>
                         <option value="regression">Regression</option>
+                        <option value="bayesian">Bayesian</option>
+                        <option value="multivariate">Multivariate</option>
+                        <option value="time-series">Time Series</option>
                         <option value="monte-carlo">Monte Carlo</option>
                     </select>
                 </label>

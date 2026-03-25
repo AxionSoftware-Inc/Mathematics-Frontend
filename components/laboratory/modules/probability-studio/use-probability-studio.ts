@@ -96,7 +96,16 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             return ["Confidence interval band", `p-value ${summary.pValue ?? "pending"}`, summary.riskSignal ?? "significance pending"];
         }
         if (mode === "regression") {
-            return ["Scatter + fit line", summary.regressionFit ?? "fit pending", summary.riskSignal ?? "residual pending"];
+            return ["Scatter + fit line", summary.regressionFit ?? "fit pending", summary.forecast ?? summary.riskSignal ?? "residual pending"];
+        }
+        if (mode === "bayesian") {
+            return ["Posterior density", `Posterior mean ${summary.posteriorMean ?? "pending"}`, summary.credibleInterval ?? "credible interval pending"];
+        }
+        if (mode === "multivariate") {
+            return ["Correlation heatmap", summary.correlationSignal ?? "correlation pending", summary.covarianceSignal ?? "covariance pending"];
+        }
+        if (mode === "time-series") {
+            return ["Series + moving average", summary.forecast ?? "forecast pending", summary.stationarity ?? "stationarity pending"];
         }
         return ["Monte Carlo path", summary.monteCarloEstimate ?? "estimate pending", summary.variance ?? "variance pending"];
     }, [mode, summary]);

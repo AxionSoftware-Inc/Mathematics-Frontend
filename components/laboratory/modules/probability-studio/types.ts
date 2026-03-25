@@ -1,6 +1,14 @@
 export type ProbabilityWorkspaceTab = "solve" | "visualize" | "compare" | "report";
 export type ProbabilityExperienceLevel = "beginner" | "advanced" | "research";
-export type ProbabilityMode = "descriptive" | "distributions" | "inference" | "regression" | "monte-carlo";
+export type ProbabilityMode =
+    | "descriptive"
+    | "distributions"
+    | "inference"
+    | "regression"
+    | "bayesian"
+    | "multivariate"
+    | "time-series"
+    | "monte-carlo";
 export type ProbabilitySolvePhase = "idle" | "auto-ready" | "analysis-ready";
 
 export type ProbabilityPreset = {
@@ -24,6 +32,13 @@ export type ProbabilitySummary = {
     monteCarloEstimate?: string | null;
     riskSignal?: string | null;
     shape?: string | null;
+    posteriorMean?: string | null;
+    credibleInterval?: string | null;
+    covarianceSignal?: string | null;
+    correlationSignal?: string | null;
+    forecast?: string | null;
+    drift?: string | null;
+    stationarity?: string | null;
 };
 
 export type ProbabilityStep = {
@@ -42,6 +57,12 @@ export type ProbabilityBin = {
     count: number;
 };
 
+export type ProbabilityMatrix = {
+    rowLabels: string[];
+    columnLabels: string[];
+    values: number[][];
+};
+
 export type ProbabilityAnalysisResult = {
     summary: ProbabilitySummary;
     steps: ProbabilityStep[];
@@ -49,10 +70,14 @@ export type ProbabilityAnalysisResult = {
     auxiliaryFormula?: string | null;
     histogram?: ProbabilityBin[];
     lineSeries?: ProbabilitySeriesPoint[];
+    secondaryLineSeries?: ProbabilitySeriesPoint[];
     scatterSeries?: ProbabilitySeriesPoint[];
     fitSeries?: ProbabilitySeriesPoint[];
     monteCarloTrail?: ProbabilitySeriesPoint[];
     monteCarloCloud?: ProbabilitySeriesPoint[];
+    matrix?: ProbabilityMatrix;
+    densitySeries?: ProbabilitySeriesPoint[];
+    forecastSeries?: ProbabilitySeriesPoint[];
 };
 
 export type ProbabilityAnalyticSolveResponse = {
@@ -74,6 +99,7 @@ export type ProbabilityAnalyticSolveResponse = {
         sample_size?: number | null;
         family?: string | null;
         risk?: string | null;
+        method?: string | null;
     };
     summary: ProbabilitySummary;
     exact: {

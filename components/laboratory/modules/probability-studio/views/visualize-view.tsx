@@ -14,8 +14,10 @@ export function VisualizeView({ state }: { state: ProbabilityStudioState }) {
                         </div>
                     ))}
                 </div>
-                {state.result.auxiliaryFormula ? (
-                    <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-4 font-mono text-sm text-foreground">{state.result.auxiliaryFormula}</div>
+                {state.analyticSolution?.exact.auxiliary_latex || state.result.auxiliaryFormula ? (
+                    <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-4 font-mono text-sm text-foreground">
+                        {state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula}
+                    </div>
                 ) : null}
             </div>
         </div>
