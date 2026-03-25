@@ -30,6 +30,8 @@ export function VisualizerDeck({
     const trail = result.monteCarloTrail ?? [];
     const cloud = result.monteCarloCloud ?? [];
     const secondary = result.secondaryLineSeries ?? result.forecastSeries ?? [];
+    const tertiary = result.tertiaryLineSeries ?? [];
+    const quaternary = result.quaternaryLineSeries ?? [];
     const max = Math.max(0, ...histogram.map((bin) => bin.count));
 
     const primaryVisual = (() => {
@@ -52,7 +54,7 @@ export function VisualizerDeck({
             return <Heatmap matrix={result.matrix} />;
         }
         if (mode === "time-series" && lineSeries.length) {
-            return <LinePlot points={lineSeries} secondary={secondary} />;
+            return <LinePlot points={lineSeries} secondary={secondary} tertiary={tertiary} quaternary={quaternary} />;
         }
         if (trail.length) {
             return <LinePlot points={trail} reference={{ label: "pi", value: Math.PI }} />;
@@ -106,6 +108,15 @@ export function VisualizerDeck({
                     </div>
                 </div>
             ) : null}
+
+            {mode === "time-series" && result.densitySeries?.length ? (
+                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">ACF / PACF</div>
+                    <div className="mt-4">
+                        <LinePlot points={result.densitySeries} secondary={result.monteCarloTrail ?? []} />
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -113,17 +124,21 @@ export function VisualizerDeck({
 function LinePlot({
     points,
     secondary,
+    tertiary,
+    quaternary,
     highlight,
     reference,
 }: {
     points: ProbabilitySeriesPoint[];
     secondary?: ProbabilitySeriesPoint[];
+    tertiary?: ProbabilitySeriesPoint[];
+    quaternary?: ProbabilitySeriesPoint[];
     highlight?: ProbabilitySeriesPoint;
     reference?: { label: string; value: number };
 }) {
     const width = 420;
     const height = 260;
-    const allPoints = [...points, ...(secondary ?? []), ...(highlight ? [highlight] : [])];
+    const allPoints = [...points, ...(secondary ?? []), ...(tertiary ?? []), ...(quaternary ?? []), ...(highlight ? [highlight] : [])];
     const xs = allPoints.map((point) => point.x);
     const ys = allPoints.map((point) => point.y);
     const minX = Math.min(...xs);
@@ -149,6 +164,30 @@ function LinePlot({
                     strokeWidth="2"
                     className="text-muted-foreground"
                     points={secondary.map((point) => {
+                        const projected = project(point);
+                        return `${projected.x},${projected.y}`;
+                    }).join(" ")}
+                />
+            ) : null}
+            {tertiary?.length ? (
+                <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="text-emerald-600 dark:text-emerald-400"
+                    points={tertiary.map((point) => {
+                        const projected = project(point);
+                        return `${projected.x},${projected.y}`;
+                    }).join(" ")}
+                />
+            ) : null}
+            {quaternary?.length ? (
+                <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="text-violet-600 dark:text-violet-400"
+                    points={quaternary.map((point) => {
                         const projected = project(point);
                         return `${projected.x},${projected.y}`;
                     }).join(" ")}

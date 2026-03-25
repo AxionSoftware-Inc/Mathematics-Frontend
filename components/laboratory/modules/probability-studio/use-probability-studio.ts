@@ -83,31 +83,34 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
         };
     }, [datasetExpression, dimension, mode, parameterExpression, signature]);
 
-    const summary = analyticSolution?.summary ?? result.summary;
+    const summary = React.useMemo(
+        () => ({ ...result.summary, ...(analyticSolution?.summary ?? {}) }),
+        [analyticSolution?.summary, result.summary],
+    );
 
     const visualNotes = React.useMemo(() => {
         if (mode === "descriptive") {
-            return ["Histogram / sample spread", `Mean ${summary.mean ?? "pending"}`, `Std dev ${summary.stdDev ?? "pending"}`];
+            return ["Histogram / sample spread", `Mean ${summary.mean ?? "pending"}`, `Skew ${summary.skewness ?? "pending"}`];
         }
         if (mode === "distributions") {
-            return ["Density curve", `Family ${summary.distributionFamily ?? "pending"}`, summary.confidenceInterval ?? "Tail pending"];
+            return ["Density curve", `Family ${summary.distributionFamily ?? "pending"}`, summary.confidenceInterval ?? summary.testStatistic ?? "Tail pending"];
         }
         if (mode === "inference") {
-            return ["Confidence interval band", `p-value ${summary.pValue ?? "pending"}`, summary.riskSignal ?? "significance pending"];
+            return ["Confidence interval band", `p-value ${summary.pValue ?? "pending"}`, summary.power ?? summary.riskSignal ?? "significance pending"];
         }
         if (mode === "regression") {
-            return ["Scatter + fit line", summary.regressionFit ?? "fit pending", summary.forecast ?? summary.riskSignal ?? "residual pending"];
+            return ["Scatter + fit line", summary.regressionFit ?? "fit pending", summary.residualSignal ?? summary.outlierSignal ?? summary.forecast ?? "residual pending"];
         }
         if (mode === "bayesian") {
-            return ["Posterior density", `Posterior mean ${summary.posteriorMean ?? "pending"}`, summary.credibleInterval ?? "credible interval pending"];
+            return ["Posterior density", `Posterior mean ${summary.posteriorMean ?? "pending"}`, summary.posteriorPredictive ?? summary.credibleInterval ?? "credible interval pending"];
         }
         if (mode === "multivariate") {
-            return ["Correlation heatmap", summary.correlationSignal ?? "correlation pending", summary.covarianceSignal ?? "covariance pending"];
+            return ["Correlation heatmap", summary.pcaSignal ?? summary.correlationSignal ?? "correlation pending", summary.clusterSignal ?? summary.mahalanobisSignal ?? "structure pending"];
         }
         if (mode === "time-series") {
-            return ["Series + moving average", summary.forecast ?? "forecast pending", summary.stationarity ?? "stationarity pending"];
+            return ["Series + moving average", summary.forecast ?? "forecast pending", summary.acfSignal ?? summary.seasonality ?? summary.stationarity ?? "stationarity pending"];
         }
-        return ["Monte Carlo path", summary.monteCarloEstimate ?? "estimate pending", summary.variance ?? "variance pending"];
+        return ["Monte Carlo path", summary.monteCarloEstimate ?? "estimate pending", summary.bootstrapSignal ?? summary.varianceReduction ?? summary.samplerSignal ?? "variance pending"];
     }, [mode, summary]);
 
     const compareNotes = React.useMemo(
@@ -116,6 +119,7 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             `Shape: ${summary.shape ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
             `Method: ${analyticSolution?.exact.method_label ?? "client-side fallback"}`,
+            `Diagnostic: ${summary.testStatistic ?? summary.power ?? summary.residualSignal ?? summary.pcaSignal ?? summary.acfSignal ?? summary.bootstrapSignal ?? "pending"}`,
         ],
         [analyticSolution?.exact.method_label, mode, summary],
     );
@@ -127,6 +131,7 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             `Sample size: ${summary.sampleSize ?? "pending"}`,
             `Risk signal: ${summary.riskSignal ?? "pending"}`,
             `Final: ${analyticSolution?.exact.result_latex ?? result.finalFormula ?? "pending"}`,
+            `Auxiliary diagnostic: ${summary.power ?? summary.residualSignal ?? summary.posteriorPredictive ?? summary.pcaSignal ?? summary.acfSignal ?? summary.bootstrapSignal ?? "pending"}`,
         ],
         [analyticSolution?.exact.result_latex, dimension, mode, result.finalFormula, summary],
     );

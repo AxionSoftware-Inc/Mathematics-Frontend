@@ -39,6 +39,25 @@ export type ProbabilitySummary = {
     forecast?: string | null;
     drift?: string | null;
     stationarity?: string | null;
+    skewness?: string | null;
+    kurtosis?: string | null;
+    power?: string | null;
+    testStatistic?: string | null;
+    residualSignal?: string | null;
+    outlierSignal?: string | null;
+    leverageSignal?: string | null;
+    posteriorPredictive?: string | null;
+    bayesFactor?: string | null;
+    mcmcSignal?: string | null;
+    pcaSignal?: string | null;
+    clusterSignal?: string | null;
+    mahalanobisSignal?: string | null;
+    seasonality?: string | null;
+    acfSignal?: string | null;
+    pacfSignal?: string | null;
+    bootstrapSignal?: string | null;
+    varianceReduction?: string | null;
+    samplerSignal?: string | null;
 };
 
 export type ProbabilityStep = {
@@ -78,6 +97,8 @@ export type ProbabilityAnalysisResult = {
     matrix?: ProbabilityMatrix;
     densitySeries?: ProbabilitySeriesPoint[];
     forecastSeries?: ProbabilitySeriesPoint[];
+    tertiaryLineSeries?: ProbabilitySeriesPoint[];
+    quaternaryLineSeries?: ProbabilitySeriesPoint[];
 };
 
 export type ProbabilityAnalyticSolveResponse = {
