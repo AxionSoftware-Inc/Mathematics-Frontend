@@ -55,6 +55,36 @@ export type ProbabilityAnalysisResult = {
     monteCarloCloud?: ProbabilitySeriesPoint[];
 };
 
+export type ProbabilityAnalyticSolveResponse = {
+    status: string;
+    message: string;
+    input: {
+        mode: ProbabilityMode;
+        dataset: string;
+        parameters: string;
+        dimension: string;
+    };
+    parser: {
+        dataset_raw: string;
+        parameters_raw: string;
+        dimension: string;
+    };
+    diagnostics: {
+        lane: ProbabilityMode;
+        sample_size?: number | null;
+        family?: string | null;
+        risk?: string | null;
+    };
+    summary: ProbabilitySummary;
+    exact: {
+        method_label: string;
+        result_latex?: string | null;
+        auxiliary_latex?: string | null;
+        numeric_approximation?: string | null;
+        steps: ProbabilityStep[];
+    };
+};
+
 export type ProbabilityStudioState = {
     experienceLevel: ProbabilityExperienceLevel;
     activeTab: ProbabilityWorkspaceTab;
@@ -66,6 +96,7 @@ export type ProbabilityStudioState = {
     isResultStale: boolean;
     activePresetLabel?: string;
     result: ProbabilityAnalysisResult;
+    analyticSolution: ProbabilityAnalyticSolveResponse | null;
     summary: ProbabilitySummary;
     solveErrorMessage: string | null;
     visualNotes: string[];

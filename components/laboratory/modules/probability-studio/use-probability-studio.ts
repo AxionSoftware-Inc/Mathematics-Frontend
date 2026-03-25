@@ -5,8 +5,10 @@ import * as React from "react";
 import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { PROBABILITY_PRESETS } from "./constants";
 import { ProbabilityMathService } from "./services/math-service";
+import { ProbabilitySolveService } from "./services/solve-service";
 import type {
     ProbabilityAnalysisResult,
+    ProbabilityAnalyticSolveResponse,
     ProbabilityExperienceLevel,
     ProbabilityMode,
     ProbabilityPreset,
@@ -26,18 +28,62 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
     const [dimension, setDimension] = React.useState<string>((config.defaultDimension as string | undefined) ?? defaultPreset.dimension);
     const [activePresetLabel, setActivePresetLabel] = React.useState<string | undefined>(defaultPreset.label);
     const [solvePhase, setSolvePhase] = React.useState<ProbabilityStudioState["solvePhase"]>("analysis-ready");
-    const [solveErrorMessage] = React.useState<string | null>(null);
+    const [analyticSolution, setAnalyticSolution] = React.useState<ProbabilityAnalyticSolveResponse | null>(null);
+    const [solveErrorMessage, setSolveErrorMessage] = React.useState<string | null>(null);
+    const [solveSignature, setSolveSignature] = React.useState<string>("");
 
     const signature = React.useMemo(
         () => JSON.stringify({ mode, datasetExpression, parameterExpression, dimension }),
         [datasetExpression, dimension, mode, parameterExpression],
     );
-    const solvedSignature = signature;
+
     const result = React.useMemo<ProbabilityAnalysisResult>(
         () => ProbabilityMathService.analyze(mode, datasetExpression, parameterExpression),
         [datasetExpression, mode, parameterExpression],
     );
-    const summary = result.summary;
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        if (!datasetExpression.trim()) {
+            setAnalyticSolution(null);
+            setSolveErrorMessage(null);
+            setSolvePhase("idle");
+            return;
+        }
+
+        setSolvePhase("auto-ready");
+        setSolveErrorMessage(null);
+
+        ProbabilitySolveService.requestSolve({
+            mode,
+            dataset: datasetExpression,
+            parameters: parameterExpression,
+            dimension,
+        })
+            .then((response) => {
+                if (cancelled) {
+                    return;
+                }
+                setAnalyticSolution(response);
+                setSolveSignature(signature);
+                setSolvePhase("analysis-ready");
+            })
+            .catch((error) => {
+                if (cancelled) {
+                    return;
+                }
+                setAnalyticSolution(null);
+                setSolveErrorMessage(error instanceof Error ? error.message : "Probability solve xatosi.");
+                setSolvePhase("analysis-ready");
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [datasetExpression, dimension, mode, parameterExpression, signature]);
+
+    const summary = analyticSolution?.summary ?? result.summary;
 
     const visualNotes = React.useMemo(() => {
         if (mode === "descriptive") {
@@ -60,9 +106,9 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             `Primary family: ${mode}`,
             `Shape: ${summary.shape ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
-            result.auxiliaryFormula ? `Aux: ${result.auxiliaryFormula}` : "Auxiliary pending",
+            `Method: ${analyticSolution?.exact.method_label ?? "client-side fallback"}`,
         ],
-        [mode, result.auxiliaryFormula, summary],
+        [analyticSolution?.exact.method_label, mode, summary],
     );
 
     const reportNotes = React.useMemo(
@@ -71,9 +117,9 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             `Dimension: ${dimension}`,
             `Sample size: ${summary.sampleSize ?? "pending"}`,
             `Risk signal: ${summary.riskSignal ?? "pending"}`,
-            `Final: ${result.finalFormula ?? "pending"}`,
+            `Final: ${analyticSolution?.exact.result_latex ?? result.finalFormula ?? "pending"}`,
         ],
-        [dimension, mode, result.finalFormula, summary],
+        [analyticSolution?.exact.result_latex, dimension, mode, result.finalFormula, summary],
     );
 
     const applyPreset = React.useCallback((preset: ProbabilityPreset) => {
@@ -94,9 +140,10 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             parameterExpression,
             dimension,
             solvePhase,
-            isResultStale: solvedSignature !== signature,
+            isResultStale: Boolean(analyticSolution) && solveSignature !== signature,
             activePresetLabel,
             result,
+            analyticSolution,
             summary,
             solveErrorMessage,
             visualNotes,

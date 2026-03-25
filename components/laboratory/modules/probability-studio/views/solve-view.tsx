@@ -47,25 +47,33 @@ export function SolveView({
                         <MetricCard label="Monte Carlo" value={state.summary.monteCarloEstimate ?? "pending"} />
                         <MetricCard label="Risk" value={state.summary.riskSignal ?? "pending"} />
                     </div>
-                    {state.result.finalFormula ? (
+                    {state.analyticSolution?.exact.result_latex || state.result.finalFormula ? (
                         <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Formula</div>
-                            <div className="mt-2 font-mono text-sm text-foreground">{state.result.finalFormula}</div>
-                            {state.result.auxiliaryFormula ? <div className="mt-2 font-mono text-xs text-muted-foreground">{state.result.auxiliaryFormula}</div> : null}
+                            <div className="mt-2 font-mono text-sm text-foreground">{state.analyticSolution?.exact.result_latex ?? state.result.finalFormula}</div>
+                            {state.analyticSolution?.exact.auxiliary_latex || state.result.auxiliaryFormula ? (
+                                <div className="mt-2 font-mono text-xs text-muted-foreground">{state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula}</div>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {state.solveErrorMessage ? (
+                        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                            {state.solveErrorMessage}
                         </div>
                     ) : null}
                 </div>
                 <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Method Trace</div>
                     <div className="mt-4 space-y-3">
-                        {state.result.steps.map((step) => (
+                        {(state.analyticSolution?.exact.steps.length ? state.analyticSolution.exact.steps : state.result.steps).map((step) => (
                             <div key={step.title} className="rounded-2xl border border-border/60 bg-muted/10 p-4">
                                 <div className="text-sm font-black text-foreground">{step.title}</div>
                                 <div className="mt-1 text-sm leading-6 text-muted-foreground">{step.summary}</div>
-                                {step.formula ? <div className="mt-3 overflow-x-auto font-mono text-xs text-foreground">{step.formula}</div> : null}
+                                {"formula" in step && typeof step.formula === "string" ? <div className="mt-3 overflow-x-auto font-mono text-xs text-foreground">{step.formula}</div> : null}
+                                {"latex" in step && typeof step.latex === "string" ? <div className="mt-3 overflow-x-auto font-mono text-xs text-foreground">{step.latex}</div> : null}
                             </div>
                         ))}
-                        {!state.result.steps.length ? (
+                        {!state.result.steps.length && !state.analyticSolution?.exact.steps.length ? (
                             <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
                                 Solve trace pending.
                             </div>
