@@ -4,6 +4,7 @@ import { IntegralStudioModule } from "@/components/laboratory/modules/integral-s
 import { DifferentialStudioModule } from "@/components/laboratory/modules/differential-studio";
 import { MatrixStudioModule } from "@/components/laboratory/modules/matrix-studio";
 import { ProbabilityStudioModule } from "@/components/laboratory/modules/probability-studio";
+import { SeriesLimitStudioModule } from "@/components/laboratory/modules/series-limit-studio";
 import { defineLaboratoryModule, type LaboratoryModuleDefinition } from "@/components/laboratory/module-contract";
 
 export const laboratoryModuleRegistry: Record<string, LaboratoryModuleDefinition> = {
@@ -48,6 +49,17 @@ export const laboratoryModuleRegistry: Record<string, LaboratoryModuleDefinition
             "Inference and AB testing",
             "Regression starter workspace",
             "Monte Carlo sandbox",
+        ],
+        analysisTabs: ["solve", "visualize", "compare", "report"],
+    }),
+    "series-limit-studio": defineLaboratoryModule({
+        component: SeriesLimitStudioModule,
+        capabilities: [
+            "Limit and sequence workspace",
+            "Infinite series starter lane",
+            "Convergence test roadmap",
+            "Power series audit shell",
+            "Research report scaffold",
         ],
         analysisTabs: ["solve", "visualize", "compare", "report"],
     }),

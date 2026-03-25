@@ -1,0 +1,270 @@
+import type {
+    SeriesLimitAnalysisResult,
+    SeriesLimitMode,
+    SeriesLimitSeriesPoint,
+    SeriesLimitStep,
+    SeriesLimitSummary,
+} from "../types";
+
+function normalizeExpression(expression: string) {
+    return expression
+        .replace(/\^/g, "**")
+        .replace(/\bpi\b/g, "Math.PI")
+        .replace(/\binf\b/g, "Infinity");
+}
+
+function buildEvaluator(expression: string, variable: string) {
+    const normalized = normalizeExpression(expression)
+        .replace(/\bsin\(/g, "Math.sin(")
+        .replace(/\bcos\(/g, "Math.cos(")
+        .replace(/\btan\(/g, "Math.tan(")
+        .replace(/\bexp\(/g, "Math.exp(")
+        .replace(/\blog\(/g, "Math.log(")
+        .replace(/\bsqrt\(/g, "Math.sqrt(")
+        .replace(/\babs\(/g, "Math.abs(");
+    try {
+        // eslint-disable-next-line no-new-func
+        return new Function(variable, `return ${normalized};`) as (value: number) => number;
+    } catch {
+        return null;
+    }
+}
+
+function parseAuxiliary(auxiliary: string, fallbackVariable: string) {
+    const match = auxiliary.match(/([A-Za-z]\w*)\s*->\s*(.+)/);
+    if (!match) {
+        return { variable: fallbackVariable, target: 0, rawTarget: auxiliary.trim() || "0" };
+    }
+    const variable = match[1];
+    const rawTarget = match[2].trim();
+    const target =
+        rawTarget === "inf" || rawTarget === "oo"
+            ? Number.POSITIVE_INFINITY
+            : rawTarget === "-inf" || rawTarget === "-oo"
+              ? Number.NEGATIVE_INFINITY
+              : Number(rawTarget);
+    return { variable, target: Number.isFinite(target) ? target : 10, rawTarget };
+}
+
+function parseSumExpression(expression: string) {
+    const match = expression.match(/^sum\((.+),\s*([A-Za-z]\w*)\s*=\s*(.+)\.\.(.+)\)$/i);
+    if (!match) {
+        return null;
+    }
+    return {
+        term: match[1].trim(),
+        index: match[2].trim(),
+        start: match[3].trim(),
+        end: match[4].trim(),
+    };
+}
+
+function safePoint(pushTo: SeriesLimitSeriesPoint[], x: number, y: number) {
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+        pushTo.push({ x, y });
+    }
+}
+
+function buildLimitAnalysis(expression: string, auxiliary: string): SeriesLimitAnalysisResult {
+    const { variable, target, rawTarget } = parseAuxiliary(auxiliary || "x -> 0", "x");
+    const evaluator = buildEvaluator(expression, variable);
+    const lineSeries: SeriesLimitSeriesPoint[] = [];
+    if (evaluator && Number.isFinite(target)) {
+        const offsets = [-1, -0.5, -0.25, -0.12, -0.06, -0.03, 0.03, 0.06, 0.12, 0.25, 0.5, 1];
+        offsets.forEach((offset) => {
+            const x = target + offset;
+            try {
+                safePoint(lineSeries, x, evaluator(x));
+            } catch {
+                return;
+            }
+        });
+    }
+    const left = lineSeries.filter((point) => point.x < target).at(-1)?.y;
+    const right = lineSeries.find((point) => point.x > target)?.y;
+    const candidate =
+        left !== undefined && right !== undefined && Math.abs(left - right) < 0.25
+            ? ((left + right) / 2).toFixed(6)
+            : "local limit pending";
+    const steps: SeriesLimitStep[] = [
+        {
+            title: "Target parse",
+            summary: `Expression ${variable} -> ${rawTarget} atrofida audit qilinadi.`,
+            latex: `${variable} \\to ${rawTarget}`,
+        },
+        {
+            title: "Two-sided sample",
+            summary: lineSeries.length ? "Chap va o'ng tomondan yaqinlashuvchi sample path qurildi." : "Numeric sample qurilmadi.",
+        },
+    ];
+    return {
+        summary: {
+            detectedFamily: "local limit",
+            candidateResult: candidate,
+            convergenceSignal: "two-sided approach",
+            dominantTerm: expression.includes("sin") ? "trigonometric cancellation" : "algebraic balance",
+            riskSignal: lineSeries.length ? "sampling only; symbolic solve recommended" : "preview unavailable",
+            shape: "single-variable limit",
+            asymptoticSignal: `target ${rawTarget}`,
+        },
+        steps,
+        finalFormula: candidate,
+        auxiliaryFormula: `${variable} -> ${rawTarget}`,
+        lineSeries,
+    };
+}
+
+function buildSequenceAnalysis(expression: string, auxiliary: string): SeriesLimitAnalysisResult {
+    const { variable } = parseAuxiliary(auxiliary || "n -> inf", "n");
+    const evaluator = buildEvaluator(expression, variable);
+    const lineSeries: SeriesLimitSeriesPoint[] = [];
+    for (let n = 1; n <= 14; n += 1) {
+        if (!evaluator) {
+            break;
+        }
+        try {
+            safePoint(lineSeries, n, evaluator(n));
+        } catch {
+            break;
+        }
+    }
+    const deltas = lineSeries.slice(1).map((point, index) => point.y - (lineSeries[index]?.y ?? 0));
+    const monotone =
+        deltas.length && deltas.every((delta) => delta >= -1e-6)
+            ? "increasing"
+            : deltas.length && deltas.every((delta) => delta <= 1e-6)
+              ? "decreasing"
+              : "mixed";
+    const tail = lineSeries.slice(-3);
+    const candidate = tail.length ? (tail.reduce((sum, point) => sum + point.y, 0) / tail.length).toFixed(6) : "pending";
+    return {
+        summary: {
+            detectedFamily: "sequence",
+            candidateResult: candidate,
+            convergenceSignal: "tail stabilization preview",
+            dominantTerm: "n-asymptotic growth",
+            riskSignal: "numeric preview only",
+            shape: "discrete sequence",
+            monotonicity: monotone,
+            boundedness: lineSeries.length ? `range ${Math.min(...lineSeries.map((point) => point.y)).toFixed(3)} to ${Math.max(...lineSeries.map((point) => point.y)).toFixed(3)}` : "pending",
+            asymptoticSignal: "n -> inf",
+        },
+        steps: [
+            { title: "Sequence samples", summary: "Birinchi 14 had numeric audit uchun olindi." },
+            { title: "Tail trend", summary: `Monotonicity signal: ${monotone}.` },
+        ],
+        finalFormula: candidate,
+        auxiliaryFormula: "n -> inf",
+        lineSeries,
+    };
+}
+
+function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series", expression: string, auxiliary: string): SeriesLimitAnalysisResult {
+    const parsed = parseSumExpression(expression);
+    const termExpression = parsed?.term ?? expression;
+    const variable = parsed?.index ?? "n";
+    const start = Number(parsed?.start ?? "1") || 1;
+    const evaluator = buildEvaluator(termExpression, variable);
+    const termSeries: SeriesLimitSeriesPoint[] = [];
+    const partialSumSeries: SeriesLimitSeriesPoint[] = [];
+    let partial = 0;
+    for (let index = 0; index < 14; index += 1) {
+        const n = start + index;
+        if (!evaluator) {
+            break;
+        }
+        try {
+            const value = evaluator(n);
+            safePoint(termSeries, n, value);
+            partial += value;
+            safePoint(partialSumSeries, n, partial);
+        } catch {
+            break;
+        }
+    }
+    const alternating = /\(-1\)\^/.test(termExpression) || /-1\)\^\(/.test(termExpression);
+    const absTail = termSeries.slice(-4).map((point) => Math.abs(point.y));
+    const decreases = absTail.length > 1 && absTail.slice(1).every((value, index) => value <= absTail[index] + 1e-6);
+    const partialTail = partialSumSeries.slice(-3);
+    const candidate = partialTail.length ? partialTail.at(-1)?.y.toFixed(6) ?? "pending" : "pending";
+    const testFamily =
+        auxiliary.toLowerCase().includes("ratio")
+            ? "ratio test"
+            : auxiliary.toLowerCase().includes("root")
+              ? "root test"
+              : auxiliary.toLowerCase().includes("comparison")
+                ? "comparison test"
+                : alternating
+                  ? "alternating test"
+                  : "comparison / ratio screen";
+    const secondaryTestFamily =
+        testFamily === "ratio test"
+            ? "root test"
+            : testFamily === "root test"
+              ? "ratio test"
+              : alternating
+                ? "absolute convergence screen"
+                : "integral test";
+    const radiusSignal =
+        mode === "power-series"
+            ? auxiliary.includes("center=")
+                ? `${auxiliary}; radius preview pending`
+                : "center pending"
+            : null;
+    return {
+        summary: {
+            detectedFamily: mode === "power-series" ? "power series" : "infinite series",
+            candidateResult: candidate,
+            convergenceSignal: alternating ? "alternating structure" : decreases ? "tail magnitude decays" : "tail undecided",
+            dominantTerm: "term-by-term audit",
+            riskSignal: "formal convergence proof still needed",
+            shape: mode === "power-series" ? "power-series lane" : "series lane",
+            partialSumSignal: partialTail.length ? `S_${partialTail.at(-1)?.x} = ${candidate}` : "pending",
+            testFamily,
+            secondaryTestFamily,
+            radiusSignal,
+            endpointSignal: mode === "power-series" ? "endpoint check symbolic lane'da aniqlanadi" : null,
+            asymptoticClass: alternating ? "alternating-decay family" : "general decay class",
+            proofSignal: "preview only; backend symbolic proof stronger",
+            comparisonSignal: alternating ? "conditional vs absolute screen" : "dominant-term comparison",
+        },
+        steps: [
+            { title: "Term extraction", summary: parsed ? "Series term sum(...) ichidan ajratildi." : "Expression bevosita had sifatida ko'rildi." },
+            { title: "Partial sums", summary: partialSumSeries.length ? "Birinchi hadlar uchun partial sum trail qurildi." : "Partial sums qurilmadi." },
+            { title: "Convergence cue", summary: `Candidate test family: ${testFamily}.` },
+        ],
+        finalFormula: candidate,
+        auxiliaryFormula: parsed ? `${parsed.index} = ${parsed.start} .. ${parsed.end}` : auxiliary,
+        lineSeries: termSeries,
+        secondaryLineSeries: partialSumSeries,
+        tertiaryLineSeries: mode === "power-series" ? partialSumSeries.map((point) => ({ x: point.x, y: Math.abs(point.y) })) : undefined,
+    };
+}
+
+export class SeriesLimitMathService {
+    static analyze(mode: SeriesLimitMode, expression: string, auxiliaryExpression: string): SeriesLimitAnalysisResult {
+        if (!expression.trim()) {
+            return {
+                summary: {
+                    detectedFamily: mode,
+                    candidateResult: "pending",
+                    convergenceSignal: "input pending",
+                    riskSignal: "expression missing",
+                    shape: mode,
+                },
+                steps: [],
+            };
+        }
+
+        if (mode === "limits") {
+            return buildLimitAnalysis(expression, auxiliaryExpression);
+        }
+        if (mode === "sequences") {
+            return buildSequenceAnalysis(expression, auxiliaryExpression);
+        }
+        if (mode === "power-series") {
+            return buildSeriesLikeAnalysis(mode, expression, auxiliaryExpression);
+        }
+        return buildSeriesLikeAnalysis(mode === "convergence" ? "convergence" : "series", expression, auxiliaryExpression);
+    }
+}

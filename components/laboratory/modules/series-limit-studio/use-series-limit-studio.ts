@@ -1,0 +1,305 @@
+"use client";
+
+import * as React from "react";
+
+import type { LaboratoryModuleMeta } from "@/lib/laboratory";
+import { SERIES_LIMIT_PRESETS } from "./constants";
+import { SeriesLimitMathService } from "./services/math-service";
+import { SeriesLimitSolveService } from "./services/solve-service";
+import type {
+    SeriesLimitAnnotation,
+    SeriesLimitAnalyticSolveResponse,
+    SeriesLimitExperienceLevel,
+    SeriesLimitMode,
+    SeriesLimitPreset,
+    SeriesLimitSavedScenario,
+    SeriesLimitStudioState,
+    SeriesLimitWorkspaceTab,
+} from "./types";
+
+export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
+    const config = module.config ?? {};
+    const defaultPreset = SERIES_LIMIT_PRESETS[0];
+
+    const [experienceLevel, setExperienceLevel] = React.useState<SeriesLimitExperienceLevel>("advanced");
+    const [activeTab, setActiveTab] = React.useState<SeriesLimitWorkspaceTab>("solve");
+    const [mode, setMode] = React.useState<SeriesLimitMode>((config.defaultMode as SeriesLimitMode | undefined) ?? defaultPreset.mode);
+    const [expression, setExpression] = React.useState<string>((config.defaultExpression as string | undefined) ?? defaultPreset.expression);
+    const [auxiliaryExpression, setAuxiliaryExpression] = React.useState<string>((config.defaultSecondary as string | undefined) ?? defaultPreset.auxiliary ?? "");
+    const [dimension, setDimension] = React.useState<string>((config.defaultDimension as string | undefined) ?? defaultPreset.dimension);
+    const [activePresetLabel, setActivePresetLabel] = React.useState<string | undefined>(defaultPreset.label);
+    const [solvePhase, setSolvePhase] = React.useState<SeriesLimitStudioState["solvePhase"]>("analysis-ready");
+    const [analyticSolution, setAnalyticSolution] = React.useState<SeriesLimitAnalyticSolveResponse | null>(null);
+    const [solveErrorMessage, setSolveErrorMessage] = React.useState<string | null>(null);
+    const [solveSignature, setSolveSignature] = React.useState<string>("");
+    const [savedScenarios, setSavedScenarios] = React.useState<SeriesLimitSavedScenario[]>([]);
+    const [scenarioLabel, setScenarioLabel] = React.useState("");
+    const [annotations, setAnnotations] = React.useState<SeriesLimitAnnotation[]>([]);
+    const [annotationTitle, setAnnotationTitle] = React.useState("");
+    const [annotationNote, setAnnotationNote] = React.useState("");
+
+    const signature = React.useMemo(
+        () => JSON.stringify({ mode, expression, auxiliaryExpression, dimension }),
+        [auxiliaryExpression, dimension, expression, mode],
+    );
+
+    const result = React.useMemo(
+        () => SeriesLimitMathService.analyze(mode, expression, auxiliaryExpression),
+        [auxiliaryExpression, expression, mode],
+    );
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        if (!expression.trim()) {
+            setAnalyticSolution(null);
+            setSolveErrorMessage(null);
+            setSolvePhase("idle");
+            return;
+        }
+
+        setSolvePhase("auto-ready");
+        setSolveErrorMessage(null);
+
+        SeriesLimitSolveService.requestSolve({
+            mode,
+            expression,
+            auxiliary: auxiliaryExpression,
+            dimension,
+        })
+            .then((response) => {
+                if (cancelled) {
+                    return;
+                }
+                setAnalyticSolution(response);
+                setSolveSignature(signature);
+                setSolvePhase("analysis-ready");
+            })
+            .catch((error) => {
+                if (cancelled) {
+                    return;
+                }
+                setAnalyticSolution(null);
+                setSolveErrorMessage(error instanceof Error ? error.message : "Series / limit solve xatosi.");
+                setSolvePhase("analysis-ready");
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [auxiliaryExpression, dimension, expression, mode, signature]);
+
+    const summary = React.useMemo(
+        () => ({ ...result.summary, ...(analyticSolution?.summary ?? {}) }),
+        [analyticSolution?.summary, result.summary],
+    );
+
+    const visualNotes = React.useMemo(() => {
+        if (mode === "limits") {
+            return [
+                `Family: ${summary.detectedFamily ?? "pending"}`,
+                `Limit: ${summary.candidateResult ?? "pending"}`,
+                `Asymptotic cue: ${summary.asymptoticSignal ?? "pending"}`,
+                `Expansion: ${summary.expansionSignal ?? "pending"}`,
+            ];
+        }
+        if (mode === "sequences") {
+            return [
+                `Monotonicity: ${summary.monotonicity ?? "pending"}`,
+                `Tail limit: ${summary.candidateResult ?? "pending"}`,
+                `Boundedness: ${summary.boundedness ?? "pending"}`,
+            ];
+        }
+        if (mode === "power-series") {
+            return [
+                `Radius: ${summary.radiusSignal ?? "pending"}`,
+                `Interval: ${summary.intervalSignal ?? "pending"}`,
+                `Endpoints: ${summary.endpointSignal ?? "pending"}`,
+                `Expansion: ${summary.expansionSignal ?? "pending"}`,
+            ];
+        }
+        return [
+            `Convergence: ${summary.convergenceSignal ?? "pending"}`,
+            `Partial sums: ${summary.partialSumSignal ?? "pending"}`,
+            `Test family: ${summary.testFamily ?? "pending"}`,
+            `Proof signal: ${summary.proofSignal ?? "pending"}`,
+        ];
+    }, [mode, summary]);
+
+    const compareNotes = React.useMemo(
+        () => [
+            `Primary lane: ${mode}`,
+            `Method: ${analyticSolution?.exact.method_label ?? "client-side preview"}`,
+            `Test family: ${summary.testFamily ?? "pending"}`,
+            `Secondary test: ${summary.secondaryTestFamily ?? "pending"}`,
+            `Dominant term: ${summary.dominantTerm ?? "pending"}`,
+            `Expansion: ${summary.expansionSignal ?? "pending"}`,
+            `Risk: ${summary.riskSignal ?? "pending"}`,
+        ],
+        [analyticSolution?.exact.method_label, mode, summary],
+    );
+
+    const reportNotes = React.useMemo(
+        () => [
+            `Mode: ${mode}`,
+            `Dimension: ${dimension}`,
+            `Family: ${summary.detectedFamily ?? "pending"}`,
+            `Result: ${analyticSolution?.exact.result_latex ?? result.finalFormula ?? "pending"}`,
+            `Convergence: ${summary.convergenceSignal ?? summary.radiusSignal ?? "pending"}`,
+            `Proof signal: ${summary.proofSignal ?? "pending"}`,
+            `Expansion: ${summary.expansionSignal ?? "pending"}`,
+            `Risk: ${summary.riskSignal ?? "pending"}`,
+        ],
+        [analyticSolution?.exact.result_latex, dimension, mode, result.finalFormula, summary],
+    );
+
+    const trustScore = React.useMemo(() => {
+        let score = analyticSolution?.status === "exact" ? 90 : 72;
+        if (solveErrorMessage) score -= 30;
+        if (summary.riskSignal?.includes("proof")) score -= 12;
+        if (summary.endpointSignal?.includes("unresolved")) score -= 14;
+        if (summary.convergenceSignal?.includes("inconclusive")) score -= 18;
+        return Math.max(0, Math.min(100, score));
+    }, [analyticSolution?.status, solveErrorMessage, summary.convergenceSignal, summary.endpointSignal, summary.riskSignal]);
+
+    const trustHazards = React.useMemo(() => {
+        const hazards: string[] = [];
+        if (solveErrorMessage) hazards.push(solveErrorMessage);
+        if (summary.riskSignal) hazards.push(summary.riskSignal);
+        if (summary.endpointSignal?.includes("unresolved")) hazards.push(`Endpoint audit unresolved: ${summary.endpointSignal}`);
+        if (summary.proofSignal?.includes("incomplete")) hazards.push(summary.proofSignal);
+        return [...new Set(hazards.filter(Boolean))];
+    }, [solveErrorMessage, summary.endpointSignal, summary.proofSignal, summary.riskSignal]);
+
+    const primaryResultText = React.useMemo(
+        () => analyticSolution?.exact.result_latex ?? result.finalFormula ?? summary.candidateResult ?? null,
+        [analyticSolution?.exact.result_latex, result.finalFormula, summary.candidateResult],
+    );
+
+    const saveCurrentScenario = React.useCallback(() => {
+        const label = scenarioLabel.trim() || `${mode} snapshot`;
+        const item: SeriesLimitSavedScenario = {
+            id: `${Date.now()}`,
+            label,
+            savedAt: new Date().toISOString(),
+            mode,
+            expression,
+            auxiliaryExpression,
+            dimension,
+            result: primaryResultText,
+        };
+        setSavedScenarios((current) => [item, ...current].slice(0, 12));
+        setScenarioLabel("");
+    }, [auxiliaryExpression, dimension, expression, mode, primaryResultText, scenarioLabel]);
+
+    const loadSavedScenario = React.useCallback((item: SeriesLimitSavedScenario) => {
+        setMode(item.mode);
+        setExpression(item.expression);
+        setAuxiliaryExpression(item.auxiliaryExpression);
+        setDimension(item.dimension);
+    }, []);
+
+    const removeSavedScenario = React.useCallback((id: string) => {
+        setSavedScenarios((current) => current.filter((item) => item.id !== id));
+    }, []);
+
+    const annotationAnchor = React.useMemo(() => `${mode} | ${expression} | ${auxiliaryExpression || "-"}`, [auxiliaryExpression, expression, mode]);
+
+    const addAnnotationFromCurrentResult = React.useCallback(() => {
+        if (!primaryResultText) return;
+        const item: SeriesLimitAnnotation = {
+            id: `${Date.now()}`,
+            title: annotationTitle.trim() || `${mode} note`,
+            note: annotationNote.trim() || `Observed result: ${primaryResultText}`,
+            anchor: annotationAnchor,
+            createdAt: new Date().toISOString(),
+        };
+        setAnnotations((current) => [item, ...current].slice(0, 20));
+        setAnnotationTitle("");
+        setAnnotationNote("");
+    }, [annotationAnchor, annotationNote, annotationTitle, mode, primaryResultText]);
+
+    const removeAnnotation = React.useCallback((id: string) => {
+        setAnnotations((current) => current.filter((item) => item.id !== id));
+    }, []);
+
+    const applyPreset = React.useCallback((preset: SeriesLimitPreset) => {
+        setMode(preset.mode);
+        setExpression(preset.expression);
+        setAuxiliaryExpression(preset.auxiliary ?? "");
+        setDimension(preset.dimension);
+        setActivePresetLabel(preset.label);
+        setSolvePhase("analysis-ready");
+    }, []);
+
+    return {
+        state: {
+            experienceLevel,
+            activeTab,
+            mode,
+            expression,
+            auxiliaryExpression,
+            dimension,
+            solvePhase,
+            isResultStale: Boolean(analyticSolution) && solveSignature !== signature,
+            activePresetLabel,
+            result,
+            analyticSolution,
+            summary,
+            solveErrorMessage,
+            visualNotes,
+            compareNotes,
+            reportNotes,
+            trustPanelProps: {
+                state: {
+                    trustScore,
+                    analyticStatus: analyticSolution?.status ?? "needs_numerical",
+                    numericalSupport: true,
+                    convergence: summary.convergenceSignal?.includes("convergent")
+                        ? "convergent"
+                        : trustHazards.length
+                          ? "warning"
+                          : "unknown",
+                    hazards: trustHazards,
+                    parserNotes: [
+                        analyticSolution?.parser.expression_raw ?? expression,
+                        auxiliaryExpression || "auxiliary missing",
+                        summary.testFamily ?? "test family pending",
+                    ],
+                },
+            },
+            scenarioPanelProps: {
+                state: {
+                    savedScenarios,
+                    scenarioLabel,
+                    setScenarioLabel,
+                    saveCurrentScenario,
+                    loadSavedScenario,
+                    removeSavedScenario,
+                },
+            },
+            annotationPanelProps: {
+                state: {
+                    annotations,
+                    annotationAnchor,
+                    annotationTitle,
+                    setAnnotationTitle,
+                    annotationNote,
+                    setAnnotationNote,
+                    addAnnotationFromCurrentResult,
+                    removeAnnotation,
+                    canSave: Boolean(primaryResultText),
+                },
+            },
+        } satisfies SeriesLimitStudioState,
+        actions: {
+            setExperienceLevel,
+            setActiveTab,
+            setMode,
+            setExpression,
+            setAuxiliaryExpression,
+            setDimension,
+            applyPreset,
+        },
+    };
+}

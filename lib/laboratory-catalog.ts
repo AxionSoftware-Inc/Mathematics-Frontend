@@ -89,6 +89,25 @@ export const laboratoryModuleCatalog: readonly LaboratoryModuleCatalogEntry[] = 
             defaultDimension: "1d",
         },
     },
+    {
+        slug: "series-limit-studio",
+        title: "Series / Limit Studio",
+        summary: "Qatorlar, ketma-ketliklar, limitlar va yaqinlashish tahlili uchun yangi laboratoriya.",
+        description:
+            "Limits, sequences, infinite series, convergence tests va power series workflows uchun professional starter workspace.",
+        category: "analysis",
+        icon_name: "TrendingUp",
+        accent_color: "rose",
+        computation_mode: "client",
+        estimated_minutes: 9,
+        sort_order: 5,
+        config: {
+            defaultMode: "limits",
+            defaultExpression: "(sin(x))/x",
+            defaultSecondary: "x -> 0",
+            defaultDimension: "1 variable",
+        },
+    },
 ];
 
 export const supportedLaboratorySlugs = laboratoryModuleCatalog.map((entry) => entry.slug);

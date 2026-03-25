@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, ArrowRight, AreaChart, Blocks, FlaskConical, Sigma } from "lucide-react";
+import { Activity, ArrowRight, AreaChart, Blocks, FlaskConical, Sigma, TrendingUp } from "lucide-react";
 
 import { HeroBadge, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchLaboratoryModules } from "@/lib/laboratory";
@@ -26,6 +26,7 @@ const moduleIcons = {
     "integral-studio": Sigma,
     "differential-studio": Activity,
     "matrix-studio": Blocks,
+    "series-limit-studio": TrendingUp,
 } as const;
 
 export default async function LaboratoryPage() {
