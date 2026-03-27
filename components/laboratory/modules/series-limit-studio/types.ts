@@ -33,6 +33,8 @@ export type SeriesLimitSummary = {
     comparisonSignal?: string | null;
     endpointDetails?: string[] | null;
     expansionSignal?: string | null;
+    errorBoundSignal?: string | null;
+    specialFamilySignal?: string | null;
 };
 
 export type SeriesLimitStep = {
@@ -84,6 +86,11 @@ export type SeriesLimitAnalyticSolveResponse = {
         auxiliary_latex?: string | null;
         numeric_approximation?: string | null;
         steps: SeriesLimitStep[];
+    };
+    preview?: {
+        lineSeries?: SeriesLimitSeriesPoint[] | null;
+        secondaryLineSeries?: SeriesLimitSeriesPoint[] | null;
+        tertiaryLineSeries?: SeriesLimitSeriesPoint[] | null;
     };
 };
 

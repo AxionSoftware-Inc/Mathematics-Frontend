@@ -81,20 +81,6 @@ export function normalizeWriterProjectSections(sections: WriterProjectSection[])
         });
 }
 
-function appendWriterBrandingColophon(content: string, options: WriterProjectCompileOptions = {}) {
-    const label = (options.brandingLabel || "Powered by MathSphere Writer").trim();
-    if (!options.brandingEnabled || !label) {
-        return content.trim();
-    }
-
-    const trimmed = content.trim();
-    if (!trimmed) {
-        return `_${label}_`;
-    }
-
-    return `${trimmed}\n\n---\n\n_${label}_`;
-}
-
 export function compileWriterProjectSections(
     sections: WriterProjectSection[],
     options: WriterProjectCompileOptions = {},
@@ -115,8 +101,8 @@ export function compileWriterProjectSections(
         .filter(Boolean)
         .join("\n\n---\n\n")
         .trim();
-
-    return appendWriterBrandingColophon(body, options);
+    void options;
+    return body;
 }
 
 export function ensureWriterProjectSections(project: WriterProjectLike) {

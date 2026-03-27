@@ -1,10 +1,4 @@
-import type {
-    SeriesLimitAnalysisResult,
-    SeriesLimitMode,
-    SeriesLimitSeriesPoint,
-    SeriesLimitStep,
-    SeriesLimitSummary,
-} from "../types";
+import type { SeriesLimitAnalysisResult, SeriesLimitMode, SeriesLimitSeriesPoint, SeriesLimitStep } from "../types";
 
 function normalizeExpression(expression: string) {
     return expression
@@ -23,7 +17,6 @@ function buildEvaluator(expression: string, variable: string) {
         .replace(/\bsqrt\(/g, "Math.sqrt(")
         .replace(/\babs\(/g, "Math.abs(");
     try {
-        // eslint-disable-next-line no-new-func
         return new Function(variable, `return ${normalized};`) as (value: number) => number;
     } catch {
         return null;
@@ -48,14 +41,23 @@ function parseAuxiliary(auxiliary: string, fallbackVariable: string) {
 
 function parseSumExpression(expression: string) {
     const match = expression.match(/^sum\((.+),\s*([A-Za-z]\w*)\s*=\s*(.+)\.\.(.+)\)$/i);
-    if (!match) {
+    if (match) {
+        return {
+            term: match[1].trim(),
+            index: match[2].trim(),
+            start: match[3].trim(),
+            end: match[4].trim(),
+        };
+    }
+    const tupleMatch = expression.match(/^sum\((.+),\s*\(\s*([A-Za-z]\w*)\s*,\s*(.+)\s*,\s*(.+)\s*\)\)$/i);
+    if (!tupleMatch) {
         return null;
     }
     return {
-        term: match[1].trim(),
-        index: match[2].trim(),
-        start: match[3].trim(),
-        end: match[4].trim(),
+        term: tupleMatch[1].trim(),
+        index: tupleMatch[2].trim(),
+        start: tupleMatch[3].trim(),
+        end: tupleMatch[4].trim(),
     };
 }
 
@@ -69,12 +71,17 @@ function buildLimitAnalysis(expression: string, auxiliary: string): SeriesLimitA
     const { variable, target, rawTarget } = parseAuxiliary(auxiliary || "x -> 0", "x");
     const evaluator = buildEvaluator(expression, variable);
     const lineSeries: SeriesLimitSeriesPoint[] = [];
+    const oneSidedSeries: SeriesLimitSeriesPoint[] = [];
+    const envelopeSeries: SeriesLimitSeriesPoint[] = [];
     if (evaluator && Number.isFinite(target)) {
-        const offsets = [-1, -0.5, -0.25, -0.12, -0.06, -0.03, 0.03, 0.06, 0.12, 0.25, 0.5, 1];
+        const offsets = [-1, -0.5, -0.25, -0.12, -0.06, -0.03, -0.01, -0.005, 0.005, 0.01, 0.03, 0.06, 0.12, 0.25, 0.5, 1];
         offsets.forEach((offset) => {
             const x = target + offset;
             try {
-                safePoint(lineSeries, x, evaluator(x));
+                const y = evaluator(x);
+                safePoint(lineSeries, x, y);
+                safePoint(oneSidedSeries, x, y);
+                safePoint(envelopeSeries, x, Math.abs(y));
             } catch {
                 return;
             }
@@ -82,6 +89,14 @@ function buildLimitAnalysis(expression: string, auxiliary: string): SeriesLimitA
     }
     const left = lineSeries.filter((point) => point.x < target).at(-1)?.y;
     const right = lineSeries.find((point) => point.x > target)?.y;
+    const family =
+        /sin|cos/.test(expression) && /\/x|\/\(/.test(expression)
+            ? "removable singularity"
+            : /sin|cos/.test(expression) && /inf|oo/.test(rawTarget)
+              ? "oscillatory infinite limit"
+              : /\/\(x-|\bx-/.test(expression)
+                ? "pole-type limit"
+                : "local limit";
     const candidate =
         left !== undefined && right !== undefined && Math.abs(left - right) < 0.25
             ? ((left + right) / 2).toFixed(6)
@@ -99,18 +114,30 @@ function buildLimitAnalysis(expression: string, auxiliary: string): SeriesLimitA
     ];
     return {
         summary: {
-            detectedFamily: "local limit",
+            detectedFamily: family,
             candidateResult: candidate,
             convergenceSignal: "two-sided approach",
             dominantTerm: expression.includes("sin") ? "trigonometric cancellation" : "algebraic balance",
             riskSignal: lineSeries.length ? "sampling only; symbolic solve recommended" : "preview unavailable",
             shape: "single-variable limit",
             asymptoticSignal: `target ${rawTarget}`,
+            proofSignal:
+                family === "removable singularity"
+                    ? "local cancellation / expansion lane"
+                    : family === "oscillatory infinite limit"
+                      ? "oscillatory asymptotic lane"
+                      : family === "pole-type limit"
+                        ? "one-sided sign analysis lane"
+                        : "direct local limit lane",
+            errorBoundSignal: "sampled local spread proxy",
+            specialFamilySignal: family,
         },
         steps,
         finalFormula: candidate,
         auxiliaryFormula: `${variable} -> ${rawTarget}`,
         lineSeries,
+        secondaryLineSeries: oneSidedSeries,
+        tertiaryLineSeries: envelopeSeries,
     };
 }
 
@@ -183,6 +210,26 @@ function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series"
         }
     }
     const alternating = /\(-1\)\^/.test(termExpression) || /-1\)\^\(/.test(termExpression);
+    const family =
+        /factorial/.test(termExpression)
+            ? "factorial / exponential series"
+            : /sin|cos/.test(termExpression) && /x\^n/.test(termExpression)
+              ? "Abel-boundary power series"
+              : /sin|cos/.test(termExpression) && /sqrt\(n\)|n\^/.test(termExpression)
+                ? "Dirichlet oscillatory series"
+                : /Cesaro|cesaro/.test(auxiliary) || /\(-1\)\^n/.test(termExpression)
+                  ? "Cesaro summability screen"
+            : /sin|cos/.test(termExpression)
+              ? "oscillatory trigonometric series"
+              : /log/.test(termExpression)
+              ? /Tauberian|tauberian/.test(auxiliary)
+                ? "Tauberian borderline series"
+                : "log-corrected series"
+                : alternating
+                  ? "alternating series"
+                  : /x/.test(termExpression)
+                    ? "power series"
+                    : "general infinite series";
     const absTail = termSeries.slice(-4).map((point) => Math.abs(point.y));
     const decreases = absTail.length > 1 && absTail.slice(1).every((value, index) => value <= absTail[index] + 1e-6);
     const partialTail = partialSumSeries.slice(-3);
@@ -213,9 +260,16 @@ function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series"
             : null;
     return {
         summary: {
-            detectedFamily: mode === "power-series" ? "power series" : "infinite series",
+            detectedFamily: mode === "power-series" ? "power series" : family,
             candidateResult: candidate,
-            convergenceSignal: alternating ? "alternating structure" : decreases ? "tail magnitude decays" : "tail undecided",
+            convergenceSignal:
+                /Cesaro|cesaro/.test(auxiliary)
+                    ? "Cesaro mean stabilization screen"
+                    : alternating
+                      ? "alternating structure"
+                      : decreases
+                        ? "tail magnitude decays"
+                        : "tail undecided",
             dominantTerm: "term-by-term audit",
             riskSignal: "formal convergence proof still needed",
             shape: mode === "power-series" ? "power-series lane" : "series lane",
@@ -223,10 +277,37 @@ function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series"
             testFamily,
             secondaryTestFamily,
             radiusSignal,
-            endpointSignal: mode === "power-series" ? "endpoint check symbolic lane'da aniqlanadi" : null,
-            asymptoticClass: alternating ? "alternating-decay family" : "general decay class",
-            proofSignal: "preview only; backend symbolic proof stronger",
-            comparisonSignal: alternating ? "conditional vs absolute screen" : "dominant-term comparison",
+            endpointSignal: /log/.test(termExpression) ? "logarithmic singular-start screen active" : mode === "power-series" ? "endpoint check symbolic lane'da aniqlanadi" : "sampled term appears regular",
+            asymptoticClass:
+                /Cesaro|cesaro/.test(auxiliary)
+                    ? "summability / mean-stabilization class"
+                    : alternating
+                      ? "alternating-decay family"
+                      : /log/.test(termExpression)
+                        ? "log-corrected borderline decay"
+                        : "general decay class",
+            proofSignal:
+                /Dirichlet/i.test(auxiliary)
+                    ? "Dirichlet screen active in backend"
+                    : /Abel/i.test(auxiliary)
+                      ? "Abel boundary screen active in backend"
+                      : /Cesaro|cesaro/.test(auxiliary)
+                        ? "Cesaro mean screen active in backend"
+                        : /Tauberian/i.test(auxiliary)
+                          ? "Tauberian screen active in backend"
+                        : "preview only; backend symbolic proof stronger",
+            comparisonSignal: alternating ? "conditional vs absolute screen" : `${family}; dominant-term comparison`,
+            errorBoundSignal: alternating ? "next-term alternating remainder proxy" : "tail bound pending symbolic backend",
+            specialFamilySignal:
+                /Dirichlet/i.test(auxiliary)
+                    ? "Dirichlet candidate"
+                    : /Abel/i.test(auxiliary)
+                      ? "Abel candidate"
+                      : /Cesaro|cesaro/.test(auxiliary)
+                        ? "Cesaro candidate"
+                        : /Tauberian/i.test(auxiliary)
+                          ? "Tauberian candidate"
+                          : "classical convergence family",
         },
         steps: [
             { title: "Term extraction", summary: parsed ? "Series term sum(...) ichidan ajratildi." : "Expression bevosita had sifatida ko'rildi." },

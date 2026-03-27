@@ -1,3 +1,9 @@
+import React from "react";
+
+import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
+import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
+import { LaboratorySolveLayout } from "@/components/laboratory/laboratory-solve-layout";
+import { LaboratorySolveDetailCard } from "@/components/laboratory/laboratory-solve-detail-card";
 import { SolverControl } from "../components/solver-control";
 import { VisualizerDeck } from "../components/visualizer-deck";
 import type { ProbabilityStudioState } from "../types";
@@ -15,10 +21,85 @@ export function SolveView({
     };
 }) {
     const metrics = buildMetricCards(state);
+    const hasAnalytic = Boolean(state.analyticSolution?.exact.result_latex || state.analyticSolution?.exact.steps.length);
+    const [showNumericalDetails, setShowNumericalDetails] = React.useState(false);
+    const derivationContent = hasAnalytic
+        ? [
+              `**Lane:** ${state.analyticSolution?.exact.method_label ?? "Analytic probability lane"}`,
+              "",
+              state.analyticSolution?.exact.result_latex ? `**Final form:** ${state.analyticSolution.exact.result_latex}` : null,
+              state.analyticSolution?.exact.auxiliary_latex ? `**Auxiliary form:** ${state.analyticSolution.exact.auxiliary_latex}` : null,
+              state.analyticSolution?.exact.numeric_approximation ? `**Approximation:** \`${state.analyticSolution.exact.numeric_approximation}\`` : null,
+          ]
+              .filter(Boolean)
+              .join("\n")
+        : [
+              `**Analytic status:** closed-form ehtimollik ifodasi topilmadi.`,
+              "",
+              `**Numerical lane:** sample/statistical analysis tayyor.`,
+              "",
+              `Quyidagi tugma numerical derivation bosqichlarini ochadi.`,
+          ].join("\n");
+    const displayedSteps = hasAnalytic
+        ? state.analyticSolution?.exact.steps ?? []
+        : showNumericalDetails
+          ? state.result.steps
+          : [];
+    const finalResultSection = (
+        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {metrics.map((metric) => (
+                    <MetricCard key={metric.label} label={metric.label} value={metric.value} />
+                ))}
+            </div>
+            {state.analyticSolution?.exact.result_latex || state.result.finalFormula ? (
+                <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Formula</div>
+                    <MathBlock value={state.analyticSolution?.exact.result_latex ?? state.result.finalFormula} className="mt-2 text-sm text-foreground" />
+                    {state.analyticSolution?.exact.auxiliary_latex || state.result.auxiliaryFormula ? (
+                        <MathBlock value={state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula} className="mt-2 text-xs text-muted-foreground" />
+                    ) : null}
+                </div>
+            ) : null}
+            {state.solveErrorMessage ? (
+                <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                    {state.solveErrorMessage}
+                </div>
+            ) : null}
+        </div>
+    );
+    const methodTraceSection = (
+        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Method Trace</div>
+            <div className="mt-4 space-y-3">
+                {displayedSteps.map((step, index) => (
+                    <LaboratorySolveDetailCard
+                        key={`${step.title}-${index}`}
+                        id={String(index + 1)}
+                        action={step.title}
+                        result={step.summary}
+                        formula={("formula" in step ? step.formula : "latex" in step ? step.latex : undefined) ?? undefined}
+                        tone="neutral"
+                    />
+                ))}
+                {!displayedSteps.length ? (
+                    <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
+                        Analytic derivation topilsa shu yerda chiqadi; bo‘lmasa numerical fallback tugmasi bosqichlarni ochadi.
+                    </div>
+                ) : null}
+                {state.visualNotes.map((note) => (
+                    <div key={note} className="rounded-2xl border border-border/60 bg-muted/5 px-4 py-3 text-xs text-muted-foreground">
+                        {note}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 
     return (
-        <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <LaboratorySolveLayout
+            control={
                 <SolverControl
                     mode={state.mode}
                     setMode={actions.setMode}
@@ -31,65 +112,64 @@ export function SolveView({
                     experienceLevel={state.experienceLevel}
                     activePresetLabel={state.activePresetLabel}
                 />
-                <VisualizerDeck mode={state.mode} result={state.result} summary={state.summary} />
-            </div>
+            }
+            visual={<VisualizerDeck mode={state.mode} result={state.result} summary={state.summary} />}
+            derivation={
+                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                    <LaboratoryMathPanel
+                        eyebrow={hasAnalytic ? "Analytic Derivation" : "Numerical Fallback"}
+                        title={hasAnalytic ? "Probability derivation" : "Analytic form unavailable"}
+                        content={derivationContent}
+                        accentClassName={hasAnalytic ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}
+                    />
+                    {!hasAnalytic ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowNumericalDetails((current) => !current)}
+                            className="mt-4 inline-flex items-center rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-300"
+                        >
+                            {showNumericalDetails ? "Hide Numerical Steps" : "Run Numerical Solution View"}
+                        </button>
+                    ) : null}
+                </div>
+            }
+            sections={[
+                { id: "final-result", node: finalResultSection, weight: 2 },
+                { id: "method-trace", node: methodTraceSection, weight: 2 },
+            ]}
+        />
+    );
+}
 
-            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {metrics.map((metric) => (
-                            <MetricCard key={metric.label} label={metric.label} value={metric.value} />
-                        ))}
-                    </div>
-                    {state.analyticSolution?.exact.result_latex || state.result.finalFormula ? (
-                        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Formula</div>
-                            <div className="mt-2 font-mono text-sm text-foreground">{state.analyticSolution?.exact.result_latex ?? state.result.finalFormula}</div>
-                            {state.analyticSolution?.exact.auxiliary_latex || state.result.auxiliaryFormula ? (
-                                <div className="mt-2 font-mono text-xs text-muted-foreground">{state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula}</div>
-                            ) : null}
-                        </div>
-                    ) : null}
-                    {state.solveErrorMessage ? (
-                        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
-                            {state.solveErrorMessage}
-                        </div>
-                    ) : null}
-                </div>
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Method Trace</div>
-                    <div className="mt-4 space-y-3">
-                        {(state.analyticSolution?.exact.steps.length ? state.analyticSolution.exact.steps : state.result.steps).map((step) => (
-                            <div key={step.title} className="rounded-2xl border border-border/60 bg-muted/10 p-4">
-                                <div className="text-sm font-black text-foreground">{step.title}</div>
-                                <div className="mt-1 text-sm leading-6 text-muted-foreground">{step.summary}</div>
-                                {"formula" in step && typeof step.formula === "string" ? <div className="mt-3 overflow-x-auto font-mono text-xs text-foreground">{step.formula}</div> : null}
-                                {"latex" in step && typeof step.latex === "string" ? <div className="mt-3 overflow-x-auto font-mono text-xs text-foreground">{step.latex}</div> : null}
-                            </div>
-                        ))}
-                        {!state.result.steps.length && !state.analyticSolution?.exact.steps.length ? (
-                            <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
-                                Solve trace pending.
-                            </div>
-                        ) : null}
-                        {state.visualNotes.map((note) => (
-                            <div key={note} className="rounded-2xl border border-border/60 bg-muted/5 px-4 py-3 text-xs text-muted-foreground">
-                                {note}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+function MetricCard({ label, value }: { label: string; value: string }) {
+    const renderAsMath = /[\\^_{}[\]]|=|P\(|E\[|Var\(|\bmu\b|\bsigma\b/i.test(value);
+
+    return (
+        <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+            <div className="mt-2 text-lg font-black tracking-tight text-foreground">
+                {renderAsMath ? <MathBlock value={value} compact /> : value}
             </div>
         </div>
     );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MathBlock({
+    value,
+    className = "",
+    compact = false,
+}: {
+    value?: string;
+    className?: string;
+    compact?: boolean;
+}) {
+    if (!value?.trim() || value === "pending") {
+        return <div className={className}>pending</div>;
+    }
+
     return (
-        <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-            <div className="mt-2 text-lg font-black tracking-tight text-foreground">{value}</div>
+        <div className={`${className} overflow-x-auto ${compact ? "[&_.katex-display]:my-1" : ""}`.trim()}>
+            <LaboratoryInlineMathMarkdown content={value} />
         </div>
     );
 }

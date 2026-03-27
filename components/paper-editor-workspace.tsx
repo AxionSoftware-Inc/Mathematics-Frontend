@@ -1589,21 +1589,8 @@ export function PaperEditorWorkspace({
                                             Preview hozircha eski snapshotni ko&apos;rsatyapti. `Refresh` bossangiz yangi holat render bo&apos;ladi.
                                         </div>
                                     ) : null}
-                                    <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-background print:border-none print:shadow-none print:bg-white print:rounded-none">
-                                        <div className="border-b border-border/60 bg-muted/20 px-6 py-6 md:px-8 print:bg-none print:border-none print:p-0 print:pb-6">
-                                            <div className="mb-3 flex flex-wrap items-center gap-2 print:hidden">
-                                                <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] ${statusTone}`}>
-                                                    {formData.status}
-                                                </span>
-                                                <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
-                                                    Professional Preview
-                                                </span>
-                                                {formData.branding_enabled ? (
-                                                    <span className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-accent">
-                                                        {formData.branding_label || "Powered by MathSphere Writer"}
-                                                    </span>
-                                                ) : null}
-                                            </div>
+                                    <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-white print:border-none print:shadow-none print:bg-white print:rounded-none">
+                                        <div className="border-b border-border/60 bg-white px-6 py-6 md:px-8 print:border-none print:p-0 print:pb-6">
                                             <h1 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">
                                                 {deferredTitle || "Nomsiz maqola"}
                                             </h1>
@@ -1612,7 +1599,7 @@ export function PaperEditorWorkspace({
                                                     {authorList.map((author) => (
                                                         <span
                                                             key={author}
-                                                            className="rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-bold text-foreground"
+                                                            className="rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs font-bold text-foreground"
                                                         >
                                                             {author}
                                                         </span>
@@ -1624,7 +1611,7 @@ export function PaperEditorWorkspace({
                                                     {keywordList.map((keyword) => (
                                                         <span
                                                             key={keyword}
-                                                            className="rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground"
+                                                            className="rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs font-semibold text-muted-foreground"
                                                         >
                                                             #{keyword}
                                                         </span>
@@ -1634,7 +1621,7 @@ export function PaperEditorWorkspace({
                                         </div>
 
                                         {deferredAbstract.trim() && (
-                                            <div className="border-b border-border/60 bg-muted/10 px-6 py-5 md:px-8 print:border-none print:px-0">
+                                            <div className="border-b border-border/60 bg-white px-6 py-5 md:px-8 print:border-none print:px-0">
                                                 <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-accent print:text-black">
                                                     Abstract
                                                 </div>
@@ -1647,19 +1634,8 @@ export function PaperEditorWorkspace({
                                         <div className="px-6 py-8 md:px-8 print:p-0 print:text-black">
                                             <ArticleRichContent
                                                 content={deferredPreviewContent}
-                                                className="prose prose-neutral max-w-none text-foreground dark:prose-invert prose-headings:font-playfair prose-headings:font-black prose-headings:tracking-tight prose-h1:text-4xl prose-h2:mt-14 prose-h2:text-3xl prose-h3:mt-10 prose-h3:text-2xl prose-p:text-[16px] prose-p:leading-8 prose-li:leading-8 prose-strong:text-foreground prose-code:rounded-md prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-pre:rounded-[1.5rem] prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-blockquote:rounded-[1.25rem] prose-blockquote:border-l-4 prose-blockquote:border-[var(--accent)] prose-blockquote:bg-[var(--accent-soft)] prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:text-foreground/85 prose-img:rounded-[1.5rem] prose-img:border prose-img:border-border prose-hr:border-border print:text-black print:dark:prose-invert"
+                                                className="prose prose-neutral max-w-none text-black prose-headings:font-playfair prose-headings:font-black prose-headings:tracking-tight prose-headings:text-black prose-h1:text-4xl prose-h2:mt-14 prose-h2:text-3xl prose-h3:mt-10 prose-h3:text-2xl prose-p:text-[16px] prose-p:leading-8 prose-p:text-black prose-li:leading-8 prose-li:text-black prose-strong:text-black prose-code:rounded-md prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-black prose-pre:rounded-[1.5rem] prose-pre:border prose-pre:border-border prose-pre:bg-slate-50 prose-blockquote:rounded-[1.25rem] prose-blockquote:border-l-4 prose-blockquote:border-slate-400 prose-blockquote:bg-slate-50 prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:text-black prose-img:rounded-[1.5rem] prose-img:border prose-img:border-border prose-hr:border-border"
                                             />
-
-                                            {formData.branding_enabled ? (
-                                                <div className="mt-10 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground print:mt-12 print:text-black">
-                                                    <div className="text-[11px] font-bold uppercase tracking-[0.24em]">
-                                                        {formData.branding_label || "Powered by MathSphere Writer"}
-                                                    </div>
-                                                    <div className="mt-2">
-                                                        Structured and published with MathSphere&apos;s production-ready writer workspace.
-                                                    </div>
-                                                </div>
-                                            ) : null}
                                         </div>
                                     </div>
                                     </div>

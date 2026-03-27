@@ -43,7 +43,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         [auxiliaryExpression, dimension, expression, mode],
     );
 
-    const result = React.useMemo(
+    const rawResult = React.useMemo(
         () => SeriesLimitMathService.analyze(mode, expression, auxiliaryExpression),
         [auxiliaryExpression, expression, mode],
     );
@@ -89,9 +89,19 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         };
     }, [auxiliaryExpression, dimension, expression, mode, signature]);
 
+    const result = React.useMemo(
+        () => ({
+            ...rawResult,
+            lineSeries: analyticSolution?.preview?.lineSeries ?? rawResult.lineSeries,
+            secondaryLineSeries: analyticSolution?.preview?.secondaryLineSeries ?? rawResult.secondaryLineSeries,
+            tertiaryLineSeries: analyticSolution?.preview?.tertiaryLineSeries ?? rawResult.tertiaryLineSeries,
+        }),
+        [analyticSolution?.preview?.lineSeries, analyticSolution?.preview?.secondaryLineSeries, analyticSolution?.preview?.tertiaryLineSeries, rawResult],
+    );
+
     const summary = React.useMemo(
-        () => ({ ...result.summary, ...(analyticSolution?.summary ?? {}) }),
-        [analyticSolution?.summary, result.summary],
+        () => ({ ...rawResult.summary, ...(analyticSolution?.summary ?? {}) }),
+        [analyticSolution?.summary, rawResult.summary],
     );
 
     const visualNotes = React.useMemo(() => {
@@ -101,6 +111,8 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
                 `Limit: ${summary.candidateResult ?? "pending"}`,
                 `Asymptotic cue: ${summary.asymptoticSignal ?? "pending"}`,
                 `Expansion: ${summary.expansionSignal ?? "pending"}`,
+                `Error bound: ${summary.errorBoundSignal ?? "pending"}`,
+                `Research lane: ${summary.specialFamilySignal ?? "pending"}`,
             ];
         }
         if (mode === "sequences") {
@@ -123,6 +135,8 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Partial sums: ${summary.partialSumSignal ?? "pending"}`,
             `Test family: ${summary.testFamily ?? "pending"}`,
             `Proof signal: ${summary.proofSignal ?? "pending"}`,
+            `Error bound: ${summary.errorBoundSignal ?? "pending"}`,
+            `Special family: ${summary.specialFamilySignal ?? "pending"}`,
         ];
     }, [mode, summary]);
 
@@ -134,6 +148,8 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Secondary test: ${summary.secondaryTestFamily ?? "pending"}`,
             `Dominant term: ${summary.dominantTerm ?? "pending"}`,
             `Expansion: ${summary.expansionSignal ?? "pending"}`,
+            `Error bound: ${summary.errorBoundSignal ?? "pending"}`,
+            `Special family: ${summary.specialFamilySignal ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
         ],
         [analyticSolution?.exact.method_label, mode, summary],
@@ -144,13 +160,15 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Mode: ${mode}`,
             `Dimension: ${dimension}`,
             `Family: ${summary.detectedFamily ?? "pending"}`,
-            `Result: ${analyticSolution?.exact.result_latex ?? result.finalFormula ?? "pending"}`,
+            `Result: ${analyticSolution?.exact.result_latex ?? rawResult.finalFormula ?? "pending"}`,
             `Convergence: ${summary.convergenceSignal ?? summary.radiusSignal ?? "pending"}`,
             `Proof signal: ${summary.proofSignal ?? "pending"}`,
+            `Error bound: ${summary.errorBoundSignal ?? "pending"}`,
+            `Special family: ${summary.specialFamilySignal ?? "pending"}`,
             `Expansion: ${summary.expansionSignal ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
         ],
-        [analyticSolution?.exact.result_latex, dimension, mode, result.finalFormula, summary],
+        [analyticSolution?.exact.result_latex, dimension, mode, rawResult.finalFormula, summary],
     );
 
     const trustScore = React.useMemo(() => {
@@ -172,8 +190,8 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
     }, [solveErrorMessage, summary.endpointSignal, summary.proofSignal, summary.riskSignal]);
 
     const primaryResultText = React.useMemo(
-        () => analyticSolution?.exact.result_latex ?? result.finalFormula ?? summary.candidateResult ?? null,
-        [analyticSolution?.exact.result_latex, result.finalFormula, summary.candidateResult],
+        () => analyticSolution?.exact.result_latex ?? rawResult.finalFormula ?? summary.candidateResult ?? null,
+        [analyticSolution?.exact.result_latex, rawResult.finalFormula, summary.candidateResult],
     );
 
     const saveCurrentScenario = React.useCallback(() => {

@@ -1,3 +1,7 @@
+import React from "react";
+
+import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
+
 import type { SeriesLimitExperienceLevel, SeriesLimitMode, SeriesLimitSummary } from "../types";
 
 const modeCopy: Record<SeriesLimitMode, { label: string; helper: string; expressionPlaceholder: string; auxPlaceholder: string }> = {
@@ -15,13 +19,13 @@ const modeCopy: Record<SeriesLimitMode, { label: string; helper: string; express
     },
     series: {
         label: "Series Analysis",
-        helper: "Infinite series formati va partial-sum intuition uchun expression kiriting.",
+        helper: "Infinite series, oscillatory oilalar, log-corrected borderline holatlar va singular start indexlarni shu lane ichida audit qiling.",
         expressionPlaceholder: "sum((-1)^(n+1)/n, n=1..inf)",
         auxPlaceholder: "alternating",
     },
     convergence: {
         label: "Convergence Tests",
-        helper: "Ratio, root, comparison yoki integral test oilalari uchun asymptotic expression kiriting.",
+        helper: "Ratio, root, comparison, integral va borderline singular families uchun expression kiriting.",
         expressionPlaceholder: "sum(n!/n^n, n=1..inf)",
         auxPlaceholder: "ratio test",
     },
@@ -31,6 +35,14 @@ const modeCopy: Record<SeriesLimitMode, { label: string; helper: string; express
         expressionPlaceholder: "sum(x^n/n, n=1..inf)",
         auxPlaceholder: "center=0",
     },
+};
+
+const dimensionOptions: Record<SeriesLimitMode, string[]> = {
+    limits: ["1 variable", "one-sided", "asymptotic", "oscillatory"],
+    sequences: ["discrete", "tail behavior", "stability"],
+    series: ["infinite series", "oscillatory series", "summability", "harmonic-derived"],
+    convergence: ["test audit", "comparison lane", "borderline singular"],
+    "power-series": ["power series", "endpoint audit", "radius study"],
 };
 
 export function SolverControl({
@@ -59,6 +71,14 @@ export function SolverControl({
     summary: SeriesLimitSummary;
 }) {
     const copy = modeCopy[mode];
+    const dimensions = dimensionOptions[mode];
+    const resolvedDimension = dimensions.includes(dimension) ? dimension : dimensions[0];
+
+    React.useEffect(() => {
+        if (dimension !== resolvedDimension) {
+            setDimension(resolvedDimension);
+        }
+    }, [dimension, resolvedDimension, setDimension]);
 
     return (
         <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
@@ -87,12 +107,22 @@ export function SolverControl({
                 </label>
                 <label className="space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Dimension Scope</span>
-                    <input value={dimension} onChange={(event) => setDimension(event.target.value)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent" />
+                    <select
+                        value={resolvedDimension}
+                        onChange={(event) => setDimension(event.target.value)}
+                        className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent"
+                    >
+                        {dimensions.map((item) => (
+                            <option key={item} value={item}>
+                                {item}
+                            </option>
+                        ))}
+                    </select>
                 </label>
                 <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Experience</div>
                     <div className="mt-1 text-sm font-bold text-foreground">{experienceLevel}</div>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">Limit, sequence, series va power-series oilalari shu shell ichida yig'iladi.</div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">Limit, sequence, series va power-series oilalari shu shell ichida yig&apos;iladi.</div>
                 </div>
             </div>
 
@@ -122,12 +152,12 @@ export function SolverControl({
                     </label>
                     <div className="rounded-3xl border border-border/60 bg-muted/20 p-4">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Rendered Preview</div>
-                        <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 font-mono text-sm leading-7 text-foreground">
-                            {expression}
+                        <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 text-sm text-foreground">
+                            <MathValue value={expression} fallback="Expression pending." />
                         </div>
                         {auxiliaryExpression ? (
-                            <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 font-mono text-sm leading-7 text-foreground">
-                                aux = {auxiliaryExpression}
+                            <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 text-sm text-foreground">
+                                <MathValue value={auxiliaryExpression} fallback="Auxiliary context pending." />
                             </div>
                         ) : null}
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -143,6 +173,14 @@ export function SolverControl({
     );
 }
 
+function MathValue({ value, fallback }: { value?: string; fallback: string }) {
+    if (!value?.trim()) {
+        return <div className="text-sm text-muted-foreground">{fallback}</div>;
+    }
+
+    return <LaboratoryInlineMathMarkdown content={toMathMarkdown(value)} />;
+}
+
 function PreviewMetric({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-2xl border border-border/60 bg-background p-3">
@@ -150,4 +188,12 @@ function PreviewMetric({ label, value }: { label: string; value: string }) {
             <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
         </div>
     );
+}
+
+function toMathMarkdown(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (trimmed.includes("$$")) return trimmed;
+    if (trimmed.startsWith("\\(") || trimmed.startsWith("\\[")) return trimmed;
+    return `$$${trimmed}$$`;
 }

@@ -1,3 +1,9 @@
+import React from "react";
+
+import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
+import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
+import { LaboratorySolveLayout } from "@/components/laboratory/laboratory-solve-layout";
+import { LaboratorySolveDetailCard } from "@/components/laboratory/laboratory-solve-detail-card";
 import { SolverControl } from "../components/solver-control";
 import { VisualizerDeck } from "../components/visualizer-deck";
 import type { MatrixStudioState } from "../types";
@@ -52,10 +58,154 @@ export function SolveView({
     const numericVector = toNumericVector(state.rhsRows);
     const transformedVector = matrixTimesVector(numericMatrix, numericVector);
     const planeScale = determinant2x2(numericMatrix);
+    const hasAnalytic = Boolean(state.analyticSolution?.exact.result_latex || state.analyticSolution?.exact.steps.length);
+    const [showNumericalDetails, setShowNumericalDetails] = React.useState(false);
+    const matrixShape = state.summary.shape ?? (state.matrixRows.length && state.matrixRows[0]?.length ? `${state.matrixRows.length}x${state.matrixRows[0].length}` : "pending");
+
+    const derivationContent = hasAnalytic
+        ? [
+              `**Lane:** ${state.analyticSolution?.exact.method_label ?? "Analytic solve"}`,
+              "",
+              state.analyticSolution?.exact.result_latex ? `**Final form:** ${state.analyticSolution.exact.result_latex}` : null,
+              state.analyticSolution?.exact.auxiliary_latex ? `**Auxiliary form:** ${state.analyticSolution.exact.auxiliary_latex}` : null,
+              state.analyticSolution?.exact.numeric_approximation ? `**Approximation:** \`${state.analyticSolution.exact.numeric_approximation}\`` : null,
+          ]
+              .filter(Boolean)
+              .join("\n")
+        : [
+              `**Analytic status:** closed-form result topilmadi yoki symbolic lane javob bermadi.`,
+              "",
+              `**Numerical lane:** ${state.mode} rejimida matrix audit va struktur reading tayyor.`,
+              "",
+              `Quyidagi tugma orqali numerical interpretation step-by-step ko'rinadi.`,
+          ].join("\n");
+
+    const fallbackSteps = [
+        {
+            title: "Matrix Parse",
+            summary: `Input matrix ${matrixShape} shaklida o'qildi va ${state.mode} oilasiga moslandi.`,
+            latex: null,
+            tone: "neutral" as const,
+        },
+        {
+            title: "Structural Audit",
+            summary: `Rank ${state.summary.rank ?? "pending"}, determinant ${state.summary.determinant ?? "pending"}, condition ${state.summary.conditionNumber ?? "pending"} signallari yig'ildi.`,
+            latex: null,
+            tone: "info" as const,
+        },
+        {
+            title: "Numerical Reading",
+            summary: state.solveErrorMessage
+                ? state.solveErrorMessage
+                : `Solver ${state.summary.solverKind ?? "pending"} va residual ${state.summary.residualNorm ?? "pending"} orqali numerical result talqin qilindi.`,
+            latex: state.analyticSolution?.exact.numeric_approximation ?? null,
+            tone: "success" as const,
+        },
+    ];
+
+    const displayedSteps = hasAnalytic ? state.analyticSolution?.exact.steps ?? [] : showNumericalDetails ? fallbackSteps : [];
+    const finalResultSection = (
+        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
+            {state.analyticSolution?.exact.result_latex ? (
+                <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-5">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Answer</div>
+                    <MathBlock value={state.analyticSolution.exact.result_latex} className="mt-3 text-base font-semibold text-foreground" />
+                    {state.analyticSolution.exact.auxiliary_latex ? (
+                        <MathBlock value={state.analyticSolution.exact.auxiliary_latex} className="mt-3 text-xs text-muted-foreground" />
+                    ) : null}
+                </div>
+            ) : null}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {state.mode === "algebra" ? (
+                    <>
+                        <MetricCard label="Determinant" value={state.summary.determinant ?? "pending"} />
+                        <MetricCard label="Trace" value={state.summary.trace ?? "pending"} />
+                        <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
+                        <MetricCard label="Inverse" value={state.summary.inverseAvailable ? "available" : "not ready"} />
+                        <MetricCard label="Condition" value={state.summary.conditionNumber ?? "pending"} />
+                        <MetricCard label="Sparse" value={state.summary.sparseSummary ?? "pending"} />
+                    </>
+                ) : null}
+                {state.mode === "transform" ? (
+                    <>
+                        <MetricCard label="Determinant" value={state.summary.determinant ?? "pending"} />
+                        <MetricCard label="Trace" value={state.summary.trace ?? "pending"} />
+                        <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
+                        <MetricCard label="Area Scale" value={state.summary.determinant ?? "pending"} />
+                        <MetricCard
+                            label="Orientation"
+                            value={planeScale == null ? "pending" : planeScale > 0 ? "preserved" : planeScale < 0 ? "reversed" : "collapsed"}
+                        />
+                        <MetricCard label="T(v)" value={transformedVector ? formatVector(transformedVector) : "pending"} />
+                    </>
+                ) : null}
+                {state.mode === "systems" ? (
+                    <>
+                        <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
+                        <MetricCard label="Solver" value={state.summary.solverKind ?? "pending"} />
+                        <MetricCard label="Residual Norm" value={state.summary.residualNorm ?? "pending"} />
+                        <MetricCard label="Condition" value={state.summary.conditionNumber ?? "pending"} />
+                        <MetricCard label="Pivots" value={state.summary.pivotColumns?.length ? state.summary.pivotColumns.join(", ") : "pending"} />
+                        <MetricCard label="Iterative" value={state.summary.iterativeSummary ?? "pending"} />
+                    </>
+                ) : null}
+                {state.mode === "decomposition" ? (
+                    <>
+                        <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
+                        <MetricCard label="Spectrum" value={state.summary.eigenSummary ?? "pending"} />
+                        <MetricCard label="Spectral Radius" value={state.summary.spectralRadius ?? "pending"} />
+                        <MetricCard label="SVD" value={state.summary.svdSummary ?? "pending"} />
+                        <MetricCard label="Diagonalizable" value={state.summary.diagonalizable == null ? "pending" : state.summary.diagonalizable ? "yes" : "no"} />
+                        <MetricCard label="Factorizations" value={state.summary.decompositionSummary ?? "pending"} />
+                    </>
+                ) : null}
+                {state.mode === "tensor" ? (
+                    <>
+                        <MetricCard label="Tensor Shape" value={state.summary.tensorShape ?? "pending"} />
+                        <MetricCard label="Tensor Order" value={state.summary.tensorOrder ? String(state.summary.tensorOrder) : "pending"} />
+                        <MetricCard label="Mode Ranks" value={state.summary.modeRanks?.join(", ") ?? "pending"} />
+                        <MetricCard label="Contraction" value={state.summary.contractionSummary ?? "pending"} />
+                        <MetricCard label="Tensor Product" value={state.summary.tensorProductSummary ?? "pending"} />
+                        <MetricCard label="Tucker" value={state.summary.tuckerSummary ?? "pending"} />
+                        <MetricCard label="CP Probe" value={state.summary.cpSummary ?? "pending"} />
+                        <MetricCard label="Tensor Eigen" value={state.summary.tensorEigenSummary ?? "pending"} />
+                    </>
+                ) : null}
+            </div>
+            {state.solveErrorMessage ? (
+                <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+                    {state.solveErrorMessage}
+                </div>
+            ) : null}
+        </div>
+    );
+    const methodTraceSection = (
+        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Method Trace</div>
+            <div className="mt-4 space-y-3">
+                {displayedSteps.map((step, index) => (
+                    <LaboratorySolveDetailCard
+                        key={`${step.title}-${index}`}
+                        id={String(index + 1)}
+                        action={step.title}
+                        result={step.summary}
+                        formula={step.latex ?? undefined}
+                        tone={(step.tone as "neutral" | "info" | "success" | "warn") ?? "neutral"}
+                    />
+                ))}
+                {!displayedSteps.length ? (
+                    <div className="rounded-2xl border border-border/60 bg-muted/15 p-4 text-sm leading-6 text-muted-foreground">
+                        Matrix lane auto-solve tayyor. Analytic form topilsa step-by-step shu yerda chiqadi; aks holda numerical fallback tugmasi shu blokni ochadi.
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    );
 
     return (
-        <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <LaboratorySolveLayout
+            control={
                 <SolverControl
                     mode={state.mode}
                     setMode={actions.setMode}
@@ -68,9 +218,9 @@ export function SolveView({
                     experienceLevel={state.experienceLevel}
                     activePresetLabel={state.activePresetLabel}
                 />
-
-                <div className="space-y-4">
-                    <VisualizerDeck
+            }
+            visual={
+                <VisualizerDeck
                         mode={state.mode}
                         matrixRows={state.matrixRows}
                         rhsRows={state.rhsRows}
@@ -78,6 +228,26 @@ export function SolveView({
                         summary={state.summary}
                         analyticSolution={state.analyticSolution}
                     />
+            }
+            derivation={
+                <div className="space-y-4">
+                    <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                        <LaboratoryMathPanel
+                            eyebrow={hasAnalytic ? "Analytic Derivation" : "Numerical Fallback"}
+                            title={hasAnalytic ? "Closed-form reading" : "Analytic form unavailable"}
+                            content={derivationContent}
+                            accentClassName={hasAnalytic ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}
+                        />
+                        {!hasAnalytic ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowNumericalDetails((current) => !current)}
+                                className="mt-4 inline-flex items-center rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-300"
+                            >
+                                {showNumericalDetails ? "Hide Numerical Steps" : "Run Numerical Solution View"}
+                            </button>
+                        ) : null}
+                    </div>
 
                     <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Visualization Notes</div>
@@ -96,124 +266,27 @@ export function SolveView({
                         ) : null}
                     </div>
                 </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
-                    {state.analyticSolution?.exact.result_latex ? (
-                        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-5">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Answer</div>
-                            <div className="mt-3 overflow-x-auto font-mono text-base font-semibold text-foreground">{state.analyticSolution.exact.result_latex}</div>
-                            {state.analyticSolution.exact.auxiliary_latex ? (
-                                <div className="mt-3 overflow-x-auto font-mono text-xs text-muted-foreground">{state.analyticSolution.exact.auxiliary_latex}</div>
-                            ) : null}
-                        </div>
-                    ) : null}
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {state.mode === "algebra" ? (
-                            <>
-                                <MetricCard label="Determinant" value={state.summary.determinant ?? "pending"} />
-                                <MetricCard label="Trace" value={state.summary.trace ?? "pending"} />
-                                <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
-                                <MetricCard label="Inverse" value={state.summary.inverseAvailable ? "available" : "not ready"} />
-                                <MetricCard label="Condition" value={state.summary.conditionNumber ?? "pending"} />
-                                <MetricCard label="Sparse" value={state.summary.sparseSummary ?? "pending"} />
-                            </>
-                        ) : null}
-                        {state.mode === "transform" ? (
-                            <>
-                                <MetricCard label="Determinant" value={state.summary.determinant ?? "pending"} />
-                                <MetricCard label="Trace" value={state.summary.trace ?? "pending"} />
-                                <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
-                                <MetricCard label="Area Scale" value={state.summary.determinant ?? "pending"} />
-                                <MetricCard
-                                    label="Orientation"
-                                    value={planeScale == null ? "pending" : planeScale > 0 ? "preserved" : planeScale < 0 ? "reversed" : "collapsed"}
-                                />
-                                <MetricCard label="T(v)" value={transformedVector ? formatVector(transformedVector) : "pending"} />
-                            </>
-                        ) : null}
-                        {state.mode === "systems" ? (
-                            <>
-                                <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
-                                <MetricCard label="Solver" value={state.summary.solverKind ?? "pending"} />
-                                <MetricCard label="Residual Norm" value={state.summary.residualNorm ?? "pending"} />
-                                <MetricCard label="Condition" value={state.summary.conditionNumber ?? "pending"} />
-                                <MetricCard label="Pivots" value={state.summary.pivotColumns?.length ? state.summary.pivotColumns.join(", ") : "pending"} />
-                                <MetricCard label="Iterative" value={state.summary.iterativeSummary ?? "pending"} />
-                            </>
-                        ) : null}
-                        {state.mode === "decomposition" ? (
-                            <>
-                                <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
-                                <MetricCard label="Spectrum" value={state.summary.eigenSummary ?? "pending"} />
-                                <MetricCard label="Spectral Radius" value={state.summary.spectralRadius ?? "pending"} />
-                                <MetricCard label="SVD" value={state.summary.svdSummary ?? "pending"} />
-                                <MetricCard label="Diagonalizable" value={state.summary.diagonalizable == null ? "pending" : state.summary.diagonalizable ? "yes" : "no"} />
-                                <MetricCard label="Factorizations" value={state.summary.decompositionSummary ?? "pending"} />
-                            </>
-                        ) : null}
-                        {state.mode === "tensor" ? (
-                            <>
-                                <MetricCard label="Tensor Shape" value={state.summary.tensorShape ?? "pending"} />
-                                <MetricCard label="Tensor Order" value={state.summary.tensorOrder ? String(state.summary.tensorOrder) : "pending"} />
-                                <MetricCard label="Mode Ranks" value={state.summary.modeRanks?.join(", ") ?? "pending"} />
-                                <MetricCard label="Contraction" value={state.summary.contractionSummary ?? "pending"} />
-                                <MetricCard label="Tensor Product" value={state.summary.tensorProductSummary ?? "pending"} />
-                                <MetricCard label="Tucker" value={state.summary.tuckerSummary ?? "pending"} />
-                                <MetricCard label="CP Probe" value={state.summary.cpSummary ?? "pending"} />
-                                <MetricCard label="Tensor Eigen" value={state.summary.tensorEigenSummary ?? "pending"} />
-                            </>
-                        ) : null}
-                    </div>
-                    {state.solveErrorMessage ? (
-                        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
-                            {state.solveErrorMessage}
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Method Trace</div>
-                    <div className="mt-4 space-y-3">
-                        {(state.analyticSolution?.exact.steps ?? []).map((step) => (
-                            <div key={step.title} className="rounded-2xl border border-border/60 bg-muted/15 p-4">
-                                <div className="text-sm font-black text-foreground">{step.title}</div>
-                                <div className="mt-1 text-sm leading-6 text-muted-foreground">{step.summary}</div>
-                                {step.latex ? <div className="mt-3 overflow-x-auto font-mono text-xs text-foreground">{step.latex}</div> : null}
-                            </div>
-                        ))}
-                        {!state.analyticSolution ? (
-                            <div className="rounded-2xl border border-border/60 bg-muted/15 p-4 text-sm leading-6 text-muted-foreground">
-                                Matrix lane auto-solve tayyor. Determinant, systems, decomposition va transform oilalari shu blokda symbolic trace bilan ko‘rinadi.
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            </div>
-
-            {state.analyticSolution ? (
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Analytic Forms</div>
-                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                        <FormulaCard
-                            label="Parsed Input"
-                            value={state.analyticSolution.parser.expression_latex || state.analyticSolution.parser.expression_raw}
-                        />
-                        <FormulaCard
-                            label="Final Formula"
-                            value={state.analyticSolution.exact.result_latex ?? "pending"}
-                        />
-                        <FormulaCard
-                            label="Auxiliary Formula"
-                            value={state.analyticSolution.exact.auxiliary_latex ?? "pending"}
-                        />
-                    </div>
-                </div>
-            ) : null}
-
-            {state.mode === "transform" ? (
+            }
+            sections={[
+                { id: "final-result", node: finalResultSection, weight: 3 },
+                { id: "method-trace", node: methodTraceSection, weight: 2 },
+                state.analyticSolution
+                    ? {
+                          id: "analytic-forms",
+                          node: (
+                              <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Analytic Forms</div>
+                                  <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                                      <FormulaCard label="Parsed Input" value={state.analyticSolution.parser.expression_latex || state.analyticSolution.parser.expression_raw} />
+                                      <FormulaCard label="Final Formula" value={state.analyticSolution.exact.result_latex ?? "pending"} />
+                                      <FormulaCard label="Auxiliary Formula" value={state.analyticSolution.exact.auxiliary_latex ?? "pending"} />
+                                  </div>
+                              </div>
+                          ),
+                          weight: 2,
+                      }
+                    : null,
+                state.mode === "transform" ? (
                 <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
                     <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Transform Result</div>
@@ -229,8 +302,8 @@ export function SolveView({
                             <MetricCard label="Trace" value={state.summary.trace ?? "pending"} />
                         </div>
                         {state.analyticSolution?.exact.auxiliary_latex ? (
-                            <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-4 font-mono text-sm text-foreground">
-                                {state.analyticSolution.exact.auxiliary_latex}
+                            <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-4 text-sm text-foreground">
+                                <LaboratoryInlineMathMarkdown content={state.analyticSolution.exact.auxiliary_latex} />
                             </div>
                         ) : null}
                     </div>
@@ -238,10 +311,7 @@ export function SolveView({
                     <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Geometric Reading</div>
                         <div className="mt-4 grid gap-3">
-                            <InsightCard
-                                title="Basis distortion"
-                                body="Transform preview o'ng panelda birlik kvadratni va probe vektorni qanday burayotganini ko'rsatadi."
-                            />
+                            <InsightCard title="Basis distortion" body="Transform preview o'ng panelda birlik kvadratni va probe vektorni qanday burayotganini ko'rsatadi." />
                             <InsightCard
                                 title="Orientation change"
                                 body={
@@ -254,16 +324,12 @@ export function SolveView({
                                             : "Determinant nol, tekislik bir chiziqqa yoki nuqtaga qulaydi."
                                 }
                             />
-                            <InsightCard
-                                title="Analytic output"
-                                body={state.analyticSolution?.exact.result_latex ?? "Transform analytic result solve bilan shu yerda ko'rinadi."}
-                            />
+                            <InsightCard title="Analytic output" body={state.analyticSolution?.exact.result_latex ?? "Transform analytic result solve bilan shu yerda ko'rinadi."} />
                         </div>
                     </div>
                 </div>
-            ) : null}
-
-            {state.mode === "systems" ? (
+                ) : null,
+                state.mode === "systems" ? (
                 <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
                     <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Augmented Matrix</div>
@@ -303,9 +369,8 @@ export function SolveView({
                         </div>
                     </div>
                 </div>
-            ) : null}
-
-            {state.mode === "decomposition" ? (
+                ) : null,
+                state.mode === "decomposition" ? (
                 <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
                     <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Spectral Audit</div>
@@ -327,9 +392,8 @@ export function SolveView({
                         </div>
                     </div>
                 </div>
-            ) : null}
-
-            {state.mode === "tensor" ? (
+                ) : null,
+                state.mode === "tensor" ? (
                 <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
                     <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Tensor Audit</div>
@@ -374,16 +438,25 @@ export function SolveView({
                         </div>
                     </div>
                 </div>
-            ) : null}
-        </div>
+                ) : null,
+            ].filter(Boolean).map((entry, index) =>
+                "id" in (entry as object)
+                    ? (entry as { id: string; node: React.ReactNode; weight?: number })
+                    : { id: `extra-${index}`, node: entry as React.ReactNode, weight: 2 },
+            )}
+        />
     );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
+    const renderAsMath = /[\\^_{}[\]]|->|=>|=/.test(value);
+
     return (
         <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-            <div className="mt-2 text-lg font-black tracking-tight text-foreground">{value}</div>
+            <div className="mt-2 text-lg font-black tracking-tight text-foreground">
+                {renderAsMath ? <MathBlock value={value} compact /> : value}
+            </div>
         </div>
     );
 }
@@ -401,7 +474,27 @@ function FormulaCard({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-2xl border border-border/60 bg-muted/10 p-4">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-            <div className="mt-3 overflow-x-auto font-mono text-sm leading-7 text-foreground">{value}</div>
+            <MathBlock value={value} className="mt-3 text-sm leading-7 text-foreground" />
+        </div>
+    );
+}
+
+function MathBlock({
+    value,
+    className = "",
+    compact = false,
+}: {
+    value?: string;
+    className?: string;
+    compact?: boolean;
+}) {
+    if (!value?.trim() || value === "pending") {
+        return <div className={className}>pending</div>;
+    }
+
+    return (
+        <div className={`${className} overflow-x-auto ${compact ? "[&_.katex-display]:my-1" : ""}`.trim()}>
+            <LaboratoryInlineMathMarkdown content={value} />
         </div>
     );
 }
