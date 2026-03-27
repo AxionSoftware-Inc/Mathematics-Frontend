@@ -23,6 +23,8 @@ export function SolveView({
     const metrics = buildMetricCards(state);
     const hasAnalytic = Boolean(state.analyticSolution?.exact.result_latex || state.analyticSolution?.exact.steps.length);
     const [showNumericalDetails, setShowNumericalDetails] = React.useState(false);
+    const finalFormula = state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? undefined;
+    const auxiliaryFormula = state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? undefined;
     const derivationContent = hasAnalytic
         ? [
               `**Lane:** ${state.analyticSolution?.exact.method_label ?? "Analytic probability lane"}`,
@@ -53,12 +55,12 @@ export function SolveView({
                     <MetricCard key={metric.label} label={metric.label} value={metric.value} />
                 ))}
             </div>
-            {state.analyticSolution?.exact.result_latex || state.result.finalFormula ? (
+            {finalFormula ? (
                 <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Formula</div>
-                    <MathBlock value={state.analyticSolution?.exact.result_latex ?? state.result.finalFormula} className="mt-2 text-sm text-foreground" />
-                    {state.analyticSolution?.exact.auxiliary_latex || state.result.auxiliaryFormula ? (
-                        <MathBlock value={state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula} className="mt-2 text-xs text-muted-foreground" />
+                    <MathBlock value={finalFormula} className="mt-2 text-sm text-foreground" />
+                    {auxiliaryFormula ? (
+                        <MathBlock value={auxiliaryFormula} className="mt-2 text-xs text-muted-foreground" />
                     ) : null}
                 </div>
             ) : null}
@@ -79,7 +81,7 @@ export function SolveView({
                         id={String(index + 1)}
                         action={step.title}
                         result={step.summary}
-                        formula={("formula" in step ? step.formula : "latex" in step ? step.latex : undefined) ?? undefined}
+                        formula={getStepFormula(step)}
                         tone="neutral"
                     />
                 ))}
@@ -172,6 +174,22 @@ function MathBlock({
             <LaboratoryInlineMathMarkdown content={value} />
         </div>
     );
+}
+
+function getStepFormula(step: unknown) {
+    if (!step || typeof step !== "object") {
+        return undefined;
+    }
+
+    if ("formula" in step && typeof step.formula === "string") {
+        return step.formula;
+    }
+
+    if ("latex" in step && typeof step.latex === "string") {
+        return step.latex;
+    }
+
+    return undefined;
 }
 
 function buildMetricCards(state: ProbabilityStudioState) {

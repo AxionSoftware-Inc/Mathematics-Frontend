@@ -24,6 +24,8 @@ export function SolveView({
     const metrics = buildMetricCards(state);
     const hasAnalytic = Boolean(state.analyticSolution?.exact.result_latex || state.analyticSolution?.exact.steps.length);
     const [showNumericalDetails, setShowNumericalDetails] = React.useState(false);
+    const finalFormula = state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? undefined;
+    const auxiliaryFormula = state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? undefined;
     const derivationContent = hasAnalytic
         ? [
               `**Lane:** ${state.analyticSolution?.exact.method_label ?? "Analytic series / limit lane"}`,
@@ -54,15 +56,15 @@ export function SolveView({
                     <MetricCard key={metric.label} label={metric.label} value={metric.value} />
                 ))}
             </div>
-            {state.analyticSolution?.exact.result_latex || state.result.finalFormula ? (
+            {finalFormula ? (
                 <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Formula</div>
                     <div className="mt-2 overflow-x-auto text-sm text-foreground">
-                        <MathBlock value={state.analyticSolution?.exact.result_latex ?? state.result.finalFormula} fallback="Formula pending." />
+                        <MathBlock value={finalFormula} fallback="Formula pending." />
                     </div>
-                    {state.analyticSolution?.exact.auxiliary_latex || state.result.auxiliaryFormula ? (
+                    {auxiliaryFormula ? (
                         <div className="mt-2 overflow-x-auto text-xs text-muted-foreground">
-                            <MathBlock value={state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula} fallback="Auxiliary formula pending." />
+                            <MathBlock value={auxiliaryFormula} fallback="Auxiliary formula pending." />
                         </div>
                     ) : null}
                 </div>
