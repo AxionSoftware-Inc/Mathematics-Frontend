@@ -16,6 +16,10 @@ export function LaboratoryReportLayout({
     readinessCards,
     reportMarkdown,
     copyMarkdownExport,
+    saveResult,
+    saveState = "idle",
+    saveError = null,
+    lastSavedResultTitle,
     sendToWriter,
     pushLiveResult,
     liveTargets,
@@ -30,6 +34,10 @@ export function LaboratoryReportLayout({
     readinessCards: ReportMetricCard[];
     reportMarkdown: string;
     copyMarkdownExport: () => void;
+    saveResult?: () => void | Promise<unknown>;
+    saveState?: "idle" | "saving" | "saved" | "error";
+    saveError?: string | null;
+    lastSavedResultTitle?: string | null;
     sendToWriter: () => void;
     pushLiveResult: () => void;
     liveTargets: ReportLiveTarget[];
@@ -68,6 +76,13 @@ export function LaboratoryReportLayout({
                     />
 
                     <div className="flex flex-wrap gap-4">
+                        <button
+                            onClick={() => void saveResult?.()}
+                            className="site-btn-accent px-6"
+                            disabled={!saveResult || saveState === "saving"}
+                        >
+                            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved to Laboratory" : "Save Result"}
+                        </button>
                         <button onClick={copyMarkdownExport} className="site-btn px-6">
                             Copy Report
                         </button>
@@ -75,6 +90,14 @@ export function LaboratoryReportLayout({
                             Send to Writer
                         </button>
                     </div>
+                    {saveState === "saved" && lastSavedResultTitle ? (
+                        <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                            Saved asset: {lastSavedResultTitle}
+                        </div>
+                    ) : null}
+                    {saveState === "error" && saveError ? (
+                        <div className="text-sm font-medium text-rose-700 dark:text-rose-300">{saveError}</div>
+                    ) : null}
                 </div>
 
                 <div className="space-y-8">

@@ -3,6 +3,7 @@ import React from "react";
 import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
+import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 import { useDifferentialStudio } from "./differential-studio/use-differential-studio";
 import { DIFFERENTIAL_PRESETS } from "./differential-studio/constants";
 import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
@@ -116,6 +117,30 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
             keywords: `${state.mode},differential`,
         }),
     });
+    const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
+        ready: Boolean((state.summary || state.analyticSolution) && !(state.error || state.solveErrorMessage)),
+        moduleSlug: module.slug,
+        moduleTitle: module.title,
+        mode: state.mode,
+        buildTitle: () => `Differential report: ${state.mode}`,
+        buildSummary: () => state.analyticSolution?.exact.method_label ?? state.classification.label,
+        buildReportMarkdown: () => reportMarkdown,
+        buildStructuredPayload: (targetId) => buildDifferentialLivePayload(state, targetId),
+        buildInputSnapshot: () => ({
+            mode: state.mode,
+            expression: state.expression,
+            variable: state.variable,
+            point: state.point,
+            order: state.order,
+            direction: state.direction,
+            coordinates: state.coordinates,
+        }),
+        buildMetadata: () => ({
+            sourceLabel: "Differential Studio",
+            classification: state.classification.label,
+            solvePhase: state.solvePhase,
+        }),
+    });
 
     const applyPreset = (preset: any) => {
         actions.setMode(preset.mode);
@@ -167,6 +192,10 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
                     <ReportView
                         state={state}
                         copyMarkdownExport={copyMarkdownExport}
+                        saveResult={saveResult}
+                        saveState={saveState}
+                        saveError={saveError}
+                        lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
                         liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
@@ -177,7 +206,7 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
             default:
                 return null;
         }
-    }, [activeTab, actions, copyMarkdownExport, liveTargets, pushLiveResult, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, visibleSignals]);
+    }, [activeTab, actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, visibleSignals, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

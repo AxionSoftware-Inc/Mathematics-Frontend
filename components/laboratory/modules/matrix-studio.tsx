@@ -5,6 +5,7 @@ import React from "react";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
+import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 import { MATRIX_PRESETS } from "@/components/laboratory/modules/matrix-studio/constants";
 import { useMatrixStudio } from "@/components/laboratory/modules/matrix-studio/use-matrix-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/matrix-studio/components/studio-header-bar";
@@ -90,6 +91,29 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
             keywords: `${state.mode},matrix`,
         }),
     });
+    const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
+        ready: Boolean(state.summary.shape || state.analyticSolution),
+        moduleSlug: module.slug,
+        moduleTitle: module.title,
+        mode: state.mode,
+        buildTitle: () => `Matrix report: ${state.mode}`,
+        buildSummary: () => state.analyticSolution?.exact.method_label ?? state.summary.decompositionSummary ?? state.summary.systemSummary ?? "Matrix report asset",
+        buildReportMarkdown: () => reportMarkdown,
+        buildStructuredPayload: (targetId) => buildMatrixLivePayload(state, targetId),
+        buildInputSnapshot: () => ({
+            mode: state.mode,
+            matrixExpression: state.matrixExpression,
+            rhsExpression: state.rhsExpression,
+            dimension: state.dimension,
+            matrixRows: state.matrixRows,
+            rhsRows: state.rhsRows,
+            tensorSlices: state.tensorSlices,
+        }),
+        buildMetadata: () => ({
+            sourceLabel: "Matrix Studio",
+            preset: state.activePresetLabel ?? null,
+        }),
+    });
 
     const renderedTab = React.useMemo(() => {
         switch (state.activeTab) {
@@ -104,6 +128,10 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
                     <ReportView
                         state={state}
                         copyMarkdownExport={copyMarkdownExport}
+                        saveResult={saveResult}
+                        saveState={saveState}
+                        saveError={saveError}
+                        lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
                         liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
@@ -114,7 +142,7 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
             default:
                 return null;
         }
-    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state]);
+    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

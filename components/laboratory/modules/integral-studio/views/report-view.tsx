@@ -15,6 +15,10 @@ type ReportViewProps = {
     reportSupportCards: StudioMetricCard[];
     reportSkeletonMarkdown: string;
     copyMarkdownExport: () => void;
+    saveResult: () => void | Promise<unknown>;
+    saveState: "idle" | "saving" | "saved" | "error";
+    saveError: string | null;
+    lastSavedResultTitle: string | null;
     sendToWriter: () => void;
     reportReadinessCards: StudioMetricCard[];
     annotationPanelProps: React.ComponentProps<typeof AnnotationPanel>;
@@ -29,6 +33,10 @@ export function ReportView({
     reportSupportCards,
     reportSkeletonMarkdown,
     copyMarkdownExport,
+    saveResult,
+    saveState,
+    saveError,
+    lastSavedResultTitle,
     sendToWriter,
     reportReadinessCards,
     annotationPanelProps,
@@ -44,6 +52,10 @@ export function ReportView({
             readinessCards={reportReadinessCards}
             reportMarkdown={reportSkeletonMarkdown}
             copyMarkdownExport={copyMarkdownExport}
+            saveResult={saveResult}
+            saveState={saveState}
+            saveError={saveError}
+            lastSavedResultTitle={lastSavedResultTitle}
             sendToWriter={sendToWriter}
             pushLiveResult={pushLiveResult}
             liveTargets={liveTargets}

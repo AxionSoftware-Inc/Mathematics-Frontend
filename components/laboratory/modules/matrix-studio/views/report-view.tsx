@@ -9,6 +9,10 @@ type LiveTarget = {
 export function ReportView({
     state,
     copyMarkdownExport,
+    saveResult,
+    saveState,
+    saveError,
+    lastSavedResultTitle,
     sendToWriter,
     pushLiveResult,
     liveTargets,
@@ -17,6 +21,10 @@ export function ReportView({
 }: {
     state: MatrixStudioState;
     copyMarkdownExport: () => void;
+    saveResult: () => void | Promise<unknown>;
+    saveState: "idle" | "saving" | "saved" | "error";
+    saveError: string | null;
+    lastSavedResultTitle: string | null;
     sendToWriter: () => void;
     pushLiveResult: () => void;
     liveTargets: LiveTarget[];
@@ -80,6 +88,10 @@ tensor_eigen: ${state.summary.tensorEigenSummary ?? "pending"}
             readinessCards={readinessCards}
             reportMarkdown={reportSkeletonMarkdown}
             copyMarkdownExport={copyMarkdownExport}
+            saveResult={saveResult}
+            saveState={saveState}
+            saveError={saveError}
+            lastSavedResultTitle={lastSavedResultTitle}
             sendToWriter={sendToWriter}
             pushLiveResult={pushLiveResult}
             liveTargets={liveTargets}

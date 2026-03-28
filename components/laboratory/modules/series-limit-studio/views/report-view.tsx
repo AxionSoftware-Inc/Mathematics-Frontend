@@ -10,6 +10,10 @@ type LiveTarget = {
 export function ReportView({
     state,
     copyMarkdownExport,
+    saveResult,
+    saveState,
+    saveError,
+    lastSavedResultTitle,
     sendToWriter,
     pushLiveResult,
     liveTargets,
@@ -18,6 +22,10 @@ export function ReportView({
 }: {
     state: SeriesLimitStudioState;
     copyMarkdownExport: () => void;
+    saveResult: () => void | Promise<unknown>;
+    saveState: "idle" | "saving" | "saved" | "error";
+    saveError: string | null;
+    lastSavedResultTitle: string | null;
     sendToWriter: () => void;
     pushLiveResult: () => void;
     liveTargets: LiveTarget[];
@@ -95,6 +103,10 @@ export function ReportView({
             readinessCards={readinessCards}
             reportMarkdown={reportBody}
             copyMarkdownExport={copyMarkdownExport}
+            saveResult={saveResult}
+            saveState={saveState}
+            saveError={saveError}
+            lastSavedResultTitle={lastSavedResultTitle}
             sendToWriter={sendToWriter}
             pushLiveResult={pushLiveResult}
             liveTargets={liveTargets}

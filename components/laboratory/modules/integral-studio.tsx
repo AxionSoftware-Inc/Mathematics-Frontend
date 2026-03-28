@@ -8,6 +8,7 @@ import {
 import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
+import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 
 // Shared Services
 import { LaboratoryFormattingService } from "@/components/laboratory/services/formatting-service";
@@ -1110,6 +1111,55 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             tone: summary && !solverWarning ? "success" : "warn",
         },
     ]), [annotations.length, assumptionCards.length, methodAuditCards.length, solverWarning, summary]);
+    const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
+        ready: Boolean(summary && !solverWarning),
+        moduleSlug: module.slug,
+        moduleTitle: module.title,
+        mode,
+        buildTitle: () => `Integral report: ${expression || mode}`,
+        buildSummary: () => resultConsoleData.subline,
+        buildReportMarkdown: () => reportSkeletonMarkdown,
+        buildStructuredPayload: (targetId) =>
+            buildIntegralLivePayload({
+                targetId,
+                mode,
+                expression,
+                lower: Number(lower),
+                upper: Number(upper),
+                xMin: Number(xMin),
+                xMax: Number(xMax),
+                yMin: Number(yMin),
+                yMax: Number(yMax),
+                zMin: Number(zMin),
+                zMax: Number(zMax),
+                segmentsUsed: normalizedSegments,
+                xResolution: normalizedXResolution,
+                yResolution: normalizedYResolution,
+                zResolution: normalizedZResolution,
+                summary: summary as IntegralComputationSummary,
+            }),
+        buildInputSnapshot: () => ({
+            mode,
+            expression,
+            lower,
+            upper,
+            xMin,
+            xMax,
+            yMin,
+            yMax,
+            zMin,
+            zMax,
+            segmentsUsed: normalizedSegments,
+            xResolution: normalizedXResolution,
+            yResolution: normalizedYResolution,
+            zResolution: normalizedZResolution,
+        }),
+        buildMetadata: () => ({
+            sourceLabel: "Integral Studio",
+            classification: classification.label,
+            solverStatusText,
+        }),
+    });
 
     const solverControlProps: React.ComponentProps<typeof SolverControl> = {
         ...state,
@@ -1264,6 +1314,10 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         reportSupportCards={reportSupportCards}
                         reportSkeletonMarkdown={reportSkeletonMarkdown}
                         copyMarkdownExport={copyMarkdownExport}
+                        saveResult={saveResult}
+                        saveState={saveState}
+                        saveError={saveError}
+                        lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         reportReadinessCards={reportReadinessCards}
                         annotationPanelProps={annotationPanelProps}

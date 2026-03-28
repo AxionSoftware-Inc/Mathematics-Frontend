@@ -8,6 +8,7 @@ import {
     CheckCircle2,
     CircleDashed,
     Code2,
+    DatabaseZap,
     Eye,
     FileStack,
     FunctionSquare,
@@ -30,6 +31,7 @@ import {
 import { ArticleRichContent } from "@/components/article-rich-content";
 import { MathKeyboard } from "@/components/math-keyboard";
 import { CitationManager } from "@/components/citation-manager";
+import { LaboratoryResultImportPanel } from "@/components/laboratory/laboratory-result-import-panel";
 import { WriterLiveTargetsPanel } from "@/components/live-writer-bridge/writer-live-targets-panel";
 import { WriterProjectPanel } from "@/components/writer-project-panel";
 import {
@@ -44,6 +46,7 @@ import {
     serializeWriterBridgeBlock,
     upsertStoredWriterTargetSession,
     type LabPublishBroadcast,
+    type WriterImportPayload,
     type WriterTargetsRequest,
 } from "@/lib/live-writer-bridge";
 import {
@@ -685,6 +688,18 @@ export function PaperEditorWorkspace({
         insertSnippet(snippet);
     }
 
+    function handleImportSavedLaboratoryResult(payload: WriterImportPayload) {
+        const snippet = [payload.block ? serializeWriterBridgeBlock(payload.block) : "", payload.markdown]
+            .filter(Boolean)
+            .join("\n\n");
+        insertSnippet(`\n${snippet}\n`);
+    }
+
+    function openLaboratoryImportPanel() {
+        setShowInspector(true);
+        setInspectorSection("tools");
+    }
+
     function handleInsertCitation(citation: string, inlineRef: string) {
         const textarea = textareaRef.current;
         const currentContent = latestEditorContentRef.current;
@@ -1073,6 +1088,7 @@ export function PaperEditorWorkspace({
 
                             {inspectorSection === "tools" && (
                                 <>
+                                <LaboratoryResultImportPanel onImport={handleImportSavedLaboratoryResult} />
                                 <CitationManager onInsert={handleInsertCitation} />
                             <div className="site-panel mt-4 p-4">
                                 <div className="mb-4 flex items-center justify-between">
@@ -1519,6 +1535,13 @@ export function PaperEditorWorkspace({
                                             >
                                                 Lab
                                             </button>
+                                            <button
+                                                type="button"
+                                                onClick={openLaboratoryImportPanel}
+                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
+                                            >
+                                                Import
+                                            </button>
                                             </div>
                                         </div>
                                     </div>
@@ -1543,6 +1566,14 @@ export function PaperEditorWorkspace({
                                     >
                                         <Sparkles className="h-3 w-3" />
                                         Live Lab Block
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={openLaboratoryImportPanel}
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
+                                    >
+                                        <DatabaseZap className="h-3 w-3" />
+                                        Import Saved
                                     </button>
                                     <div className="ml-auto">
                                         <MathKeyboard onInsert={insertSnippet} />

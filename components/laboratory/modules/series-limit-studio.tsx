@@ -5,6 +5,7 @@ import React from "react";
 import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
+import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 import { SERIES_LIMIT_PRESETS } from "@/components/laboratory/modules/series-limit-studio/constants";
 import { useSeriesLimitStudio } from "@/components/laboratory/modules/series-limit-studio/use-series-limit-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/series-limit-studio/components/studio-header-bar";
@@ -80,6 +81,26 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
             keywords: `${state.mode},series,limit`,
         }),
     });
+    const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
+        ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.detectedFamily),
+        moduleSlug: module.slug,
+        moduleTitle: module.title,
+        mode: state.mode,
+        buildTitle: () => `Series / limit report: ${state.mode}`,
+        buildSummary: () => state.analyticSolution?.exact.method_label ?? state.summary.detectedFamily ?? "Series / limit report asset",
+        buildReportMarkdown: () => reportMarkdown,
+        buildStructuredPayload: (targetId) => buildSeriesLimitLivePayload(state, targetId),
+        buildInputSnapshot: () => ({
+            mode: state.mode,
+            expression: state.expression,
+            auxiliaryExpression: state.auxiliaryExpression,
+            dimension: state.dimension,
+        }),
+        buildMetadata: () => ({
+            sourceLabel: "Series Limit Studio",
+            preset: state.activePresetLabel ?? null,
+        }),
+    });
 
     const renderedTab = React.useMemo(() => {
         switch (state.activeTab) {
@@ -94,6 +115,10 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
                     <ReportView
                         state={state}
                         copyMarkdownExport={copyMarkdownExport}
+                        saveResult={saveResult}
+                        saveState={saveState}
+                        saveError={saveError}
+                        lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
                         liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
@@ -104,7 +129,7 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
             default:
                 return null;
         }
-    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state]);
+    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">
