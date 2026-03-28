@@ -3,6 +3,8 @@
 import React from "react";
 
 import type { LaboratoryModuleMeta } from "@/lib/laboratory";
+import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
+import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { PROBABILITY_PRESETS } from "@/components/laboratory/modules/probability-studio/constants";
 import { useProbabilityStudio } from "@/components/laboratory/modules/probability-studio/use-probability-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/probability-studio/components/studio-header-bar";
@@ -11,10 +13,71 @@ import { SolveView } from "@/components/laboratory/modules/probability-studio/vi
 import { VisualizeView } from "@/components/laboratory/modules/probability-studio/views/visualize-view";
 import { CompareView } from "@/components/laboratory/modules/probability-studio/views/compare-view";
 import { ReportView } from "@/components/laboratory/modules/probability-studio/views/report-view";
+import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import type { ProbabilityStudioState } from "@/components/laboratory/modules/probability-studio/types";
+
+function buildProbabilityReportMarkdown(state: ProbabilityStudioState) {
+    return `# Probability Report
+
+- mode: ${state.mode}
+- dimension: ${state.dimension}
+- sample size: ${state.summary.sampleSize ?? "pending"}
+- final: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}
+- auxiliary: ${state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? "pending"}
+- method: ${state.analyticSolution?.exact.method_label ?? "client fallback"}
+- risk: ${state.summary.riskSignal ?? "pending"}
+
+## report notes
+${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
+}
+
+function buildProbabilityLivePayload(state: ProbabilityStudioState, targetId: string): WriterBridgeBlockData {
+    const plotSeries = [
+        state.result.lineSeries?.length ? { label: "Primary series", color: "#2563eb", points: state.result.lineSeries } : null,
+        state.result.secondaryLineSeries?.length ? { label: "Secondary series", color: "#7c3aed", points: state.result.secondaryLineSeries } : null,
+        state.result.scatterSeries?.length ? { label: "Scatter", color: "#059669", points: state.result.scatterSeries } : null,
+        state.result.forecastSeries?.length ? { label: "Forecast", color: "#ea580c", points: state.result.forecastSeries } : null,
+    ].filter(Boolean) as WriterBridgeBlockData["plotSeries"];
+
+    return {
+        id: targetId,
+        status: "ready",
+        moduleSlug: "probability-studio",
+        kind: state.mode,
+        title: `Probability report: ${state.mode}`,
+        summary: state.analyticSolution?.exact.method_label ?? "Probability laboratory report export",
+        generatedAt: new Date().toISOString(),
+        metrics: [
+            { label: "Mode", value: state.mode },
+            { label: "Sample Size", value: state.summary.sampleSize ?? "pending" },
+            { label: "Risk", value: state.summary.riskSignal ?? "pending" },
+            { label: "Statistic", value: state.summary.testStatistic ?? state.summary.pValue ?? "pending" },
+        ],
+        notes: state.reportNotes,
+        plotSeries,
+    };
+}
 
 export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMeta }) {
     const { state, actions } = useProbabilityStudio(module);
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
+    const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
+    const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
+    const reportMarkdown = React.useMemo(() => buildProbabilityReportMarkdown(state), [state]);
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.sampleSize),
+        sourceLabel: "Probability Studio",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        buildMarkdown: () => reportMarkdown,
+        buildBlock: (targetId) => buildProbabilityLivePayload(state, targetId),
+        getDraftMeta: () => ({
+            title: "Probability Analysis",
+            abstract: "Exported from Probability Studio.",
+            keywords: `${state.mode},probability`,
+        }),
+    });
 
     const renderedTab = React.useMemo(() => {
         switch (state.activeTab) {
@@ -25,11 +88,21 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
             case "compare":
                 return <CompareView state={state} />;
             case "report":
-                return <ReportView state={state} />;
+                return (
+                    <ReportView
+                        state={state}
+                        copyMarkdownExport={copyMarkdownExport}
+                        sendToWriter={sendToWriter}
+                        pushLiveResult={pushLiveResult}
+                        liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
+                        selectedLiveTargetId={selectedLiveTargetId || null}
+                        setSelectedLiveTargetId={setSelectedLiveTargetId}
+                    />
+                );
             default:
                 return null;
         }
-    }, [actions, state]);
+    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

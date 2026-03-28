@@ -1,7 +1,29 @@
-import type { SeriesLimitStudioState } from "../types";
+import { LaboratoryReportLayout } from "@/components/laboratory/laboratory-report-layout";
 import { AnnotationPanel } from "../components/annotation-panel";
+import type { SeriesLimitStudioState } from "../types";
 
-export function ReportView({ state }: { state: SeriesLimitStudioState }) {
+type LiveTarget = {
+    id: string;
+    title: string;
+};
+
+export function ReportView({
+    state,
+    copyMarkdownExport,
+    sendToWriter,
+    pushLiveResult,
+    liveTargets,
+    selectedLiveTargetId,
+    setSelectedLiveTargetId,
+}: {
+    state: SeriesLimitStudioState;
+    copyMarkdownExport: () => void;
+    sendToWriter: () => void;
+    pushLiveResult: () => void;
+    liveTargets: LiveTarget[];
+    selectedLiveTargetId: string | null;
+    setSelectedLiveTargetId: (id: string) => void;
+}) {
     const reportBody = `# Series / Limit Research Report
 
 ## Problem Statement
@@ -39,48 +61,54 @@ export function ReportView({ state }: { state: SeriesLimitStudioState }) {
 ## Diagnostics
 - expansion: ${state.summary.expansionSignal ?? "pending"}
 - risk: ${state.summary.riskSignal ?? "pending"}
-- method: ${state.analyticSolution?.exact.method_label ?? "client-side preview"}
-`;
+- method: ${state.analyticSolution?.exact.method_label ?? "client-side preview"}`;
+
     const abstractText =
         state.mode === "limits"
             ? `${state.summary.detectedFamily ?? "This limit"} was analyzed through ${state.summary.specialFamilySignal ?? "a symbolic"} lane. The current limit is ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}, with local risk signal ${state.summary.riskSignal ?? "pending"} and error proxy ${state.summary.errorBoundSignal ?? "pending"}.`
             : `${state.summary.detectedFamily ?? "This lane"} was analyzed in ${state.mode} mode. The current result is ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}, supported by ${state.summary.testFamily ?? "pending"} with ${state.summary.secondaryTestFamily ?? "pending"} as a backup lane. Risk remains ${state.summary.riskSignal ?? "pending"}.`;
 
-    return (
-        <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Executive Report</div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {state.reportNotes.map((note) => (
-                            <div key={note} className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
-                                {note}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+    const executiveCards = [
+        { eyebrow: "Mode", value: state.mode, detail: "Active series / limit lane", tone: "neutral" as const },
+        { eyebrow: "Family", value: state.summary.detectedFamily ?? "pending", detail: "Detected research family", tone: "info" as const },
+        { eyebrow: "Result", value: state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending", detail: "Primary report result", tone: "success" as const },
+    ];
 
+    const supportCards = [
+        { eyebrow: "Proof", value: state.summary.proofSignal ?? "pending", detail: "Proof architecture status", tone: "info" as const },
+        { eyebrow: "Error Bound", value: state.summary.errorBoundSignal ?? "pending", detail: "Tail / approximation control", tone: "warn" as const },
+        { eyebrow: "Endpoint", value: state.summary.endpointSignal ?? "pending", detail: "Boundary audit state", tone: "neutral" as const },
+        { eyebrow: "Method", value: state.analyticSolution?.exact.method_label ?? "client preview", detail: "Primary symbolic lane", tone: "success" as const },
+    ];
+
+    const readinessCards = [
+        { eyebrow: "Notes", value: String(state.reportNotes.length), detail: "Prepared report notes", tone: "info" as const },
+        { eyebrow: "Annotations", value: String(state.annotationPanelProps.state.annotations.length), detail: "Saved research notes", tone: "neutral" as const },
+        { eyebrow: "Live", value: liveTargets.length ? "Ready" : "Waiting", detail: liveTargets.length ? "Writer target available" : "Open Writer to publish live", tone: liveTargets.length ? "success" as const : "warn" as const },
+        { eyebrow: "State", value: state.solveErrorMessage ? "Review" : "Ready", detail: state.solveErrorMessage ?? "Report packet can be exported", tone: state.solveErrorMessage ? "warn" as const : "success" as const },
+    ];
+
+    return (
+        <LaboratoryReportLayout
+            executiveCards={executiveCards}
+            supportCards={supportCards}
+            readinessCards={readinessCards}
+            reportMarkdown={reportBody}
+            copyMarkdownExport={copyMarkdownExport}
+            sendToWriter={sendToWriter}
+            pushLiveResult={pushLiveResult}
+            liveTargets={liveTargets}
+            selectedLiveTargetId={selectedLiveTargetId}
+            setSelectedLiveTargetId={setSelectedLiveTargetId}
+            annotationNode={<AnnotationPanel {...state.annotationPanelProps} />}
+            summaryNode={
                 <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Submission Abstract</div>
                     <div className="mt-4 rounded-2xl border border-border/60 bg-muted/10 p-4 text-sm leading-7 text-foreground">
                         {abstractText}
                     </div>
                 </div>
-            </div>
-
-            <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Research Skeleton</div>
-                    <div className="rounded-full border border-border/60 bg-muted/10 px-3 py-1 text-xs text-muted-foreground">
-                        notebook-ready outline
-                    </div>
-                </div>
-                <div className="mt-4 overflow-x-auto rounded-2xl border border-border/60 bg-muted/10 p-4 font-mono text-sm leading-7 text-foreground">
-                    <pre className="whitespace-pre-wrap">{reportBody}</pre>
-                </div>
-            </div>
-
-            <AnnotationPanel {...state.annotationPanelProps} />
-        </div>
+            }
+        />
     );
 }
