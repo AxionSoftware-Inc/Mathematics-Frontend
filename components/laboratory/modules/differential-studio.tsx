@@ -103,20 +103,6 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildDifferentialReportMarkdown(state), [state]);
-    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
-        ready: Boolean((state.summary || state.analyticSolution) && !(state.error || state.solveErrorMessage)),
-        sourceLabel: "Differential Studio",
-        liveTargets,
-        selectedLiveTargetId,
-        setExportState,
-        buildMarkdown: () => reportMarkdown,
-        buildBlock: (targetId) => buildDifferentialLivePayload(state, targetId),
-        getDraftMeta: () => ({
-            title: "Differential Analysis",
-            abstract: "Exported from Differential Studio.",
-            keywords: `${state.mode},differential`,
-        }),
-    });
     const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
         ready: Boolean((state.summary || state.analyticSolution) && !(state.error || state.solveErrorMessage)),
         moduleSlug: module.slug,
@@ -139,6 +125,21 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
             sourceLabel: "Differential Studio",
             classification: state.classification.label,
             solvePhase: state.solvePhase,
+        }),
+    });
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: Boolean((state.summary || state.analyticSolution) && !(state.error || state.solveErrorMessage)),
+        sourceLabel: "Differential Studio",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        buildMarkdown: () => reportMarkdown,
+        buildBlock: (targetId) => buildDifferentialLivePayload(state, targetId),
+        getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
+        getDraftMeta: () => ({
+            title: "Differential Analysis",
+            abstract: "Exported from Differential Studio.",
+            keywords: `${state.mode},differential`,
         }),
     });
 
@@ -198,7 +199,7 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
                         lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
-                        liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
+                        liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
                     />

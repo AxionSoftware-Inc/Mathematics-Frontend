@@ -112,13 +112,19 @@ export async function createSavedLaboratoryResult(payload: CreateSavedLaboratory
     return normalized;
 }
 
-export async function fetchSavedLaboratoryResults(params: { moduleSlug?: string; search?: string } = {}) {
+export async function fetchSavedLaboratoryResults(params: { moduleSlug?: string; search?: string; mode?: string; ordering?: string } = {}) {
     const query = new URLSearchParams();
     if (params.moduleSlug) {
         query.set("module_slug", params.moduleSlug);
     }
+    if (params.mode) {
+        query.set("mode", params.mode);
+    }
     if (params.search) {
         query.set("search", params.search);
+    }
+    if (params.ordering) {
+        query.set("ordering", params.ordering);
     }
 
     const suffix = query.toString() ? `?${query.toString()}` : "";
@@ -163,6 +169,8 @@ export function createWriterImportPayloadFromSavedResult(result: SavedLaboratory
         ...result.structured_payload,
         id: createWriterImportRequestId(),
         sync: undefined,
+        savedResultId: result.id,
+        savedResultRevision: result.revision,
         generatedAt: result.updated_at || result.structured_payload.generatedAt,
         title: result.structured_payload.title || result.title,
         summary: result.structured_payload.summary || result.summary,

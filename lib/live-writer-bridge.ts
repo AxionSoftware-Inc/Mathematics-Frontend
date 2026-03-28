@@ -51,6 +51,8 @@ export type WriterBridgeBlockData = {
     summary: string;
     generatedAt: string;
     metrics: WriterBridgeMetric[];
+    savedResultId?: string;
+    savedResultRevision?: number;
     notes?: string[];
     coefficients?: WriterBridgeCoefficient[];
     matrixTables?: WriterBridgeMatrixTable[];
@@ -60,10 +62,14 @@ export type WriterBridgeBlockData = {
 
 export type WriterBridgeTarget = {
     id: string;
+    paperId?: number;
+    paperTitle?: string;
     title: string;
     status: WriterBridgeBlockData["status"];
     generatedAt: string;
     revision?: number;
+    savedResultId?: string;
+    savedResultRevision?: number;
     lastPublishedAt?: string;
     lastAcknowledgedAt?: string;
     sourceLabel?: string;
@@ -181,15 +187,16 @@ function buildWriterImportStorageKey(requestId: string) {
     return `${LIVE_WRITER_EXPORT_KEY}::${requestId}`;
 }
 
-export function buildLiveWriterTargetSelectionId(writerId: string, targetId: string) {
-    return `${writerId}::${targetId}`;
+export function buildLiveWriterTargetSelectionId(ownerId: string | number, targetId: string) {
+    return `${ownerId}::${targetId}`;
 }
 
-export function getLiveWriterTargetSelectionId(target: { writerId: string; id: string }) {
-    return buildLiveWriterTargetSelectionId(target.writerId, target.id);
+export function getLiveWriterTargetSelectionId(target: { id: string; writerId?: string; paperId?: number }) {
+    const ownerId = target.writerId ?? target.paperId;
+    return ownerId == null ? target.id : buildLiveWriterTargetSelectionId(ownerId, target.id);
 }
 
-export function findLiveWriterTargetBySelection<T extends { writerId: string; id: string }>(
+export function findLiveWriterTargetBySelection<T extends { id: string; writerId?: string; paperId?: number }>(
     targets: T[],
     selectionId: string,
 ) {
@@ -565,6 +572,8 @@ export function blockToTarget(
         status: block.status,
         generatedAt: block.generatedAt,
         revision: block.sync?.revision,
+        savedResultId: block.savedResultId,
+        savedResultRevision: block.savedResultRevision,
         lastPublishedAt: block.sync?.pushedAt,
         lastAcknowledgedAt: block.sync?.acknowledgedAt,
         sourceLabel: block.sync?.sourceLabel,

@@ -18,14 +18,20 @@ export function LaboratoryResultImportPanel({
     const [results, setResults] = React.useState<SavedLaboratoryResult[]>([]);
     const [selectedId, setSelectedId] = React.useState<string | null>(null);
     const [search, setSearch] = React.useState("");
+    const [moduleFilter, setModuleFilter] = React.useState("all");
+    const [sortOrder, setSortOrder] = React.useState("-updated_at");
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
 
-    const loadResults = React.useCallback(async (query = "") => {
+    const loadResults = React.useCallback(async (query = "", moduleSlug = moduleFilter, ordering = sortOrder) => {
         setLoading(true);
         setError(null);
         try {
-            const nextResults = await fetchSavedLaboratoryResults({ search: query.trim() || undefined });
+            const nextResults = await fetchSavedLaboratoryResults({
+                search: query.trim() || undefined,
+                moduleSlug: moduleSlug !== "all" ? moduleSlug : undefined,
+                ordering,
+            });
             setResults(nextResults);
             setSelectedId((current) => (current && nextResults.some((item) => item.id === current) ? current : nextResults[0]?.id ?? null));
         } catch (loadError) {
@@ -33,7 +39,7 @@ export function LaboratoryResultImportPanel({
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [moduleFilter, sortOrder]);
 
     React.useEffect(() => {
         void loadResults();
@@ -41,15 +47,19 @@ export function LaboratoryResultImportPanel({
 
     React.useEffect(() => {
         const timer = window.setTimeout(() => {
-            void loadResults(search);
+            void loadResults(search, moduleFilter, sortOrder);
         }, 280);
         return () => window.clearTimeout(timer);
-    }, [loadResults, search]);
+    }, [loadResults, moduleFilter, search, sortOrder]);
 
     const selectedResult = React.useMemo(
         () => results.find((result) => result.id === selectedId) ?? null,
         [results, selectedId],
     );
+    const moduleOptions = React.useMemo(() => {
+        const modules = Array.from(new Set(results.map((item) => item.module_slug)));
+        return ["all", ...modules];
+    }, [results]);
 
     return (
         <div className="site-panel p-4">
@@ -78,6 +88,29 @@ export function LaboratoryResultImportPanel({
                     placeholder="Integral, matrix, probability..."
                     className="h-11 w-full rounded-2xl border border-border/60 bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-accent/30"
                 />
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <select
+                    value={moduleFilter}
+                    onChange={(event) => setModuleFilter(event.target.value)}
+                    className="h-11 rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none transition-colors focus:border-accent/30"
+                >
+                    {moduleOptions.map((option) => (
+                        <option key={option} value={option}>
+                            {option === "all" ? "All modules" : option}
+                        </option>
+                    ))}
+                </select>
+                <select
+                    value={sortOrder}
+                    onChange={(event) => setSortOrder(event.target.value)}
+                    className="h-11 rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none transition-colors focus:border-accent/30"
+                >
+                    <option value="-updated_at">Newest first</option>
+                    <option value="updated_at">Oldest first</option>
+                    <option value="title">Title A-Z</option>
+                    <option value="-title">Title Z-A</option>
+                </select>
             </div>
 
             <div className="mt-4 space-y-3">

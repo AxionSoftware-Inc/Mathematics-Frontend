@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
+import { fetchPublic } from "@/lib/api";
 
 import { type LiveWriterTargetOption } from "@/components/live-writer-bridge/use-live-writer-targets";
 import {
     createLaboratoryWriterDraftHref,
     findLiveWriterTargetBySelection,
-    publishToLiveWriterTarget,
     queueWriterImport,
     type WriterBridgeBlockData,
 } from "@/lib/live-writer-bridge";
@@ -23,6 +23,7 @@ type UseLaboratoryWriterBridgeOptions = {
     setGuideMode?: React.Dispatch<React.SetStateAction<WriterBridgeGuideMode>>;
     buildMarkdown: () => string;
     buildBlock: (targetId: string) => WriterBridgeBlockData;
+    getSavedResultMeta?: () => { id?: string | null; revision?: number | null } | null;
     getDraftMeta?: (block: WriterBridgeBlockData) => {
         title?: string;
         abstract?: string;
@@ -40,6 +41,7 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
         setGuideMode,
         buildMarkdown,
         buildBlock,
+        getSavedResultMeta,
         getDraftMeta,
     } = options;
 
@@ -63,6 +65,11 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
         }
 
         const block = buildBlock(`${sourceLabel.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`);
+        const savedMeta = getSavedResultMeta?.();
+        if (savedMeta?.id) {
+            block.savedResultId = savedMeta.id;
+            block.savedResultRevision = savedMeta.revision ?? undefined;
+        }
         const draftMeta = getDraftMeta?.(block);
         const requestId = queueWriterImport({
             version: 1,
@@ -79,24 +86,40 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
     }, [buildBlock, buildMarkdown, closeGuide, getDraftMeta, ready, setExportState, sourceLabel]);
 
     const pushLiveResult = React.useCallback(() => {
-        if (!ready) {
-            return;
-        }
+        const run = async () => {
+            if (!ready) {
+                return;
+            }
 
-        const target = findLiveWriterTargetBySelection(liveTargets, selectedLiveTargetId);
-        if (!target) {
-            return;
-        }
+            const target = findLiveWriterTargetBySelection(liveTargets, selectedLiveTargetId);
+            if (!target || !target.paperId) {
+                return;
+            }
 
-        publishToLiveWriterTarget({
-            writerId: target.writerId,
-            targetId: target.id,
-            sourceLabel,
-            documentTitle: target.documentTitle,
-            payload: buildBlock(target.id),
+            const block = buildBlock(target.id);
+            const savedMeta = getSavedResultMeta?.();
+            block.savedResultId = savedMeta?.id ?? block.savedResultId ?? target.savedResultId;
+            block.savedResultRevision = savedMeta?.revision ?? block.savedResultRevision ?? target.savedResultRevision;
+
+            const response = await fetchPublic(`/api/builder/papers/${target.paperId}/live-sync/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    block_id: target.id,
+                    block,
+                    saved_result_id: block.savedResultId,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Live sync failed with status ${response.status}`);
+            }
+            closeGuide();
+        };
+
+        void run().catch((error) => {
+            console.error("Failed to push live laboratory result", error);
         });
-        closeGuide();
-    }, [buildBlock, closeGuide, liveTargets, ready, selectedLiveTargetId, sourceLabel]);
+    }, [buildBlock, closeGuide, getSavedResultMeta, liveTargets, ready, selectedLiveTargetId, sourceLabel]);
 
     return {
         copyMarkdownExport,

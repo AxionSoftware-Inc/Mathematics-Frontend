@@ -77,20 +77,6 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildMatrixReportMarkdown(state), [state]);
-    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
-        ready: Boolean(state.summary.shape || state.analyticSolution),
-        sourceLabel: "Matrix Studio",
-        liveTargets,
-        selectedLiveTargetId,
-        setExportState,
-        buildMarkdown: () => reportMarkdown,
-        buildBlock: (targetId) => buildMatrixLivePayload(state, targetId),
-        getDraftMeta: () => ({
-            title: "Matrix Analysis",
-            abstract: "Exported from Matrix Studio.",
-            keywords: `${state.mode},matrix`,
-        }),
-    });
     const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
         ready: Boolean(state.summary.shape || state.analyticSolution),
         moduleSlug: module.slug,
@@ -114,6 +100,21 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
             preset: state.activePresetLabel ?? null,
         }),
     });
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: Boolean(state.summary.shape || state.analyticSolution),
+        sourceLabel: "Matrix Studio",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        buildMarkdown: () => reportMarkdown,
+        buildBlock: (targetId) => buildMatrixLivePayload(state, targetId),
+        getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
+        getDraftMeta: () => ({
+            title: "Matrix Analysis",
+            abstract: "Exported from Matrix Studio.",
+            keywords: `${state.mode},matrix`,
+        }),
+    });
 
     const renderedTab = React.useMemo(() => {
         switch (state.activeTab) {
@@ -134,7 +135,7 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
                         lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
-                        liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
+                        liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
                     />

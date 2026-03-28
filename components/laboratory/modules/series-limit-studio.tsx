@@ -67,20 +67,6 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildSeriesLimitReportMarkdown(state), [state]);
-    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
-        ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.detectedFamily),
-        sourceLabel: "Series Limit Studio",
-        liveTargets,
-        selectedLiveTargetId,
-        setExportState,
-        buildMarkdown: () => reportMarkdown,
-        buildBlock: (targetId) => buildSeriesLimitLivePayload(state, targetId),
-        getDraftMeta: () => ({
-            title: "Series / Limit Analysis",
-            abstract: "Exported from Series Limit Studio.",
-            keywords: `${state.mode},series,limit`,
-        }),
-    });
     const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
         ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.detectedFamily),
         moduleSlug: module.slug,
@@ -99,6 +85,21 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
         buildMetadata: () => ({
             sourceLabel: "Series Limit Studio",
             preset: state.activePresetLabel ?? null,
+        }),
+    });
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.detectedFamily),
+        sourceLabel: "Series Limit Studio",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        buildMarkdown: () => reportMarkdown,
+        buildBlock: (targetId) => buildSeriesLimitLivePayload(state, targetId),
+        getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
+        getDraftMeta: () => ({
+            title: "Series / Limit Analysis",
+            abstract: "Exported from Series Limit Studio.",
+            keywords: `${state.mode},series,limit`,
         }),
     });
 
@@ -121,7 +122,7 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
                         lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
-                        liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
+                        liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
                     />

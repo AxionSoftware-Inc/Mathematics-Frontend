@@ -65,20 +65,6 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildProbabilityReportMarkdown(state), [state]);
-    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
-        ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.sampleSize),
-        sourceLabel: "Probability Studio",
-        liveTargets,
-        selectedLiveTargetId,
-        setExportState,
-        buildMarkdown: () => reportMarkdown,
-        buildBlock: (targetId) => buildProbabilityLivePayload(state, targetId),
-        getDraftMeta: () => ({
-            title: "Probability Analysis",
-            abstract: "Exported from Probability Studio.",
-            keywords: `${state.mode},probability`,
-        }),
-    });
     const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
         ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.sampleSize),
         moduleSlug: module.slug,
@@ -97,6 +83,21 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
         buildMetadata: () => ({
             sourceLabel: "Probability Studio",
             preset: state.activePresetLabel ?? null,
+        }),
+    });
+    const { copyMarkdownExport, sendToWriter, pushLiveResult } = useLaboratoryWriterBridge({
+        ready: Boolean(state.analyticSolution || state.result.finalFormula || state.summary.sampleSize),
+        sourceLabel: "Probability Studio",
+        liveTargets,
+        selectedLiveTargetId,
+        setExportState,
+        buildMarkdown: () => reportMarkdown,
+        buildBlock: (targetId) => buildProbabilityLivePayload(state, targetId),
+        getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
+        getDraftMeta: () => ({
+            title: "Probability Analysis",
+            abstract: "Exported from Probability Studio.",
+            keywords: `${state.mode},probability`,
         }),
     });
 
@@ -119,7 +120,7 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
                         lastSavedResultTitle={lastSavedResult?.title ?? null}
                         sendToWriter={sendToWriter}
                         pushLiveResult={pushLiveResult}
-                        liveTargets={liveTargets.map((target) => ({ id: `${target.writerId}::${target.id}`, title: target.documentTitle }))}
+                        liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
                     />

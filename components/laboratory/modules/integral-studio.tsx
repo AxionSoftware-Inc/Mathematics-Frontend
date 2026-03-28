@@ -1321,7 +1321,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         sendToWriter={sendToWriter}
                         reportReadinessCards={reportReadinessCards}
                         annotationPanelProps={annotationPanelProps}
-                        liveTargets={liveBridge.liveTargets}
+                        liveTargets={liveBridge.liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={liveBridge.selectedLiveTargetId}
                         setSelectedLiveTargetId={liveBridge.setSelectedLiveTargetId}
                         pushLiveResult={pushLiveResult}
