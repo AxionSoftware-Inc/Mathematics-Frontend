@@ -8,14 +8,7 @@ import {
     DifferentialAnalyticSolveResponse,
     DifferentialComputationSummary,
     DifferentialCoordinateSystem,
-    DifferentialMetricCard,
     DifferentialAnnotation,
-    DerivativeSummary,
-    GradientSummary,
-    JacobianSummary,
-    HessianSummary,
-    PartialDerivativeSummary,
-    PlotPoint,
     DifferentialSavedExperiment,
 } from "./types";
 import { LaboratoryModuleMeta } from "@/lib/laboratory";
@@ -23,23 +16,18 @@ import { DIFFERENTIAL_PRESETS } from "./constants";
 import { DifferentialClassificationService } from "./services/classification-service";
 import { DifferentialMathService } from "./services/math-service";
 import { DifferentialSolveService } from "./services/solve-service";
-
-function isGradient(summary: unknown): summary is GradientSummary {
-    return (summary as GradientSummary)?.type === "gradient";
-}
-
-function isJacobian(summary: unknown): summary is JacobianSummary {
-    return (summary as JacobianSummary)?.type === "jacobian";
-}
-
-function isHessian(summary: unknown): summary is HessianSummary {
-    return (summary as HessianSummary)?.type === "hessian";
-}
-
-function isDerivativeOrPartial(summary: unknown): summary is DerivativeSummary | PartialDerivativeSummary {
-    const type = (summary as DerivativeSummary | PartialDerivativeSummary)?.type;
-    return type === "derivative" || type === "partial";
-}
+import {
+    buildDifferentialCompareOverviewCards,
+    buildDifferentialMethodTableRows,
+    buildDifferentialPrimaryResultText,
+    buildDifferentialReportExecutiveCards,
+    buildDifferentialReportSupportCards,
+    buildDifferentialRiskRegisterCards,
+    buildDifferentialSampleTableRows,
+    buildDifferentialTrustHazards,
+    buildDifferentialTrustScore,
+    buildDifferentialVisualizeOverviewCards,
+} from "./services/presentation-service";
 
 function parseNumberList(value: string): number[] {
     return value
@@ -185,7 +173,18 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
             }
 
             if (numericalRequest.mode === "ode" || numericalRequest.mode === "pde" || numericalRequest.mode === "sde") {
-                return { error: "", summary: null as DifferentialComputationSummary | null };
+                return {
+                    error: "",
+                    summary: DifferentialMathService.approximateAdvanced(
+                        numericalRequest.mode,
+                        numericalRequest.expression,
+                        numericalRequest.variable,
+                        numericalRequest.point,
+                        1e-5,
+                        Number(numericalRequest.order) || 1,
+                        numericalRequest.coordinates,
+                    ) as DifferentialComputationSummary,
+                };
             }
 
             return { error: "", summary: null as DifferentialComputationSummary | null };
@@ -242,47 +241,10 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
         return () => window.clearTimeout(timer);
     }, [currentRequest.expression, requestSolve, serializedCurrentRequest, serializedSolvedRequest]);
 
-    const visualizeOverviewCards = React.useMemo(() => {
-        if (!summary && analyticSolution?.status === "exact") {
-            return [
-                { eyebrow: "Operation", value: mode.charAt(0).toUpperCase() + mode.slice(1), detail: analyticSolution.exact?.method_label ?? "Specialized lane", tone: "neutral" as const },
-                { eyebrow: "Taxonomy", value: analyticSolution.diagnostics?.taxonomy?.family ?? "specialized", detail: "Backend lane family", tone: "info" as const },
-                { eyebrow: "Continuity", value: analyticSolution?.diagnostics?.continuity ?? "Partial", detail: "Lane-specific validity signal", tone: "success" as const },
-            ];
-        }
-
-        if (!summary) {
-            return [
-                { eyebrow: "Operation", value: mode.charAt(0).toUpperCase() + mode.slice(1), detail: "2D lane armed", tone: "neutral" as const },
-                { eyebrow: "Preview", value: "Ready", detail: "Showcase preset loaded", tone: "info" as const },
-                { eyebrow: "Continuity", value: "Pending", detail: "Solve to validate locally", tone: "neutral" as const },
-            ];
-        }
-
-        const renderCapacity =
-            "samples" in summary && Array.isArray(summary.samples)
-                ? `${summary.samples.length} pts`
-                : "matrix" in summary
-                  ? `${summary.matrix.length}x${summary.matrix[0]?.length ?? summary.matrix.length}`
-                  : "n/a";
-
-        const visualLane =
-            summary.type === "derivative"
-                ? "Function + tangent"
-                : summary.type === "higher_order"
-                  ? "Taylor overlay"
-                  : summary.type === "gradient" || summary.type === "directional"
-                    ? "Slice + vector"
-                    : summary.type === "jacobian"
-                      ? "Matrix lane"
-                      : "Curvature lane";
-
-        return [
-            { eyebrow: "Operation", value: mode.charAt(0).toUpperCase() + mode.slice(1), detail: visualLane, tone: "neutral" as const },
-            { eyebrow: "Capacity", value: renderCapacity, detail: "Renderable audit points", tone: "info" as const },
-            { eyebrow: "Continuity", value: analyticSolution?.diagnostics?.continuity ?? "Assumed", detail: "Local validity signal", tone: "success" as const },
-        ];
-    }, [analyticSolution, mode, summary]);
+    const visualizeOverviewCards = React.useMemo(
+        () => buildDifferentialVisualizeOverviewCards(summary, analyticSolution, mode),
+        [analyticSolution, mode, summary],
+    );
 
     const methodAuditCards = React.useMemo(() => {
         const methodValue =
@@ -324,254 +286,50 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
         ];
     }, [analyticSolution, mode, order]);
 
-    const compareOverviewCards = React.useMemo(() => {
-        if (!summary && analyticSolution?.status === "exact") {
-            return [
-                {
-                    eyebrow: "Lane",
-                    value: mode.toUpperCase(),
-                    detail: analyticSolution.exact?.method_label ?? "Specialized solver",
-                    tone: "success" as const,
-                },
-                {
-                    eyebrow: "Family",
-                    value: analyticSolution.diagnostics?.taxonomy?.family ?? "specialized",
-                    detail: "Symbolic taxonomy",
-                    tone: "info" as const,
-                },
-                {
-                    eyebrow: "Convergence",
-                    value: mode === "sde" ? "Pathwise" : "Symbolic",
-                    detail: mode === "sde" ? "single-path simulation" : "closed-form lane",
-                    tone: "neutral" as const,
-                },
-            ];
-        }
+    const compareOverviewCards = React.useMemo(
+        () => buildDifferentialCompareOverviewCards(summary, analyticSolution, mode),
+        [analyticSolution, mode, summary],
+    );
 
-        let primaryValue = 0;
-        let primaryLabel = "Primary Eval";
-        let deviationValue = "< 1e-4";
-        let convergenceValue = "Stable";
-        if (summary) {
-            if (isDerivativeOrPartial(summary) || isGradient(summary) || isHessian(summary)) {
-                primaryValue = summary.valueAtPoint;
-            } else if (isJacobian(summary)) {
-                primaryValue = summary.valueAtPoint[0] || 0;
-            }
-            if (isJacobian(summary)) {
-                primaryLabel = "Matrix Lead";
-                deviationValue = analyticSolution?.diagnostics?.matrix?.determinant_status ?? "shape only";
-                convergenceValue = analyticSolution?.status === "exact" ? "Symbolic" : "Numeric";
-            } else if (isHessian(summary)) {
-                primaryLabel = "Critical Point";
-                deviationValue = analyticSolution?.exact?.critical_point_type ?? summary.criticalPointType;
-                convergenceValue = analyticSolution?.exact?.eigenvalue_signature ?? summary.eigenvalueSignature;
-            } else if (mode === "directional") {
-                primaryLabel = "Projected Eval";
-            }
-        }
+    const riskRegisterCards = React.useMemo(
+        () => buildDifferentialRiskRegisterCards(analyticSolution, mode),
+        [analyticSolution, mode],
+    );
 
-        return [
-            { eyebrow: primaryLabel, value: primaryLabel === "Critical Point" ? deviationValue : primaryValue.toFixed(4), detail: "Result magnitude", tone: "success" as const },
-            {
-                eyebrow: primaryLabel === "Critical Point" ? "Matrix Status" : "Deviation",
-                value: primaryLabel === "Critical Point" ? (analyticSolution?.diagnostics?.matrix?.determinant_status ?? "n/a") : deviationValue,
-                detail: "Comparison signal",
-                tone: "neutral" as const,
-            },
-            { eyebrow: "Convergence", value: convergenceValue, detail: mode === "jacobian" || mode === "hessian" ? "Matrix lane interpretation" : "Finite diff bounded", tone: "info" as const },
-        ];
-    }, [analyticSolution, mode, summary]);
+    const trustScore = React.useMemo(
+        () => buildDifferentialTrustScore(analyticSolution, error, solveErrorMessage, summary, mode),
+        [analyticSolution, error, mode, solveErrorMessage, summary],
+    );
 
-    const riskRegisterCards = React.useMemo(() => {
-        const cards: DifferentialMetricCard[] = [
-            {
-                eyebrow: "Singularity Risk",
-                value: analyticSolution?.diagnostics?.singularity_points?.length ? "Watch" : "Low",
-                detail: "Point-neighborhood scan",
-                tone: analyticSolution?.diagnostics?.singularity_points?.length ? "warn" as const : "success" as const,
-            },
-            {
-                eyebrow: "Truncation Error",
-                value: mode === "hessian" ? "Elevated" : mode === "sde" ? "Path variance" : mode === "ode" || mode === "pde" ? "Symbolic lane" : "Standard",
-                detail: mode === "hessian" ? "Second-order stencil is more sensitive" : mode === "sde" ? "single-path stochastic uncertainty" : mode === "ode" || mode === "pde" ? "solver family dependent" : "Bounded by O(h^2) stencil",
-                tone: mode === "hessian" || mode === "sde" ? "warn" as const : "neutral" as const,
-            },
-        ];
+    const trustHazards = React.useMemo(
+        () => buildDifferentialTrustHazards(analyticSolution, error, solveErrorMessage, mode),
+        [analyticSolution, error, mode, solveErrorMessage],
+    );
 
-        if (analyticSolution?.diagnostics?.domain_analysis?.constraints?.length) {
-            cards.push({
-                eyebrow: "Domain Constraints",
-                value: String(analyticSolution.diagnostics.domain_analysis.constraints.length),
-                detail: "Active symbolic constraints",
-                tone: "info",
-            });
-        }
+    const primaryResultText = React.useMemo(
+        () => buildDifferentialPrimaryResultText(summary),
+        [summary],
+    );
 
-        if (analyticSolution?.diagnostics?.matrix?.determinant_status) {
-            cards.push({
-                eyebrow: "Matrix Status",
-                value: analyticSolution.diagnostics.matrix.determinant_status,
-                detail: "Invertibility / conditioning signal",
-                tone: analyticSolution.diagnostics.matrix.determinant_status === "near_singular" ? "warn" : "info",
-            });
-        }
+    const reportExecutiveCards = React.useMemo(
+        () => buildDifferentialReportExecutiveCards(summary, analyticSolution, mode, trustScore),
+        [analyticSolution, mode, summary, trustScore],
+    );
 
-        return cards;
-    }, [analyticSolution, mode]);
+    const reportSupportCards = React.useMemo(
+        () => buildDifferentialReportSupportCards(summary, analyticSolution, mode),
+        [analyticSolution, mode, summary],
+    );
 
-    const trustScore = React.useMemo(() => {
-        let score = analyticSolution?.status === "exact" ? 92 : 74;
-        if (error || solveErrorMessage) score -= 30;
-        if (analyticSolution?.diagnostics?.singularity_points?.length) score -= 15;
-        if (analyticSolution?.diagnostics?.differentiability === "non_differentiable") score -= 18;
-        if (analyticSolution?.diagnostics?.differentiability === "partial") score -= 8;
-        if (!summary && !(mode === "ode" || mode === "pde" || mode === "sde")) score -= 12;
-        if (mode === "sde") score -= 8;
-        return Math.max(0, Math.min(100, score));
-    }, [analyticSolution, error, mode, solveErrorMessage, summary]);
+    const methodTableRows = React.useMemo(
+        () => buildDifferentialMethodTableRows(summary, analyticSolution, mode),
+        [analyticSolution, mode, summary],
+    );
 
-    const trustHazards = React.useMemo(() => {
-        const hazards: string[] = [];
-        if (analyticSolution?.diagnostics?.singularity_points?.length) {
-            hazards.push("Singularity points detected near the active variable lane.");
-        }
-        if (analyticSolution?.diagnostics?.differentiability === "non_differentiable") {
-            hazards.push("Expression is marked non-differentiable on at least one active boundary.");
-        }
-        if (analyticSolution?.diagnostics?.domain_analysis?.blockers?.length) {
-            hazards.push(...analyticSolution.diagnostics.domain_analysis.blockers.map((item) => `Domain blocker: ${item}`));
-        }
-        if (error || solveErrorMessage) {
-            hazards.push(error || solveErrorMessage);
-        }
-        if (mode === "sde") {
-            hazards.push("Single seeded sample-path only; ensemble statistics hali chiqarilmagan.");
-        }
-        return hazards;
-    }, [analyticSolution, error, mode, solveErrorMessage]);
-
-    const primaryResultText = React.useMemo(() => {
-        if (!summary) return null;
-        if (summary.type === "derivative") return summary.derivativeAtPoint.toFixed(6);
-        if (summary.type === "partial") return summary.partialAtPoint.toFixed(6);
-        if (summary.type === "gradient") return `|grad|=${summary.magnitude.toFixed(6)}`;
-        if (summary.type === "directional") return summary.directionalDerivative.toFixed(6);
-        if ("matrix" in summary) return `${summary.matrix.length}x${summary.matrix[0]?.length ?? summary.matrix.length}`;
-        return `n=${summary.maxOrder}`;
-    }, [summary]);
-
-    const reportExecutiveCards = React.useMemo(() => {
-        let mainResult = "0.00";
-        if (!summary && analyticSolution?.status === "exact") {
-            mainResult = analyticSolution.exact?.numeric_approximation ?? (analyticSolution.exact?.derivative_latex ? "symbolic" : "exact");
-        } else if (summary) {
-            if (isDerivativeOrPartial(summary)) {
-                mainResult = summary.valueAtPoint.toFixed(4);
-            } else if (isGradient(summary)) {
-                mainResult = `|\\nabla| = ${summary.magnitude.toFixed(4)}`;
-            } else if (isJacobian(summary) || isHessian(summary)) {
-                mainResult = `Matrix[${summary.matrix.length}x${summary.matrix[0]?.length || summary.matrix.length}]`;
-            }
-        }
-
-        return [
-            { eyebrow: "Mode", value: mode.toUpperCase(), detail: "Derivative resolution", tone: "neutral" as const },
-            { eyebrow: "Result", value: mainResult, detail: "Final computation", tone: "success" as const },
-            { eyebrow: "Trust Score", value: String(trustScore), detail: "Methodological safety", tone: trustScore >= 85 ? "success" as const : trustScore >= 65 ? "info" as const : "warn" as const },
-        ];
-    }, [analyticSolution, mode, summary, trustScore]);
-
-    const reportSupportCards = React.useMemo(() => {
-        const points = summary && "samples" in summary ? summary.samples.length : 0;
-        return [
-            { eyebrow: "Points", value: String(points), detail: mode === "ode" || mode === "pde" || mode === "sde" ? "Visualizer samples live in lane renderer" : "Trace density", tone: "neutral" as const },
-            { eyebrow: "Format", value: "Markdown", detail: "Export readiness", tone: "info" as const },
-            {
-                eyebrow: "Diagnostics",
-                value: analyticSolution?.diagnostics?.matrix?.critical_point_type ?? analyticSolution?.diagnostics?.differentiability ?? "ready",
-                detail: "Research note payload",
-                tone: "neutral" as const,
-            },
-        ];
-    }, [analyticSolution, mode, summary]);
-
-    const methodTableRows = React.useMemo(() => {
-        if (!summary && analyticSolution?.status === "exact") {
-            return [
-                ["Lane", mode.toUpperCase(), analyticSolution.exact?.method_label ?? "Specialized backend lane"],
-                ["Family", analyticSolution.diagnostics?.taxonomy?.family ?? "specialized", analyticSolution.diagnostics?.taxonomy?.summary ?? "Lane summary"],
-                ["Exact Form", analyticSolution.exact?.derivative_latex ?? "n/a", "Primary symbolic result"],
-            ];
-        }
-
-        if (!summary) {
-            return [["No data", "-", "-"]];
-        }
-
-        if (summary.type === "higher_order") {
-            return summary.derivatives.map((value, index) => [
-                `f${index === 0 ? "" : `^(${index})`}(x0)`,
-                value.toFixed(6),
-                index === 0 ? "Function value" : `Order ${index} derivative`,
-            ]);
-        }
-
-        if (isJacobian(summary) || isHessian(summary)) {
-            return summary.matrix.map((row, index) => [
-                `Row ${index + 1}`,
-                `[${row.map((value) => value.toFixed(4)).join(", ")}]`,
-                isHessian(summary) ? "Second partials" : `State component ${index + 1}`,
-            ]);
-        }
-
-        if (summary.type === "directional") {
-            return [
-                ["f(point)", summary.valueAtPoint.toFixed(6), "Scalar field eval"],
-                ["Gradient", `[${summary.gradient.map((value) => value.toFixed(4)).join(", ")}]`, "Local gradient"],
-                ["D_u f", summary.directionalDerivative.toFixed(6), "Projected change rate"],
-            ];
-        }
-
-        if (isGradient(summary)) {
-            return [
-                ["f(point)", summary.valueAtPoint.toFixed(6), "Scalar field eval"],
-                ["Gradient", `[${summary.gradient.map((value) => value.toFixed(4)).join(", ")}]`, "Vector field"],
-                ["Magnitude |∇f|", summary.magnitude.toFixed(6), "Steepest ascent"],
-            ];
-        }
-
-        if (isDerivativeOrPartial(summary)) {
-            const primaryRate =
-                "tangentLine" in summary
-                    ? summary.tangentLine.slope
-                    : summary.partialAtPoint;
-            return [
-                ["f(point)", summary.valueAtPoint.toFixed(6), "Primary computation"],
-                ["Primary rate", primaryRate.toFixed(6), "First-order response"],
-                ["Lane", summary.type === "partial" ? `∂/∂${summary.variable}` : "Ordinary derivative", "Active 2D lane"],
-            ];
-        }
-
-        return [["-", "-", "-"]];
-    }, [analyticSolution, mode, summary]);
-
-    const sampleTableRows = React.useMemo(() => {
-        if (!summary && analyticSolution?.status === "exact") {
-            return [
-                ["lane", mode],
-                ["method", analyticSolution.exact?.method_label ?? "specialized"],
-                ["result", analyticSolution.exact?.numeric_approximation ?? "symbolic"],
-            ];
-        }
-        if (!summary || !("samples" in summary) || !summary.samples?.length) {
-            return [["-", "-"]];
-        }
-        return (summary.samples as PlotPoint[]).map((sample) => [
-            (sample.x ?? 0).toFixed(4),
-            (sample.y ?? 0).toFixed(4),
-        ]);
-    }, [analyticSolution, mode, summary]);
+    const sampleTableRows = React.useMemo(
+        () => buildDifferentialSampleTableRows(summary, analyticSolution, mode),
+        [analyticSolution, mode, summary],
+    );
 
     const saveCurrentExperiment = React.useCallback(() => {
         const label = experimentLabel.trim() || `${mode} @ ${point}`;

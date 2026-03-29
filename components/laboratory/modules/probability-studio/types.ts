@@ -23,8 +23,10 @@ export type ProbabilityPreset = {
 export type ProbabilitySummary = {
     sampleSize?: string | null;
     mean?: string | null;
+    median?: string | null;
     variance?: string | null;
     stdDev?: string | null;
+    iqr?: string | null;
     distributionFamily?: string | null;
     confidenceInterval?: string | null;
     pValue?: string | null;
@@ -46,18 +48,23 @@ export type ProbabilitySummary = {
     residualSignal?: string | null;
     outlierSignal?: string | null;
     leverageSignal?: string | null;
+    intervalSignal?: string | null;
     posteriorPredictive?: string | null;
     bayesFactor?: string | null;
     mcmcSignal?: string | null;
     pcaSignal?: string | null;
+    explainedVariance?: string | null;
     clusterSignal?: string | null;
+    clusterBalance?: string | null;
     mahalanobisSignal?: string | null;
     seasonality?: string | null;
     acfSignal?: string | null;
     pacfSignal?: string | null;
+    forecastInterval?: string | null;
     bootstrapSignal?: string | null;
     varianceReduction?: string | null;
     samplerSignal?: string | null;
+    convergenceSignal?: string | null;
 };
 
 export type ProbabilityStep = {
@@ -99,6 +106,8 @@ export type ProbabilityAnalysisResult = {
     forecastSeries?: ProbabilitySeriesPoint[];
     tertiaryLineSeries?: ProbabilitySeriesPoint[];
     quaternaryLineSeries?: ProbabilitySeriesPoint[];
+    intervalUpperSeries?: ProbabilitySeriesPoint[];
+    intervalLowerSeries?: ProbabilitySeriesPoint[];
 };
 
 export type ProbabilityAnalyticSolveResponse = {

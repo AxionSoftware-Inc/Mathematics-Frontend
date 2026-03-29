@@ -376,6 +376,91 @@ h6 {
   opacity: 0.6;
 }
 
+.site-hero-shell {
+  @apply relative overflow-hidden border;
+  border-radius: calc(var(--radius-panel-strong) + 0.3rem);
+  border-color: color-mix(in srgb, var(--border) 84%, transparent);
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 30%),
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.68));
+  box-shadow:
+    0 40px 90px -45px rgba(15, 23, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+@media (min-width: 768px) {
+  .site-hero-shell {
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .site-hero-shell {
+    padding: 2.5rem;
+  }
+}
+
+.site-hero-shell::before {
+  content: "";
+  @apply pointer-events-none absolute inset-0;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 60%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 44%, transparent 92%);
+  opacity: 0.18;
+}
+
+.site-hero-orb {
+  @apply pointer-events-none absolute rounded-full blur-[84px];
+}
+
+.site-hero-orb-left {
+  inset: auto auto -4rem -4rem;
+  width: 18rem;
+  height: 18rem;
+  background: rgba(20, 184, 166, 0.18);
+}
+
+.site-hero-orb-right {
+  inset: -4rem -3rem auto auto;
+  width: 22rem;
+  height: 22rem;
+  background: rgba(29, 78, 216, 0.16);
+}
+
+.site-command-card {
+  @apply rounded-[1.8rem] border p-4 md:p-5;
+  border-color: rgba(255, 255, 255, 0.46);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.82));
+  box-shadow:
+    0 20px 50px -34px rgba(15, 23, 42, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.site-signal-card {
+  @apply rounded-[1.35rem] border px-4 py-5;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.64));
+  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.22);
+}
+
+.site-capability-visual {
+  @apply relative overflow-hidden border p-4 md:p-5;
+  border-radius: calc(var(--radius-panel-strong) + 0.2rem);
+  border-color: color-mix(in srgb, var(--border) 84%, transparent);
+  background:
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.82));
+  box-shadow:
+    0 24px 60px -38px rgba(15, 23, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
 .lab-shell-panel {
   @apply relative overflow-hidden border shadow-sm;
   border-radius: calc(var(--radius-panel) + 0.2rem);

@@ -1,23 +1,19 @@
+import { compileWriterProjectSections, createWriterProjectSection } from "@/lib/writer-project";
+
 export type WriterTemplateCategory =
     | "research"
+    | "article"
     | "teaching"
-    | "proof"
-    | "expository"
-    | "report"
     | "thesis"
     | "book"
-    | "laboratory"
-    | "draft";
+    | "laboratory";
 
 export type WriterTemplateIcon =
     | "book-open"
     | "flask"
     | "newspaper"
     | "graduation-cap"
-    | "sigma"
-    | "scroll-text"
-    | "briefcase"
-    | "sparkles";
+    | "scroll-text";
 
 export type WriterTemplateAddOnIcon =
     | "sigma"
@@ -59,25 +55,33 @@ export type WriterTemplate = {
     keywords: string;
 };
 
-export const DEFAULT_WRITER_TEMPLATE_ID = "simple-draft";
-export const DEFAULT_WRITER_PRESET_ID = "minimal";
+export const DEFAULT_WRITER_TEMPLATE_ID = "research-paper";
+export const DEFAULT_WRITER_PRESET_ID = "journal-ready";
+
 const legacyTemplateIdMap: Record<string, string> = {
     research: "research-paper",
     article: "expository-article",
     book: "textbook-manuscript",
-    simple: "simple-draft",
+    simple: "expository-article",
+    "proof-note": "research-paper",
+    "magazine-feature": "expository-article",
+    "project-report": "lab-report",
+    "problem-book": "textbook-manuscript",
+    "lecture-book": "lecture-note",
+    "monograph-manuscript": "textbook-manuscript",
+    "olympiad-book": "textbook-manuscript",
 };
 
 export const writerTemplates: WriterTemplate[] = [
     {
         id: "research-paper",
         title: "Research Paper",
-        shortDescription: "IMRAD uslubidagi to'liq ilmiy maqola andozasi.",
-        description: "Kirish, metodologiya, natijalar, muhokama va xulosa bilan professional tadqiqot maqolasi uchun tayyor skelet.",
+        shortDescription: "Formal ilmiy maqola uchun IMRAD uslubidagi qat'iy skelet.",
+        description: "Kirish, metod, natija, muhokama va xulosa bilan jurnal yoki konferensiya maqolasini professional boshlash uchun.",
         category: "research",
         icon: "book-open",
         accentClassName: "text-blue-500 bg-blue-500/10 border-blue-500/20",
-        recommendedFor: ["Journal submission", "Conference paper", "Formal mathematical analysis"],
+        recommendedFor: ["Journal article", "Conference submission", "Formal mathematical analysis"],
         recommendedAddOnIds: ["citation-guide", "theorem-pack", "appendix-pack"],
         titleTemplate: "Tadqiqot maqolasi sarlavhasi",
         abstractTemplate: "Ushbu maqola [mavzu] bo'yicha [metod] asosida olingan natijalarni tahlil qiladi va [asosiy xulosa]ni ko'rsatadi.",
@@ -114,10 +118,54 @@ Yakuniy xulosalar va keyingi tadqiqot yo'nalishlarini yozing.
         keywords: "research, mathematics, analysis",
     },
     {
+        id: "expository-article",
+        title: "Article",
+        shortDescription: "Tushuntiruvchi yoki ilmiy-ommabop maqola uchun toza professional format.",
+        description: "Intuitiv kirish, asosiy g'oya, vizual blok va yakuniy xulosalar bilan o'qilishi yengil maqola andozasi.",
+        category: "article",
+        icon: "newspaper",
+        accentClassName: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
+        recommendedFor: ["Public article", "Concept explainer", "Magazine-style mathematics writing"],
+        recommendedAddOnIds: ["visualization-pack", "example-bank"],
+        titleTemplate: "Maqola sarlavhasi",
+        abstractTemplate: "Ushbu maqola [mavzu]ni intuitiv misollar, grafiklar va sodda izohlar orqali tushuntiradi.",
+        contentTemplate: `# Asosiy g'oya
+
+O'quvchini mavzuga olib kiruvchi qisqa kirish yozing.
+
+## Muammo nimada?
+
+Mavzuning nega qiziq ekanini sodda tilda tushuntiring.
+
+## Intuitiv tushuntirish
+
+Asosiy fikrni obrazli yoki oddiy misol bilan bering.
+
+## Grafik yoki tajriba
+
+\`\`\`plot2d
+{
+  "f": "x^2",
+  "domain": [-10, 10],
+  "title": "Namunaviy grafik"
+}
+\`\`\`
+
+## Chuqurroq qarash
+
+Formalroq tushuntirish yoki formula shu yerda beriladi.
+
+## Xulosa
+
+Maqoladan chiqadigan asosiy fikrlar va keyingi o'qish yo'nalishi.
+`,
+        keywords: "article, exposition, visualization",
+    },
+    {
         id: "lecture-note",
         title: "Lecture Note",
-        shortDescription: "Dars, seminar va tushuntirish matnlari uchun strukturali format.",
-        description: "Ta'riflar, teoremalar, misollar va mashqlar bilan o'quvchi uchun tushunarli lecture note andozasi.",
+        shortDescription: "Dars, seminar va qo'llanma uchun strukturali ta'lim andozasi.",
+        description: "Ta'riflar, teoremalar, misollar va mashqlar bilan o'quvchi uchun tushunarli lecture note formati.",
         category: "teaching",
         icon: "graduation-cap",
         accentClassName: "text-teal-500 bg-teal-500/10 border-teal-500/20",
@@ -152,175 +200,10 @@ Mavzuga intuitiv kirish va asosiy motivatsiyani yozing.
         keywords: "lecture, notes, teaching",
     },
     {
-        id: "proof-note",
-        title: "Proof Note",
-        shortDescription: "Isbotga yo'naltirilgan ixcham, formal yozuv formati.",
-        description: "Lemma, faraz, strategiya va asosiy isbot bloklari bilan bitta natijani toza yozish uchun qulay.",
-        category: "proof",
-        icon: "sigma",
-        accentClassName: "text-violet-500 bg-violet-500/10 border-violet-500/20",
-        recommendedFor: ["Standalone theorem proof", "Lemma draft", "Formal derivation"],
-        recommendedAddOnIds: ["theorem-pack", "appendix-pack"],
-        titleTemplate: "Teorema va isbot",
-        abstractTemplate: "Bu hujjatda [natija] uchun kerakli farazlar va isbot strategiyasi jamlanadi.",
-        contentTemplate: `# Bayonot
-
-Isbot qilinishi kerak bo'lgan asosiy natijani yozing.
-
-## Farazlar
-
-1. Birinchi faraz.
-2. Ikkinchi faraz.
-
-## Yordamchi lemmlar
-
-> **Lemma 1.**
-
-> **Isbot.**
-
-## Asosiy isbot
-
-> **Isbot.** Har bir qadamni alohida asos bilan yozing.
-
-## Natija
-
-Isbotdan kelib chiqadigan asosiy xulosa yoki korollariy.
-`,
-        keywords: "proof, theorem, lemma",
-    },
-    {
-        id: "expository-article",
-        title: "Expository Article",
-        shortDescription: "Ilmiy-ommabop yoki tushuntiruvchi maqola uchun boy andoza.",
-        description: "Grafiklar, intuition va strukturalangan bo'limlar bilan murakkab matematik fikrni osonroq tushuntirish uchun.",
-        category: "expository",
-        icon: "newspaper",
-        accentClassName: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
-        recommendedFor: ["Math blog", "Magazine article", "Concept explainer"],
-        recommendedAddOnIds: ["visualization-pack", "example-bank"],
-        titleTemplate: "Mavzu sarlavhasi",
-        abstractTemplate: "Ushbu maqola [mavzu]ni intuitiv misollar, grafiklar va oddiy izohlar orqali tushuntiradi.",
-        contentTemplate: `# Asosiy g'oya
-
-O'quvchini mavzuga olib kiruvchi qisqa kirish yozing.
-
-## Muammo nimada?
-
-Mavzuning nega qiziq ekanini sodda tilda tushuntiring.
-
-## Intuitiv tushuntirish
-
-Asosiy fikrni obrazli yoki oddiy misol bilan bering.
-
-## Grafik yoki tajriba
-
-\`\`\`plot2d
-{
-  "f": "x^2",
-  "domain": [-10, 10],
-  "title": "Namunaviy grafik"
-}
-\`\`\`
-
-## Chuqurroq qarash
-
-Formalroq tushuntirish yoki formula shu yerda beriladi.
-
-## Xulosa
-
-Maqoladan chiqadigan asosiy fikrlar va keyingi o'qish yo'nalishi.
-`,
-        keywords: "article, exposition, visualization",
-    },
-    {
-        id: "magazine-feature",
-        title: "Ready Article",
-        shortDescription: "Boshlanishi yozib qo'yilgan, tez nashrga mos premium maqola andozasi.",
-        description: "Lead paragraph, ritmli bo'limlar va vizual blok bilan ilmiy-ommabop maqolani bir necha daqiqada boshlash uchun yaratilgan.",
-        category: "expository",
-        icon: "newspaper",
-        accentClassName: "text-sky-500 bg-sky-500/10 border-sky-500/20",
-        recommendedFor: ["Magazine feature", "Homepage editorial", "Public math story"],
-        recommendedAddOnIds: ["visualization-pack", "example-bank", "delivery-checklist"],
-        titleTemplate: "Maqola sarlavhasi",
-        abstractTemplate: "Mazkur maqola [mavzu]ni qiziqarli syujet, sodda izoh va tanlangan misollar orqali o'quvchiga yaqinlashtiradi.",
-        contentTemplate: `# Nega bu mavzu muhim?
-
-Har bir kuchli maqola bitta aniq kuzatuv bilan boshlanadi. Shu yerda o'quvchini darhol ichkariga olib kiradigan kirish paragrafini yozing: muammo nimada, u qayerda uchraydi va nega bunga e'tibor berish kerak?
-
-## Bir qarashda asosiy g'oya
-
-[Mavzu]ning markaziy fikrini 3-5 jumlada sodda tilda tushuntiring. Formulaga hali shoshilmang, avval intuitiv tasvirni bering.
-
-## O'quvchini olib kiradigan misol
-
-Masalani kundalik kuzatuv, geometrik tasavvur yoki kichik hisoblash misoli bilan ochib bering.
-
-## Muhim formula yoki model
-
-\`\`\`plot2d
-{
-  "f": "x^2 - 4*x + 3",
-  "domain": [-2, 8],
-  "title": "Maqola uchun namunaviy grafik"
-}
-\`\`\`
-
-Grafik, formula yoki qisqa jadval asosiy fikrni qanday mustahkamlashini izohlang.
-
-## Chuqurroq qatlam
-
-Bu yerda endi ancha formal tushuntirishga o'ting: muhim tenglama, teorema yoki strukturani kiriting.
-
-## Yakun
-
-Maqola oxirida bitta aniq takeaway qoldiring va o'quvchini keyingi savol yoki yo'nalishga olib boring.
-`,
-        keywords: "article, feature, storytelling",
-    },
-    {
-        id: "project-report",
-        title: "Project Report",
-        shortDescription: "Loyiha yoki hisoblash ishlari uchun professional hisobot formati.",
-        description: "Maqsad, qurilgan model, bajarilgan ishlar, natijalar va keyingi qadamlarni tartibli ko'rsatadi.",
-        category: "report",
-        icon: "briefcase",
-        accentClassName: "text-amber-500 bg-amber-500/10 border-amber-500/20",
-        recommendedFor: ["Team report", "Research progress note", "Computation summary"],
-        recommendedAddOnIds: ["delivery-checklist", "appendix-pack"],
-        titleTemplate: "Loyiha hisoboti nomi",
-        abstractTemplate: "Bu hisobot [loyiha] bo'yicha bajarilgan ishlar, asosiy natijalar va keyingi bosqichlarni qisqacha bayon qiladi.",
-        contentTemplate: `# Loyiha maqsadi
-
-Loyiha vazifasi va muvaffaqiyat mezonlarini yozing.
-
-## Boshlang'ich shartlar
-
-Berilganlar, cheklovlar va ishlatilgan resurslar.
-
-## Yechim arxitekturasi
-
-Model, algoritm yoki metodlar ketma-ketligi.
-
-## Olingan natijalar
-
-Jadval, formula yoki qisqa xulosa bilan natijani kiriting.
-
-## Muammolar va risklar
-
-Aniqlangan cheklovlar yoki yechilmagan masalalar.
-
-## Keyingi qadamlar
-
-Navbatdagi iteratsiya uchun reja.
-`,
-        keywords: "report, project, progress",
-    },
-    {
         id: "thesis-chapter",
         title: "Thesis Chapter",
-        shortDescription: "Bitiruv ishi yoki dissertatsiya bobi uchun formal tuzilma.",
-        description: "Kengroq akademik yozuv uchun bo'lim, subsection, related work va conclusion oqimini tayyorlaydi.",
+        shortDescription: "Bitiruv ishi yoki dissertatsiya bobi uchun formal akademik tuzilma.",
+        description: "Nazariy asoslar, related work, asosiy tahlil va natijalarni bir bob ichida toza joylash uchun.",
         category: "thesis",
         icon: "scroll-text",
         accentClassName: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
@@ -356,13 +239,13 @@ Keyingi bob bilan bog'lanish va o'tish.
     },
     {
         id: "textbook-manuscript",
-        title: "Textbook Manuscript",
-        shortDescription: "Kitob yoki darslik yozish uchun chapter-based premium andoza.",
-        description: "Bo'lim maqsadlari, asosiy mavzu, misollar, mashqlar va yakuniy xulosalar bilan darslik yozishni tartibli boshlaydi.",
+        title: "Book Manuscript",
+        shortDescription: "Kitob yoki darslik yozish uchun chapter-based professional andoza.",
+        description: "Bo'lim maqsadlari, asosiy mavzu, misollar, mashqlar va yakuniy xulosalar bilan kitob yozishni tartibli boshlaydi.",
         category: "book",
         icon: "scroll-text",
         accentClassName: "text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20",
-        recommendedFor: ["Course book", "Structured textbook", "Chapter-based manuscript"],
+        recommendedFor: ["Course book", "Textbook", "Chapter-based manuscript"],
         recommendedAddOnIds: ["theorem-pack", "example-bank", "citation-guide"],
         titleTemplate: "Kitob nomi",
         abstractTemplate: "Ushbu qo'lyozma [mavzu] bo'yicha bosqichma-bosqich tushuntirish, misollar va mashqlar orqali to'liq o'quv yo'lini taklif qiladi.",
@@ -403,181 +286,14 @@ Bobdan olinadigan asosiy xulosalarni qisqa va aniq jamlang.
         keywords: "book, textbook, mathematics education",
     },
     {
-        id: "problem-book",
-        title: "Problem Book",
-        shortDescription: "Masalalar to'plami, yechim outline'i va difficulty oqimi uchun maxsus andoza.",
-        description: "Problem set, qisqa hint, to'liq yechim va yakuniy observation bilan masalalar kitobini tizimli yozish uchun mo'ljallangan.",
-        category: "book",
-        icon: "sigma",
-        accentClassName: "text-orange-500 bg-orange-500/10 border-orange-500/20",
-        recommendedFor: ["Problem collection", "Exercise book", "Contest training set"],
-        recommendedAddOnIds: ["example-bank", "delivery-checklist"],
-        titleTemplate: "Masalalar to'plami nomi",
-        abstractTemplate: "Ushbu masalalar kitobi [mavzu] bo'yicha saralangan savollar, hintlar va to'liq yechimlar orqali bosqichma-bosqich tayyorgarlik beradi.",
-        contentTemplate: `# 1-bo'lim. Masalalar to'plami
-
-Bu bo'limning asosiy mavzusi, qiyinchilik darajasi va nimani mashq qildirishini qisqacha yozing.
-
-## Tayanch formulalar
-
-Masalalarni yechishda qayta-qayta ishlatiladigan qisqa formulalar yoki faktlarni kiriting.
-
-## Masala 1
-
-Masala bayonini aniq va lo'nda yozing.
-
-### Hint
-
-Yechimni to'liq ochmasdan, yo'nalish beruvchi kichik ishora yozing.
-
-### Yechim
-
-Masalani bosqichma-bosqich yeching va har qadamda nima uchun shu usul tanlangani izohlang.
-
-## Masala 2
-
-Murakkabroq yoki avvalgi masalaning variatsiyasi bo'lgan savolni kiriting.
-
-### Qisqa observation
-
-Bu bo'limdagi umumiy pattern yoki foydali g'oyani jamlang.
-`,
-        keywords: "book, problem solving, exercises",
-    },
-    {
-        id: "lecture-book",
-        title: "Lecture Book",
-        shortDescription: "Kurs asosidagi lecture book uchun izchil, didaktik kitob andozasi.",
-        description: "Har bir bobda learning path, intuition, formal statement va checkpoint mashqlarini saqlab turadigan professional format.",
-        category: "book",
-        icon: "graduation-cap",
-        accentClassName: "text-teal-500 bg-teal-500/10 border-teal-500/20",
-        recommendedFor: ["Semester course", "Instructor book", "Guided lecture manuscript"],
-        recommendedAddOnIds: ["example-bank", "theorem-pack", "citation-guide"],
-        titleTemplate: "Lecture book nomi",
-        abstractTemplate: "Mazkur lecture book [mavzu]ni kurs ritmida, intuitiv tushuntirish, formal bayon va checkpoint mashqlar orqali o'rgatadi.",
-        contentTemplate: `# 1-lecture. Kursga kirish
-
-Bu lecture'ning maqsadi, oldindan talab qilinadigan bilim va asosiy savollarni yozing.
-
-## Learning path
-
-1. Avval nima tushuntiriladi?
-2. Qaysi teorema yoki metodga olib boriladi?
-3. Lecture oxirida nimalar mustahkamlanadi?
-
-## Intuitiv kirish
-
-Mavzuni sodda hikoya, geometrik tasavvur yoki tanish misol bilan oching.
-
-## Formal qism
-
-> **Ta'rif.** Asosiy tushuncha.
->
-> **Teorema.** Shu lecture'dagi markaziy natija.
-
-## Checkpoint
-
-1. O'quvchi shu joyda o'zini tekshirish uchun kichik savol.
-2. Keyingi qismga o'tishdan oldin qisqa mashq.
-
-## Lecture summary
-
-Asosiy takeaway'larni 4-5 jumlada jamlang.
-`,
-        keywords: "book, lecture, course notes",
-    },
-    {
-        id: "monograph-manuscript",
-        title: "Monograph Manuscript",
-        shortDescription: "Tadqiqotga yaqin, keng qamrovli matematik kitob uchun formal andoza.",
-        description: "Kontekst, related work, markaziy natijalar va texnik appendix bilan monografiya yozishni professional oqimga tushiradi.",
-        category: "book",
-        icon: "book-open",
-        accentClassName: "text-lime-500 bg-lime-500/10 border-lime-500/20",
-        recommendedFor: ["Advanced monograph", "Research book", "Graduate-level reference"],
-        recommendedAddOnIds: ["citation-guide", "theorem-pack", "appendix-pack"],
-        titleTemplate: "Monografiya nomi",
-        abstractTemplate: "Mazkur monografiya [mavzu]ning nazariy asoslari, markaziy natijalari va ochiq savollarini yagona izchil qo'lyozmaga birlashtiradi.",
-        contentTemplate: `# Monografiyaga kirish
-
-Asarning ilmiy konteksti, ko'lami va asosiy da'vosini bir necha kuchli paragrafda bayon qiling.
-
-## Muammo makoni
-
-Mavzuning tarixiy yoki zamonaviy fondagi o'rnini tushuntiring.
-
-## Belgilashlar va tayanch farazlar
-
-Keyingi boblarda ishlatiladigan notation, fazolar, operatorlar yoki obyektlarni kiriting.
-
-## Markaziy natijalar
-
-> **Teorema A.** Asarning markaziy natijasi.
->
-> **Izoh.** Natijaning qayerda kuchli ekanini ko'rsating.
-
-## Tuzilma xaritasi
-
-1. 1-bob nimani beradi?
-2. 2-bob qaysi texnik poydevorni quradi?
-3. Keyingi boblar qanday bog'lanadi?
-
-## Ochiq savollar
-
-Kelajakdagi tadqiqot yoki kengaytirish yo'nalishlarini sanab o'ting.
-`,
-        keywords: "book, monograph, mathematics research",
-    },
-    {
-        id: "olympiad-book",
-        title: "Olympiad Book",
-        shortDescription: "Olimpiada uslubidagi mavzu, strategy va level-based mashqlar uchun andoza.",
-        description: "Technique spotlight, challenge ladder va solution commentary bilan kuchli tayyorgarlik kitobini boshlash uchun yaratilgan.",
-        category: "book",
-        icon: "sparkles",
-        accentClassName: "text-amber-500 bg-amber-500/10 border-amber-500/20",
-        recommendedFor: ["Math olympiad training", "Advanced contest prep", "Technique handbook"],
-        recommendedAddOnIds: ["example-bank", "theorem-pack", "delivery-checklist"],
-        titleTemplate: "Olimpiada kitobi nomi",
-        abstractTemplate: "Ushbu olimpiada kitobi [mavzu] bo'yicha asosiy texnikalar, difficulty ladder va chuqur yechim commentary orqali tayyorgarlikni kuchaytiradi.",
-        contentTemplate: `# 1-mavzu. Asosiy texnika
-
-Bu bobda bitta kuchli olimpiada texnikasi yoki pattern tanishtiriladi.
-
-## Qachon ishlatiladi?
-
-Masalaning qaysi belgilaridan bu texnikani tanlash kerakligini tushuntiring.
-
-## Technique spotlight
-
-Asosiy g'oya, muhim lemma yoki transformatsiyani sodda shaklda yozing.
-
-## Challenge ladder
-
-1. Level 1: Kirish masalasi.
-2. Level 2: Standart kombinatsiya.
-3. Level 3: Kutilmagan burilishli challenge.
-
-## To'liq yechim commentary
-
-Yechimni faqat hisob emas, fikrlash ritmi bilan yozing: nega shu qadam, nega boshqa yo'l emas.
-
-## Coach notes
-
-O'quvchilar eng ko'p yiqiladigan joylar va tezkor eslatmalarni kiriting.
-`,
-        keywords: "book, olympiad, contest mathematics",
-    },
-    {
         id: "lab-report",
         title: "Lab Report",
-        shortDescription: "Laboratoriya natijalarini writer bilan birlashtirish uchun mos format.",
-        description: "Hisoblash tajribasi, observation va vizual natijalarni toza maqola shakliga keltirish uchun mo'ljallangan.",
+        shortDescription: "Laboratoriya natijalarini writer bilan toza birlashtirish uchun maxsus format.",
+        description: "Hisoblash tajribasi, observation va vizual natijalarni maqola yoki hisobotga aylantirish uchun mo'ljallangan.",
         category: "laboratory",
         icon: "flask",
         accentClassName: "text-rose-500 bg-rose-500/10 border-rose-500/20",
-        recommendedFor: ["Laboratory export", "Computation session", "Interactive experiment summary"],
+        recommendedFor: ["Laboratory export", "Computation session", "Experiment summary"],
         recommendedAddOnIds: ["lab-observation-pack", "visualization-pack", "delivery-checklist"],
         titleTemplate: "Laboratoriya hisobot sarlavhasi",
         abstractTemplate: "Mazkur hisobot laboratoriyada bajarilgan [hisoblash/tajriba] jarayoni, kuzatuvlar va olingan natijalarni umumlashtiradi.",
@@ -606,32 +322,6 @@ Natijalar nimani ko'rsatishini izohlang.
 Yakuniy baho va keyingi tekshirishlar.
 `,
         keywords: "laboratory, report, computation",
-    },
-    {
-        id: "simple-draft",
-        title: "Simple Draft",
-        shortDescription: "Tez yozish, brainstorming va erkin qoralama uchun yengil andoza.",
-        description: "Maqsad tez boshlash bo'lsa, minimal strukturali va hech narsani majburlamaydigan draft rejimi.",
-        category: "draft",
-        icon: "sparkles",
-        accentClassName: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
-        recommendedFor: ["Quick notes", "Early idea dump", "Freeform drafting"],
-        recommendedAddOnIds: ["delivery-checklist"],
-        titleTemplate: "Yangi qoralama",
-        abstractTemplate: "Tezkor qaydlar va fikrlar.",
-        contentTemplate: `# Yangi qoralama
-
-Bu yerda fikrlar, formulalar, bloklar va keyingi reja yoziladi.
-
-## Eslatmalar
-
-- 
-
-## Keyingi qadamlar
-
-- 
-`,
-        keywords: "draft, notes",
     },
 ];
 
@@ -747,20 +437,6 @@ Bu yerda qo'shimcha hisoblash, texnik tafsilot yoki yordamchi jadval beriladi.
 
 export const writerTemplatePresets: WriterTemplatePreset[] = [
     {
-        id: "minimal",
-        title: "Minimal",
-        description: "Tez boshlash uchun eng yengil draft rejimi.",
-        templateId: "simple-draft",
-        addOnIds: [],
-    },
-    {
-        id: "ready-article",
-        title: "Ready Article",
-        description: "Lead paragraph, vizual blok va checklist bilan tayyor maqola starti.",
-        templateId: "magazine-feature",
-        addOnIds: ["visualization-pack", "example-bank", "delivery-checklist"],
-    },
-    {
         id: "journal-ready",
         title: "Journal Ready",
         description: "Formal research maqola va topshirish uchun kerakli bloklar.",
@@ -768,18 +444,18 @@ export const writerTemplatePresets: WriterTemplatePreset[] = [
         addOnIds: ["citation-guide", "theorem-pack", "appendix-pack", "delivery-checklist"],
     },
     {
-        id: "book-ready",
-        title: "Book Starter",
-        description: "Kitob yoki darslik yozishni chapter-based premium skelet bilan boshlaydi.",
-        templateId: "textbook-manuscript",
-        addOnIds: ["theorem-pack", "example-bank", "citation-guide", "appendix-pack"],
+        id: "article-ready",
+        title: "Article Ready",
+        description: "Vizual blok va misollar bilan toza maqola starti.",
+        templateId: "expository-article",
+        addOnIds: ["visualization-pack", "example-bank"],
     },
     {
-        id: "teaching-ready",
-        title: "Teaching Ready",
-        description: "Lecture note, misollar va mashqlar bilan darsga tayyor oqim.",
-        templateId: "lecture-note",
-        addOnIds: ["example-bank", "citation-guide"],
+        id: "book-ready",
+        title: "Book Ready",
+        description: "Kitob yoki darslik yozishni chapter-based skelet bilan boshlaydi.",
+        templateId: "textbook-manuscript",
+        addOnIds: ["theorem-pack", "example-bank", "citation-guide", "appendix-pack"],
     },
     {
         id: "lab-ready",
@@ -822,12 +498,7 @@ export function createDraftFromTemplate(template: WriterTemplate, addOnIds: stri
     const sections = [
         createWriterProjectSection({
             title: template.title,
-            kind:
-                template.category === "thesis" || template.category === "book"
-                    ? "chapter"
-                    : template.category === "report"
-                      ? "section"
-                      : "section",
+            kind: template.category === "thesis" || template.category === "book" ? "chapter" : "section",
             content,
             order: 1,
         }),
@@ -840,15 +511,9 @@ export function createDraftFromTemplate(template: WriterTemplate, addOnIds: stri
         authors: "",
         keywords: template.keywords,
         status: "draft",
-        document_kind:
-            template.category === "thesis" || template.category === "book"
-                ? "book"
-                : template.category === "report"
-                  ? "report"
-                  : "paper",
+        document_kind: template.category === "thesis" || template.category === "book" ? "book" : "paper",
         branding_enabled: true,
         branding_label: "Powered by MathSphere Writer",
         sections,
     };
 }
-import { compileWriterProjectSections, createWriterProjectSection } from "@/lib/writer-project";

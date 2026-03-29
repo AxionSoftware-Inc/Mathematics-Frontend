@@ -5,7 +5,7 @@ import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-l
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 import { useDifferentialStudio } from "./differential-studio/use-differential-studio";
-import { DIFFERENTIAL_PRESETS } from "./differential-studio/constants";
+import { DIFFERENTIAL_PRESETS, DIFFERENTIAL_WORKFLOW_TEMPLATES } from "./differential-studio/constants";
 import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
 
 // Local Components
@@ -15,7 +15,17 @@ import { CompareView } from "./differential-studio/views/compare-view";
 import { ReportView } from "./differential-studio/views/report-view";
 import { SolveView } from "./differential-studio/views/solve-view";
 import { VisualizeView } from "./differential-studio/views/visualize-view";
-import type { DifferentialComputationSummary } from "./differential-studio/types";
+import type { DifferentialComputationSummary, DifferentialExtendedMode, DifferentialValidationSignal } from "./differential-studio/types";
+
+type DifferentialTemplatePreset = {
+    label: string;
+    mode: DifferentialExtendedMode;
+    expr: string;
+    variable?: string;
+    point?: string;
+    order?: string;
+    direction?: string;
+};
 
 function buildDifferentialReportMarkdown(state: ReturnType<typeof useDifferentialStudio>["state"]) {
     return `# Differential Report
@@ -38,6 +48,9 @@ function buildDifferentialReportMarkdown(state: ReturnType<typeof useDifferentia
 
 function describeDifferentialResult(summary: DifferentialComputationSummary | null) {
     if (!summary) return null;
+    if (summary.type === "ode") return `y(T)=${summary.valueAtPoint.toFixed(6)}`;
+    if (summary.type === "pde") return `${summary.family} ${summary.grid.nx}x${summary.grid.nt}`;
+    if (summary.type === "sde") return `E[X(T)]=${summary.terminalMean.toFixed(6)}`;
     if ("matrix" in summary) return `${summary.type} ${summary.matrix.length}x${summary.matrix[0]?.length ?? summary.matrix.length}`;
     if (summary.type === "gradient") return `|grad|=${summary.magnitude.toFixed(6)}`;
     if (summary.type === "directional") return `${summary.directionalDerivative.toFixed(6)}`;
@@ -79,6 +92,50 @@ function buildDifferentialLivePayload(state: ReturnType<typeof useDifferentialSt
         matrixTables,
         plotSeries,
     };
+}
+
+function buildAdvancedLaneSignals(state: ReturnType<typeof useDifferentialStudio>["state"]): DifferentialValidationSignal[] {
+    const signals: DifferentialValidationSignal[] = [];
+    const expression = state.expression.trim();
+    const point = state.point.trim();
+
+    if (state.mode === "ode") {
+        if (!expression.includes("=")) {
+            signals.push({ field: "ode-equation", tone: "warn", label: "Equation format", text: "ODE lane uchun `y' = f(x,y)` ko'rinishidagi equation kerak.", blocking: true });
+        }
+        if (!/y\(/i.test(`${expression};${point}`)) {
+            signals.push({ field: "ode-ic", tone: "info", label: "Initial data", text: "Initial condition berilmasa trajectory default seed bilan quriladi.", blocking: false });
+        }
+        if (state.summary?.type === "ode" && state.summary.stabilityLabel === "undetermined") {
+            signals.push({ field: "ode-phase", tone: "warn", label: "Phase read weak", text: "Autonomous stability classification aniq chiqmagan; rhs ni soddalashtirib qayta tekshiring.", blocking: false });
+        }
+    }
+
+    if (state.mode === "pde") {
+        if (!/u_t/i.test(expression) || !/u_x|u_xx|u_y|u_yy/i.test(expression)) {
+            signals.push({ field: "pde-syntax", tone: "warn", label: "PDE shorthand", text: "PDE lane `u_t = ...` va kamida bitta spatial derivative token kutadi.", blocking: true });
+        }
+        if (!/u\(x,0\)/i.test(`${expression};${point}`)) {
+            signals.push({ field: "pde-ic", tone: "info", label: "Initial profile", text: "Initial profile berilmasa default `sin(x)` ishlatiladi.", blocking: false });
+        }
+        if (state.summary?.type === "pde" && state.summary.family === "heat" && state.summary.stabilityRatio > 0.5) {
+            signals.push({ field: "pde-cfl", tone: "warn", label: "CFL watch", text: "Explicit heat mesh stability chegarasiga yaqinlashdi.", blocking: false });
+        }
+    }
+
+    if (state.mode === "sde") {
+        if (!/dX\s*=.+\*dt.+\*dW/i.test(expression.replace(/\s+/g, ""))) {
+            signals.push({ field: "sde-syntax", tone: "warn", label: "SDE syntax", text: "SDE lane `dX = mu*dt + sigma*dW` ko'rinishini kutadi.", blocking: true });
+        }
+        if (!/X\(0\)/i.test(`${expression};${point}`) || !/t:\s*\[/i.test(`${expression};${point}`) || !/n\s*=/i.test(`${expression};${point}`)) {
+            signals.push({ field: "sde-grid", tone: "info", label: "Simulation contract", text: "X(0), t:[t0,t1], n kabi parametrlar kiritilsa ensemble yanada ishonchli quriladi.", blocking: false });
+        }
+        if (state.summary?.type === "sde" && state.summary.pathCount < 20) {
+            signals.push({ field: "sde-ensemble", tone: "warn", label: "Low ensemble size", text: "Stochastic lane kamida 20 ta path bilan o‘qilgani ma’qul.", blocking: false });
+        }
+    }
+
+    return signals;
 }
 
 export function DifferentialStudioModule({ module }: { module: LaboratoryModuleMeta }) {
@@ -143,7 +200,7 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
         }),
     });
 
-    const applyPreset = (preset: any) => {
+    const applyPreset = (preset: DifferentialTemplatePreset) => {
         actions.setMode(preset.mode);
         actions.setExpression(preset.expr);
         actions.setVariable(preset.variable ?? "");
@@ -153,13 +210,20 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
         setActivePresetLabel(preset.label);
     };
 
-    const warningSignals = React.useMemo(() => {
-        const signals: any[] = [];
+    const warningSignals = React.useMemo<DifferentialValidationSignal[]>(() => {
+        const signals: DifferentialValidationSignal[] = [];
         if (error || solveErrorMessage) {
-            signals.push({ tone: "warn", label: "Solver Alert", text: error || solveErrorMessage });
+            signals.push({
+                field: "solver",
+                tone: "warn",
+                label: "Solver Alert",
+                text: error || solveErrorMessage,
+                blocking: false,
+            });
         }
+        signals.push(...buildAdvancedLaneSignals(state));
         return signals;
-    }, [error, solveErrorMessage]);
+    }, [error, solveErrorMessage, state]);
 
     const visibleSignals = React.useMemo(() => [...warningSignals], [warningSignals]);
 
@@ -225,13 +289,19 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
                 setTemplatesOpen={setTemplatesOpen}
                 experienceLevel={experienceLevel}
                 setExperienceLevel={setExperienceLevel}
-                workflowTemplates={[]}
+                workflowTemplates={DIFFERENTIAL_WORKFLOW_TEMPLATES}
                 activeTemplateId={activeTemplateId}
-                applyWorkflowTemplate={setActiveTemplateId}
-                presets={DIFFERENTIAL_PRESETS as any}
+                applyWorkflowTemplate={(templateId) => {
+                    const template = DIFFERENTIAL_WORKFLOW_TEMPLATES.find((item) => item.id === templateId);
+                    if (!template) {
+                        return;
+                    }
+                    setActiveTemplateId(template.id);
+                    applyPreset(template);
+                }}
+                presets={DIFFERENTIAL_PRESETS}
                 activePresetLabel={activePresetLabel}
                 applyPreset={applyPreset}
-                presetDescriptions={{}}
             />
             
             <div className="flex-1 overflow-hidden">

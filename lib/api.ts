@@ -9,14 +9,31 @@ type ApiFetchOptions = RequestInit & {
     timeoutMs?: number;
 };
 
+function isBackendOfflineError(error: unknown) {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+
+    const message = error.message.toLowerCase();
+    return (
+        message.includes("fetch failed") ||
+        message.includes("econnrefused") ||
+        message.includes("networkerror") ||
+        message.includes("failed to fetch")
+    );
+}
+
 function buildHeaders(options: RequestInit, token?: string): Record<string, string> {
     const headers: Record<string, string> = {
         ...((options.headers as Record<string, string>) || {}),
     };
 
     // Robust check for FormData to avoid manual Content-Type when sending multipart data
-    const isFormData = options.body instanceof FormData || 
-                       (options.body && typeof (options.body as any).append === 'function');
+    const bodyWithAppend =
+        options.body && typeof options.body === "object" && "append" in options.body
+            ? (options.body as { append?: unknown })
+            : null;
+    const isFormData = options.body instanceof FormData || typeof bodyWithAppend?.append === "function";
 
     if (isFormData) {
         // multipart/form-data boundary will be set automatically by fetch
@@ -49,11 +66,20 @@ async function fetchWithTimeout(endpoint: string, options: ApiFetchOptions = {},
         // Fix potential double /api/ from env + endpoint concatenation
         fullUrl = fullUrl.replace("/api/api/", "/api/");
         
-        return await fetch(fullUrl, {
-            ...requestOptions,
-            headers,
-            signal: signal ?? controller.signal,
-        });
+        try {
+            return await fetch(fullUrl, {
+                ...requestOptions,
+                headers,
+                signal: signal ?? controller.signal,
+            });
+        } catch (error) {
+            if (isBackendOfflineError(error)) {
+                const offlineError = new Error(`BACKEND_OFFLINE:${fullUrl}`);
+                offlineError.cause = error;
+                throw offlineError;
+            }
+            throw error;
+        }
     } finally {
         clearTimeout(timer);
     }
@@ -64,6 +90,10 @@ async function fetchWithTimeout(endpoint: string, options: ApiFetchOptions = {},
 
 export async function fetchPublic(endpoint: string, options: ApiFetchOptions = {}) {
     return fetchWithTimeout(endpoint, options);
+}
+
+export function isExpectedBackendOfflineError(error: unknown) {
+    return error instanceof Error && error.message.startsWith("BACKEND_OFFLINE:");
 }
 
 function getBackendBaseUrl(): string {

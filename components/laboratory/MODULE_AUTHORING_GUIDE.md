@@ -1,6 +1,6 @@
 # Laboratory Module Authoring Guide (2026 Refresh)
 
-This guide supersedes the older integral-first notes. It matches the current laboratory architecture after the Integral Studio refactor, view split, diagnostics v2 work, and geometry lane additions.
+This guide supersedes the older integral-first notes. It matches the current laboratory architecture after the Integral Studio refactor, the shared header/template standardization, view split, diagnostics v2 work, and geometry lane additions.
 
 ## Goal
 
@@ -35,7 +35,7 @@ The recommended module shape is:
 <slug>/components/
   solver-control.tsx
   visualizer-deck.tsx
-  studio-header-bar.tsx         // optional, if custom
+  studio-header-bar.tsx         // thin wrapper around the shared header
   studio-status-bar.tsx         // optional, if custom
   trust-panel.tsx
   annotation-panel.tsx
@@ -62,6 +62,8 @@ Use these before creating anything custom.
 - [workspace-shell.tsx](/D:/Complete/Mathematics/Front/components/laboratory/workspace-shell.tsx)
 - [module-registry.tsx](/D:/Complete/Mathematics/Front/components/laboratory/module-registry.tsx)
 - [laboratory-catalog.ts](/D:/Complete/Mathematics/Front/lib/laboratory-catalog.ts)
+- [laboratory-studio-header.tsx](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-studio-header.tsx)
+- [laboratory-template-catalog.ts](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-template-catalog.ts)
 - [laboratory-metric-card.tsx](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-metric-card.tsx)
 - [laboratory-signal-panel.tsx](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-signal-panel.tsx)
 - [laboratory-data-table.tsx](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-data-table.tsx)
@@ -72,6 +74,16 @@ Use these before creating anything custom.
 - [scientific-plot.tsx](/D:/Complete/Mathematics/Front/components/laboratory/scientific-plot.tsx)
 - [use-persisted-lab-collection.ts](/D:/Complete/Mathematics/Front/components/laboratory/use-persisted-lab-collection.ts)
 - [use-laboratory-writer-bridge.ts](/D:/Complete/Mathematics/Front/components/live-writer-bridge/use-laboratory-writer-bridge.ts)
+
+## Shared header and template standard
+
+New modules should not invent their own top bar or preset popover.
+
+- Use [laboratory-studio-header.tsx](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-studio-header.tsx) as the default top bar.
+- Keep `studio-header-bar.tsx` as a thin adapter that maps module state into the shared header props.
+- Register presets and workflow templates in [laboratory-template-catalog.ts](/D:/Complete/Mathematics/Front/components/laboratory/laboratory-template-catalog.ts) and the module `constants.ts` file.
+- Keep template lists compact. The current standard is a curated set, not a zoo of demos.
+- Let the shared template panel control width, dismissal, and active/recommended states instead of reimplementing popover behavior per module.
 
 ## Mandatory state model
 
@@ -215,9 +227,10 @@ If hybrid or symbolic work is needed:
 3. math-service for local matrix ops
 4. solve-service for symbolic or exact backend work
 5. composer
-6. solve view
-7. visual deck
-8. compare and report
+6. shared header wrapper + template catalog entries
+7. solve view
+8. visual deck
+9. compare and report
 
 Possible lanes:
 
@@ -233,9 +246,10 @@ Possible lanes:
 1. classification service
 2. local numeric derivative and slope helpers
 3. symbolic derivative backend
-4. tangent and slope-field visualizer
-5. compare symbolic vs numeric
-6. report/export
+4. shared header wrapper + compact preset/workflow catalog
+5. tangent and slope-field visualizer
+6. compare symbolic vs numeric
+7. report/export
 
 Possible lanes:
 
@@ -255,6 +269,7 @@ A module is not done unless:
 - audit cards use real computed data
 - `solve/visualize/compare/report` all work
 - writer bridge works
+- shared header and template panel are used unless there is a proven product reason not to
 - local tests and type-check pass
 - unsupported families fail gracefully instead of pretending to solve
 

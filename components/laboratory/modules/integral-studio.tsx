@@ -23,7 +23,6 @@ import {
 import {
     exportGuides, 
     workspaceTabs,
-    integralPresetDescriptions,
     INTEGRAL_PRESETS,
     INTEGRAL_WORKFLOW_TEMPLATES
 } from "./integral-studio/constants";
@@ -1214,7 +1213,6 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 presets={INTEGRAL_PRESETS}
                 activePresetLabel={state.activePreset?.label}
                 applyPreset={applyPreset}
-                presetDescriptions={integralPresetDescriptions}
             />
 
             {/* Guide */}

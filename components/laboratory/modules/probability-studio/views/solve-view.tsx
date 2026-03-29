@@ -199,9 +199,11 @@ function buildMetricCards(state: ProbabilityStudioState) {
             return [
                 ...common,
                 { label: "Mean", value: state.summary.mean ?? "pending" },
+                { label: "Median", value: state.summary.median ?? "pending" },
+                { label: "IQR", value: state.summary.iqr ?? "pending" },
                 { label: "Variance", value: state.summary.variance ?? "pending" },
                 { label: "Std Dev", value: state.summary.stdDev ?? "pending" },
-                { label: "Risk", value: state.summary.riskSignal ?? "pending" },
+                { label: "Outliers", value: state.summary.outlierSignal ?? "pending" },
             ];
         case "distributions":
             return [
@@ -227,6 +229,7 @@ function buildMetricCards(state: ProbabilityStudioState) {
                 { label: "Quality", value: state.summary.riskSignal ?? "pending" },
                 { label: "Residual", value: state.summary.residualSignal ?? "pending" },
                 { label: "Outlier", value: state.summary.outlierSignal ?? "pending" },
+                { label: "Band", value: state.summary.intervalSignal ?? "pending" },
                 { label: "Forecast", value: state.summary.forecast ?? "pending" },
             ];
         case "bayesian":
@@ -245,6 +248,7 @@ function buildMetricCards(state: ProbabilityStudioState) {
                 { label: "Covariance", value: state.summary.covarianceSignal ?? "pending" },
                 { label: "Correlation", value: state.summary.correlationSignal ?? "pending" },
                 { label: "PCA", value: state.summary.pcaSignal ?? "pending" },
+                { label: "Explained", value: state.summary.explainedVariance ?? "pending" },
                 { label: "Distance", value: state.summary.mahalanobisSignal ?? "pending" },
                 { label: "Clusters", value: state.summary.clusterSignal ?? "pending" },
             ];
@@ -255,6 +259,7 @@ function buildMetricCards(state: ProbabilityStudioState) {
                 { label: "Forecast", value: state.summary.forecast ?? "pending" },
                 { label: "Stationarity", value: state.summary.stationarity ?? "pending" },
                 { label: "Seasonality", value: state.summary.seasonality ?? "pending" },
+                { label: "Forecast Band", value: state.summary.forecastInterval ?? "pending" },
                 { label: "ACF", value: state.summary.acfSignal ?? "pending" },
                 { label: "PACF", value: state.summary.pacfSignal ?? "pending" },
                 { label: "Lag Signal", value: state.summary.riskSignal ?? "pending" },
@@ -264,10 +269,11 @@ function buildMetricCards(state: ProbabilityStudioState) {
                 ...common,
                 { label: "Estimate", value: state.summary.monteCarloEstimate ?? "pending" },
                 { label: "Error", value: state.summary.variance ?? "pending" },
+                { label: "CI", value: state.summary.confidenceInterval ?? "pending" },
                 { label: "Bootstrap", value: state.summary.bootstrapSignal ?? "pending" },
+                { label: "Convergence", value: state.summary.convergenceSignal ?? "pending" },
                 { label: "Variance Reduction", value: state.summary.varianceReduction ?? "pending" },
                 { label: "Sampler", value: state.summary.samplerSignal ?? "pending" },
-                { label: "Risk", value: state.summary.riskSignal ?? "pending" },
             ];
         default:
             return common;

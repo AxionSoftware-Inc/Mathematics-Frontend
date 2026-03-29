@@ -59,6 +59,7 @@ The module is now strong enough to serve as the reference architecture for futur
 - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/services/classification-service.ts`
 - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/services/math-service.ts`
 - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/services/solve-service.ts`
+- `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/services/presentation-service.ts`
 
 ### Backend router / lanes
 
@@ -264,6 +265,17 @@ Recommended refactor:
 - split lane view-models into separate service files
 - move compare/report card builders to presentation services
 
+Current status:
+
+- partially completed
+- compare/report/trust builders have started moving into `services/presentation-service.ts`
+- hook orchestration is cleaner, but method table shaping and scenario/annotation state still live in the hook
+
+Next cut:
+
+- move `methodTableRows` and `sampleTableRows` into the presentation service
+- keep `use-differential-studio.ts` focused on state, actions, and stale-result handling
+
 ### 2. ODE/PDE/SDE visuals are `v1` approximations
 
 Problem:
@@ -331,12 +343,25 @@ Use this order:
    - route it in `/D:/Complete/Mathematics/backend/laboratory/differential_solver.py`
 4. Add presets/templates in:
    - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/constants.ts`
+   - `/D:/Complete/Mathematics/Front/components/laboratory/laboratory-template-catalog.ts`
 5. Add visual branch in:
    - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/components/visualizer-deck.tsx`
 6. Extend compare/report cards in:
-   - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/use-differential-studio.ts`
+   - `/D:/Complete/Mathematics/Front/components/laboratory/modules/differential-studio/services/presentation-service.ts`
 7. Add backend tests in:
    - `/D:/Complete/Mathematics/backend/laboratory/tests.py`
+
+## UI Standard Status
+
+Implemented:
+
+- Differential Studio now uses the shared laboratory top bar through its header wrapper
+- differential presets/workflows now feed the centralized laboratory template catalog
+- the old long template list was reduced to a compact curated set
+
+Rule going forward:
+
+- future differential lanes should register through the shared header/template system first, not through module-local popovers
 
 ## Recommended Next Families
 

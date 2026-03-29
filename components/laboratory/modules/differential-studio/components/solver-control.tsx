@@ -139,6 +139,30 @@ const snippetMap: Record<DifferentialExtendedMode, string[]> = {
     sde: ["dX =", "dt", "dW", "X(0)=1", "t:[0,1]", "n=200"],
 };
 
+function parseODEDraft(expression: string, point: string) {
+    const equation = expression.split(";")[0]?.trim() || "y' = y";
+    const condition = (expression.split(";").slice(1).find((item) => item.trim()) || point || "y(0)=1").trim();
+    return { equation, condition };
+}
+
+function parsePDEDraft(expression: string, variable: string, point: string) {
+    const equation = expression.split(";")[0]?.trim() || "u_t = u_x";
+    const initial = ((expression.split(";").slice(1).find((item) => /u\(x,0\)/i.test(item)) || point) || "u(x,0)=sin(x)").trim();
+    const vars = variable.trim() || "x, t";
+    return { equation, initial, vars };
+}
+
+function parseSDEDraft(expression: string, point: string) {
+    const compact = `${expression};${point}`;
+    const match = expression.match(/dX\s*=\s*(.+?)\*dt\s*\+\s*(.+?)\*dW/i);
+    const drift = match?.[1]?.trim() || "0.4*X";
+    const diffusion = match?.[2]?.trim() || "0.2*X";
+    const x0 = compact.match(/X\(0\)\s*=\s*([^;]+)/i)?.[1]?.trim() || "1";
+    const range = compact.match(/t:\s*\[([^\]]+)\]/i)?.[1]?.trim() || "0,1";
+    const steps = compact.match(/n\s*=\s*([0-9]+)/i)?.[1]?.trim() || "200";
+    return { drift, diffusion, x0, range, steps };
+}
+
 export function SolverControl({ state, actions }: SolverControlProps) {
     const { expression, variable, point, order, direction, mode, solvePhase, isResultStale, classification } = state;
     const { setExpression, setVariable, setPoint, setOrder, setDirection, setMode, requestSolve } = actions;
@@ -150,6 +174,16 @@ export function SolverControl({ state, actions }: SolverControlProps) {
     const [localOrder, setLocalOrder] = React.useState(order);
     const [localPoint, setLocalPoint] = React.useState(point);
     const [localDirection, setLocalDirection] = React.useState(direction);
+    const [odeEquation, setOdeEquation] = React.useState("y' = y");
+    const [odeCondition, setOdeCondition] = React.useState("y(0)=1");
+    const [pdeEquation, setPdeEquation] = React.useState("u_t = u_x");
+    const [pdeInitial, setPdeInitial] = React.useState("u(x,0)=sin(x)");
+    const [pdeVariables, setPdeVariables] = React.useState("x, t");
+    const [sdeDrift, setSdeDrift] = React.useState("0.4*X");
+    const [sdeDiffusion, setSdeDiffusion] = React.useState("0.2*X");
+    const [sdeX0, setSdeX0] = React.useState("1");
+    const [sdeRange, setSdeRange] = React.useState("0,1");
+    const [sdeSteps, setSdeSteps] = React.useState("200");
 
     const deferredExpression = React.useDeferredValue(localExpression);
     const deferredVariable = React.useDeferredValue(localVariable);
@@ -169,6 +203,27 @@ export function SolverControl({ state, actions }: SolverControlProps) {
     React.useEffect(() => {
         setLocalDirection(direction);
     }, [direction]);
+    React.useEffect(() => {
+        if (activeMode === "ode") {
+            const parsed = parseODEDraft(localExpression, localPoint);
+            setOdeEquation(parsed.equation);
+            setOdeCondition(parsed.condition);
+        }
+        if (activeMode === "pde") {
+            const parsed = parsePDEDraft(localExpression, localVariable, localPoint);
+            setPdeEquation(parsed.equation);
+            setPdeInitial(parsed.initial);
+            setPdeVariables(parsed.vars);
+        }
+        if (activeMode === "sde") {
+            const parsed = parseSDEDraft(localExpression, localPoint);
+            setSdeDrift(parsed.drift);
+            setSdeDiffusion(parsed.diffusion);
+            setSdeX0(parsed.x0);
+            setSdeRange(parsed.range);
+            setSdeSteps(parsed.steps);
+        }
+    }, [activeMode, localExpression, localPoint, localVariable]);
 
     // Draft-to-global sync is intentionally delayed so charts/cards do not rerender on every keypress.
     React.useEffect(() => {
@@ -195,6 +250,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
     const modeSnippets = snippetMap[activeMode];
     const showOrderInput = activeMode === "derivative";
     const showDirectionInput = activeMode === "directional";
+    const showGuidedAdvancedForm = activeMode === "ode" || activeMode === "pde" || activeMode === "sde";
     const variableHint =
         activeMode === "ode"
             ? "Use one independent variable and write equation in the formula field."
@@ -253,9 +309,15 @@ export function SolverControl({ state, actions }: SolverControlProps) {
               ? `$$\\nabla\\left(${deferredExpression || "f(x,y)"}\\right)$$`
               : activeMode === "directional"
                 ? `$$D_{u}\\left(${deferredExpression || "f(x,y)"}\\right)\\quad u=${localDirection || "(1,0)"}$$`
-              : activeMode === "jacobian"
-                ? `$$J_F(${deferredVariable || "x, y"})\\quad F=${deferredExpression || "[f_1, f_2]"}$$`
-                : `$$H_f(${deferredVariable || "x, y"})\\quad f=${deferredExpression || "f(x,y)"}$$`;
+                : activeMode === "jacobian"
+                  ? `$$J_F(${deferredVariable || "x, y"})\\quad F=${deferredExpression || "[f_1, f_2]"}$$`
+                  : activeMode === "ode"
+                    ? `$$${odeEquation || "y' = y"}$$`
+                    : activeMode === "pde"
+                      ? `$$${pdeEquation || "u_t = u_x"}$$`
+                      : activeMode === "sde"
+                        ? `$$dX = (${sdeDrift || "0.4X"})dt + (${sdeDiffusion || "0.2X"})dW$$`
+                        : `$$H_f(${deferredVariable || "x, y"})\\quad f=${deferredExpression || "f(x,y)"}$$`;
 
     const insertSnippet = (snippet: string) => {
         let next = snippet;
@@ -266,6 +328,34 @@ export function SolverControl({ state, actions }: SolverControlProps) {
         }
 
         setLocalExpression((current: string) => (current ? `${current}${next}` : next));
+    };
+
+    const applyODEDraft = (nextEquation: string, nextCondition: string) => {
+        setOdeEquation(nextEquation);
+        setOdeCondition(nextCondition);
+        setLocalExpression(nextCondition ? `${nextEquation}; ${nextCondition}` : nextEquation);
+        setLocalPoint(nextCondition);
+        setLocalVariable(localVariable || "x");
+    };
+
+    const applyPDEDraft = (nextEquation: string, nextInitial: string, nextVariables: string) => {
+        setPdeEquation(nextEquation);
+        setPdeInitial(nextInitial);
+        setPdeVariables(nextVariables);
+        setLocalExpression(nextInitial ? `${nextEquation}; ${nextInitial}` : nextEquation);
+        setLocalPoint(nextInitial);
+        setLocalVariable(nextVariables);
+    };
+
+    const applySDEDraft = (nextDrift: string, nextDiffusion: string, nextX0: string, nextRange: string, nextSteps: string) => {
+        setSdeDrift(nextDrift);
+        setSdeDiffusion(nextDiffusion);
+        setSdeX0(nextX0);
+        setSdeRange(nextRange);
+        setSdeSteps(nextSteps);
+        setLocalExpression(`dX = ${nextDrift}*dt + ${nextDiffusion}*dW`);
+        setLocalPoint(`X(0)=${nextX0}; t:[${nextRange}]; n=${nextSteps}`);
+        setLocalVariable("t");
     };
 
     const handleModeChange = (nextMode: DifferentialExtendedMode) => {
@@ -333,6 +423,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                             </div>
                             <div className="relative">
                                 <select
+                                    data-testid="diff-mode-select"
                                     value={activeMode}
                                     onChange={(e) => handleModeChange(e.target.value as DifferentialExtendedMode)}
                                     className={`${controlInputClassName} appearance-none pr-10 font-semibold`}
@@ -390,6 +481,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                             </div>
                         </div>
                         <textarea
+                            data-testid="diff-expression-input"
                             value={localExpression}
                             onChange={(e) => setLocalExpression(e.target.value)}
                             onBlur={flushDraftState}
@@ -397,6 +489,108 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                             className="mt-3 min-h-24 w-full resize-y rounded-2xl border-2 border-border/70 bg-background px-4 py-3 font-mono text-base leading-6 text-foreground outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
                             spellCheck={false}
                         />
+                        {showGuidedAdvancedForm ? (
+                            <div className="mt-3 rounded-2xl border border-border/60 bg-muted/10 p-4" data-testid={`diff-guided-${activeMode}`}>
+                                <div className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                                    Guided Lane Form
+                                </div>
+                                {activeMode === "ode" ? (
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <input
+                                            data-testid="diff-ode-equation"
+                                            value={odeEquation}
+                                            onChange={(e) => applyODEDraft(e.target.value, odeCondition)}
+                                            placeholder="y' = x + y"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-ode-condition"
+                                            value={odeCondition}
+                                            onChange={(e) => applyODEDraft(odeEquation, e.target.value)}
+                                            placeholder="y(0)=1"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                    </div>
+                                ) : null}
+                                {activeMode === "pde" ? (
+                                    <div className="grid gap-3 md:grid-cols-3">
+                                        <input
+                                            data-testid="diff-pde-equation"
+                                            value={pdeEquation}
+                                            onChange={(e) => applyPDEDraft(e.target.value, pdeInitial, pdeVariables)}
+                                            placeholder="u_t = k*u_xx"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-pde-initial"
+                                            value={pdeInitial}
+                                            onChange={(e) => applyPDEDraft(pdeEquation, e.target.value, pdeVariables)}
+                                            placeholder="u(x,0)=sin(x)"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-pde-variables"
+                                            value={pdeVariables}
+                                            onChange={(e) => applyPDEDraft(pdeEquation, pdeInitial, e.target.value)}
+                                            placeholder="x, t"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                    </div>
+                                ) : null}
+                                {activeMode === "sde" ? (
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                                        <input
+                                            data-testid="diff-sde-drift"
+                                            value={sdeDrift}
+                                            onChange={(e) => applySDEDraft(e.target.value, sdeDiffusion, sdeX0, sdeRange, sdeSteps)}
+                                            placeholder="0.4*X"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-sde-diffusion"
+                                            value={sdeDiffusion}
+                                            onChange={(e) => applySDEDraft(sdeDrift, e.target.value, sdeX0, sdeRange, sdeSteps)}
+                                            placeholder="0.2*X"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-sde-x0"
+                                            value={sdeX0}
+                                            onChange={(e) => applySDEDraft(sdeDrift, sdeDiffusion, e.target.value, sdeRange, sdeSteps)}
+                                            placeholder="1"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-sde-range"
+                                            value={sdeRange}
+                                            onChange={(e) => applySDEDraft(sdeDrift, sdeDiffusion, sdeX0, e.target.value, sdeSteps)}
+                                            placeholder="0,1"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                        <input
+                                            data-testid="diff-sde-steps"
+                                            value={sdeSteps}
+                                            onChange={(e) => applySDEDraft(sdeDrift, sdeDiffusion, sdeX0, sdeRange, e.target.value)}
+                                            placeholder="200"
+                                            className={controlMonoInputClassName}
+                                            spellCheck={false}
+                                        />
+                                    </div>
+                                ) : null}
+                                <div className="mt-3 text-xs leading-5 text-muted-foreground">
+                                    Guided form generic formula maydonini avtomatik yig&apos;adi va solver contract’ni user-proof qiladi.
+                                </div>
+                            </div>
+                        ) : null}
                         <div className="mt-3 grid gap-3 xl:grid-cols-[0.9fr_1.1fr]">
                             <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -443,6 +637,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                                     {currentModeMeta.variableLabel}
                                 </div>
                                 <input
+                                    data-testid="diff-variable-input"
                                     value={localVariable}
                                     onChange={(e) => setLocalVariable(e.target.value)}
                                     onBlur={flushDraftState}
@@ -456,6 +651,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                                 <div className="rounded-2xl border border-border/60 bg-background p-3">
                                     <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Order (n)</div>
                                     <input
+                                        data-testid="diff-order-input"
                                         value={localOrder}
                                         onChange={(e) => setLocalOrder(e.target.value)}
                                         onBlur={flushDraftState}
@@ -470,6 +666,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                                 <div className="rounded-2xl border border-border/60 bg-background p-3">
                                     <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Direction u</div>
                                     <input
+                                        data-testid="diff-direction-input"
                                         value={localDirection}
                                         onChange={(e) => setLocalDirection(e.target.value)}
                                         onBlur={flushDraftState}
@@ -490,6 +687,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                         <div className="relative">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground">@</div>
                             <input
+                                data-testid="diff-point-input"
                                 type="text"
                                 value={localPoint}
                                 onChange={(e) => setLocalPoint(e.target.value)}
@@ -527,6 +725,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
 
                     <div className="flex flex-col gap-2">
                         <button
+                            data-testid="diff-solve-button"
                             type="button"
                             onClick={() => {
                                 flushDraftState();

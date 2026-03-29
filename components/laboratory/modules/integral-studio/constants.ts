@@ -1,4 +1,5 @@
 import { IntegralBlockId, IntegralExperienceLevel, IntegralWorkspaceTab } from "./types";
+import { INTEGRAL_PRESET_CATALOG, INTEGRAL_WORKFLOW_CATALOG } from "@/components/laboratory/laboratory-template-catalog";
 
 export const exportGuides = {
     copy: {
@@ -60,123 +61,10 @@ export const levelTabs: Record<IntegralExperienceLevel, readonly IntegralWorkspa
     research: ["solve", "visualize", "compare", "report"],
 };
 
-export const integralPresetDescriptions: Record<string, string> = {
-    "Studio Walkthrough": "Birinchi kirishda solve, audit, visualizer, compare va report oqimini birga ko'rsatadigan balanslangan nazorat misoli.",
-    "Gaussian Bell": "Silliq va xavfsiz benchmark. Exact symbolic natija, method spread va report oqimi uchun mos.",
-    "Oscillatory Fresnel Window": "Oscillatory integral. Convergence, spread va sweep analysis qiymatini ochib beradi.",
-    "Indefinite Polynomial Primitive": "Aniqmas integral lane uchun sodda symbolic benchmark. Primitive va method trace oqimini ko'rsatadi.",
-    "Endpoint Singularity Probe": "Boundary singularity bor improper integral. Pole risk va convergence signalini ko'rsatadi.",
-    "Infinite Tail Audit": "Cheksiz bound bilan improper integral. Symbolic limit evaluation va convergence audit uchun mos.",
-    "Line Circulation Candidate": "Haqiqiy line solver lane. Parametric path va vector field bilan circulation natijasini hisoblaydi.",
-    "Surface Flux Candidate": "Haqiqiy surface solver lane. Parametric patch va flux field bilan surface integralni hisoblaydi.",
-    "Contour Residue Candidate": "Haqiqiy contour solver lane. Complex path bo'yicha contour integralni hisoblaydi.",
-    "Wave Interference Surface": "2D interference surface. Profile slices, surface relief va grid sensitivity uchun mo'ljallangan.",
-    "Saddle Surface": "Musbat va manfiy regionlar kompensatsiyasi kuchli bo'lgan cancellation benchmark.",
-    "Radial Energy Cloud": "3D density audit. Voxel volume, sparse sampling va volumetric trust signalini ko'rsatadi.",
-};
+export const integralPresetDescriptions: Record<string, string> = Object.fromEntries(
+    INTEGRAL_PRESET_CATALOG.map((preset) => [preset.label, preset.description]),
+);
 
-export const INTEGRAL_WORKFLOW_TEMPLATES = [
-    {
-        id: "studio-walkthrough",
-        title: "Baseline Verification Workflow",
-        description: "Exact path, numerical backup, visualizer va report oqimini bir joyda tekshiradigan standart baseline workflow.",
-        presetLabel: "Studio Walkthrough",
-        blocks: ["controls", "visualizer", "exact", "tables", "sweep", "insights", "report", "bridge"] as const,
-        sweep: { start: "12", end: "96", count: "5" },
-    },
-    {
-        id: "convergence-check",
-        title: "Oscillation Stability Audit",
-        description: "Oscillatory integrallar uchun Simpson, midpoint va trapezoid driftini tizimli audit qiladi.",
-        presetLabel: "Oscillatory Fresnel Window",
-        blocks: ["controls", "visualizer", "exact", "sweep", "insights", "report", "bridge"] as const,
-        sweep: { start: "10", end: "80", count: "5" },
-    },
-    {
-        id: "indefinite-primitive-review",
-        title: "Primitive Extraction Review",
-        description: "Aniqmas integral uchun symbolic primitive, parser translation va method trace qatlamini ko'rsatadi.",
-        presetLabel: "Indefinite Polynomial Primitive",
-        blocks: ["controls", "exact", "insights", "report", "bridge"] as const,
-        sweep: { start: "12", end: "48", count: "4" },
-    },
-    {
-        id: "endpoint-singularity-audit",
-        title: "Endpoint Singularity Audit",
-        description: "Boundary singularity bo'lgan integral uchun pole risk va convergence signallarini chiqaradi.",
-        presetLabel: "Endpoint Singularity Probe",
-        blocks: ["controls", "exact", "insights", "report", "bridge"] as const,
-        sweep: { start: "12", end: "64", count: "4" },
-    },
-    {
-        id: "improper-tail-audit",
-        title: "Infinite Tail Convergence Audit",
-        description: "Cheksiz upper bound bilan improper integral uchun symbolic limit evaluation qatlamini tekshiradi.",
-        presetLabel: "Infinite Tail Audit",
-        blocks: ["controls", "exact", "insights", "report", "bridge"] as const,
-        sweep: { start: "12", end: "64", count: "4" },
-    },
-    {
-        id: "line-lane-mapping",
-        title: "Line Integral Lane Mapping",
-        description: "Parametric path va vector field bilan real line integral solve oqimini ko'rsatadi.",
-        presetLabel: "Line Circulation Candidate",
-        blocks: ["controls", "exact", "insights", "report"] as const,
-        sweep: { start: "8", end: "32", count: "4" },
-    },
-    {
-        id: "surface-lane-mapping",
-        title: "Surface Integral Lane Mapping",
-        description: "Parametric patch va flux field bilan real surface integral solve oqimini ko'rsatadi.",
-        presetLabel: "Surface Flux Candidate",
-        blocks: ["controls", "exact", "insights", "report"] as const,
-        sweep: { start: "8", end: "32", count: "4" },
-    },
-    {
-        id: "contour-lane-mapping",
-        title: "Contour Integral Lane Mapping",
-        description: "Complex path bo'yicha contour integralni parametric pullback orqali hisoblaydi.",
-        presetLabel: "Contour Residue Candidate",
-        blocks: ["controls", "exact", "insights", "report"] as const,
-        sweep: { start: "8", end: "32", count: "4" },
-    },
-    {
-        id: "surface-accumulation-study",
-        title: "Surface Response Mapping",
-        description: "2D sirtning qaysi regioni integralga ko'proq hissa qo'shayotganini profile va grid audit orqali ko'rsatadi.",
-        presetLabel: "Wave Interference Surface",
-        blocks: ["controls", "visualizer", "sweep", "insights", "report", "bridge"] as const,
-        sweep: { start: "10", end: "40", count: "4" },
-    },
-    {
-        id: "saddle-balance-review",
-        title: "Cancellation Risk Review",
-        description: "Cancellation kuchli bo'lgan surface case'da region balance va estimate sezgirligini tekshiradi.",
-        presetLabel: "Saddle Surface",
-        blocks: ["controls", "visualizer", "sweep", "insights", "report"] as const,
-        sweep: { start: "8", end: "32", count: "4" },
-    },
-    {
-        id: "volume-density-audit",
-        title: "Volumetric Density Audit",
-        description: "3D density cloud bo'yicha voxel, sparse sampling va trust signallarini tekshiradigan volumetric workflow.",
-        presetLabel: "Radial Energy Cloud",
-        blocks: ["controls", "visualizer", "sweep", "insights", "report", "bridge"] as const,
-        sweep: { start: "6", end: "20", count: "4" },
-    },
-] as const;
+export const INTEGRAL_WORKFLOW_TEMPLATES = INTEGRAL_WORKFLOW_CATALOG;
 
-export const INTEGRAL_PRESETS = [
-    { label: "Studio Walkthrough", mode: "single", expr: "sin(x) + x^2 / 5", lower: "0", upper: "3.14", segments: "96" },
-    { label: "Gaussian Bell", mode: "single", expr: "exp(-x^2)", lower: "-3", upper: "3", segments: "96" },
-    { label: "Oscillatory Fresnel Window", mode: "single", expr: "sin(x^2)", lower: "0", upper: "6", segments: "140" },
-    { label: "Indefinite Polynomial Primitive", mode: "single", expr: "3*x^2 + 2*x + 1", lower: "", upper: "", segments: "72" },
-    { label: "Endpoint Singularity Probe", mode: "single", expr: "1/sqrt(x)", lower: "0", upper: "1", segments: "120" },
-    { label: "Infinite Tail Audit", mode: "single", expr: "exp(-x)", lower: "0", upper: "inf", segments: "120" },
-    { label: "Line Circulation Candidate", mode: "single", expr: "line(P=-y, Q=x, path=(cos(t), sin(t)), t:[0, 2*pi])", lower: "", upper: "", segments: "48" },
-    { label: "Surface Flux Candidate", mode: "single", expr: "surface(f=(0, 0, 1), patch=(u, v, u + v), u:[0,1], v:[0,1])", lower: "", upper: "", segments: "48" },
-    { label: "Contour Residue Candidate", mode: "single", expr: "contour(f=1/z, path=exp(I*t), t:[0, 2*pi])", lower: "", upper: "", segments: "48" },
-    { label: "Wave Interference Surface", mode: "double", expr: "sin(x) * cos(y) + 0.25 * x", x: "[-6.28, 6.28]", y: "[-6.28, 6.28]", nx: "34", ny: "34" },
-    { label: "Saddle Surface", mode: "double", expr: "x^2 - y^2", x: "[-3, 3]", y: "[-3, 3]", nx: "30", ny: "30" },
-    { label: "Radial Energy Cloud", mode: "triple", expr: "exp(-(x^2 + y^2 + z^2)/3)", x: "[-2, 2]", y: "[-2, 2]", z: "[-2, 2]", nx: "12", ny: "12", nz: "12" },
-] as const;
+export const INTEGRAL_PRESETS = INTEGRAL_PRESET_CATALOG;

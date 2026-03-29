@@ -27,6 +27,9 @@ type LiveTarget = {
 
 function describePrimaryMetric(summary: DifferentialComputationSummary | null): string {
     if (!summary) return "Pending solve";
+    if (summary.type === "ode") return `y(T) = ${summary.valueAtPoint.toFixed(6)}`;
+    if (summary.type === "pde") return `${summary.family} profile`;
+    if (summary.type === "sde") return `E[X(T)] = ${summary.terminalMean.toFixed(6)}`;
     if ("matrix" in summary) {
         return summary.type === "jacobian"
             ? `Jacobian ${summary.size.rows}x${summary.size.cols}`
@@ -54,6 +57,27 @@ function describeAnalyticLaneResult(mode: string, analyticSolution: Differential
 
 function describeResultBlock(summary: DifferentialComputationSummary | null): string[] {
     if (!summary) return ["- Result pending"];
+    if (summary.type === "ode") {
+        return [
+            `- Terminal state: \`${summary.valueAtPoint.toFixed(6)}\``,
+            `- Equilibria: \`${summary.equilibriumPoints.map((value) => value.toFixed(3)).join(", ") || "none"}\``,
+            `- Stability: \`${summary.stabilityLabel}\``,
+        ];
+    }
+    if (summary.type === "pde") {
+        return [
+            `- Family: \`${summary.family}\``,
+            `- Grid: \`${summary.grid.nx}x${summary.grid.nt}\``,
+            `- Stability ratio: \`${summary.stabilityRatio.toFixed(6)}\``,
+        ];
+    }
+    if (summary.type === "sde") {
+        return [
+            `- Paths: \`${summary.pathCount}\``,
+            `- Terminal mean: \`${summary.terminalMean.toFixed(6)}\``,
+            `- Terminal std: \`${summary.terminalStd.toFixed(6)}\``,
+        ];
+    }
     if ("matrix" in summary) {
         return summary.matrix.map((row, index) => `- Row ${index + 1}: [${row.map((value) => value.toFixed(5)).join(", ")}]`);
     }

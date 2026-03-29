@@ -39,7 +39,8 @@ export function ReportView({
 - final: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}
 - auxiliary: ${state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? "pending"}
 - risk: ${state.summary.riskSignal ?? "pending"}
-- primary diagnostic: ${state.summary.testStatistic ?? state.summary.power ?? state.summary.residualSignal ?? state.summary.posteriorPredictive ?? state.summary.pcaSignal ?? state.summary.acfSignal ?? state.summary.bootstrapSignal ?? "pending"}`;
+- primary diagnostic: ${state.summary.testStatistic ?? state.summary.power ?? state.summary.residualSignal ?? state.summary.posteriorPredictive ?? state.summary.pcaSignal ?? state.summary.acfSignal ?? state.summary.bootstrapSignal ?? "pending"}
+- secondary diagnostic: ${state.summary.intervalSignal ?? state.summary.forecastInterval ?? state.summary.explainedVariance ?? state.summary.convergenceSignal ?? "pending"}`;
 
     const executiveCards = [
         { eyebrow: "Mode", value: state.mode, detail: "Active probability lane", tone: "neutral" as const },
@@ -51,6 +52,7 @@ export function ReportView({
         { eyebrow: "Risk", value: state.summary.riskSignal ?? "pending", detail: "Primary caution signal", tone: "warn" as const },
         { eyebrow: "Statistic", value: state.summary.testStatistic ?? state.summary.pValue ?? "pending", detail: "Inference / test output", tone: "info" as const },
         { eyebrow: "Forecast", value: state.summary.forecast ?? state.summary.posteriorPredictive ?? "pending", detail: "Forward-looking signal", tone: "neutral" as const },
+        { eyebrow: "Band", value: state.summary.intervalSignal ?? state.summary.forecastInterval ?? state.summary.confidenceInterval ?? "pending", detail: "Interval / uncertainty signal", tone: "info" as const },
         { eyebrow: "Shape", value: state.summary.shape ?? state.summary.distributionFamily ?? "pending", detail: "Distribution / dataset profile", tone: "success" as const },
     ];
 

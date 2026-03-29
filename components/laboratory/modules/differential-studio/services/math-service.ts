@@ -32,6 +32,9 @@ import type {
     HigherOrderDerivativeSummary,
     PartialDerivativeSummary,
     PlotPoint,
+    ODESummary,
+    PDESummary,
+    SDESummary,
     DifferentialCoordinateSystem,
     StepSweepEntry,
 } from "../types";
@@ -773,7 +776,7 @@ export class DifferentialMathService {
             size: vars.length,
             valueAtPoint: fMid,
             eigenvalueSignature,
-            criticalPointType: inferCriticalPointType(eigenvalueSignature, det, trace),
+            criticalPointType: inferCriticalPointType(eigenvalueSignature, det),
             latex: `H = \\begin{bmatrix} ${latexRows} \\end{bmatrix}`,
         };
     }
@@ -877,7 +880,7 @@ export class DifferentialMathService {
         h = 1e-5,
         order = 1,
         coords: DifferentialCoordinateSystem = "cartesian",
-    ): GradientSummary | JacobianSummary | HessianSummary | PartialDerivativeSummary | HigherOrderDerivativeSummary {
+    ): GradientSummary | JacobianSummary | HessianSummary | PartialDerivativeSummary | HigherOrderDerivativeSummary | ODESummary | PDESummary | SDESummary {
         const vars = parseVariables(variableStr);
         const pts = parsePoint(pointStr);
 
@@ -901,6 +904,15 @@ export class DifferentialMathService {
             const v = vars[0] ?? "x";
             const p = pts[0] ?? 0;
             return this.approximateHigherOrderSeries(expression, v, p, order, h);
+        }
+        if (mode === "ode") {
+            return this.buildODESummary(expression, variableStr, pointStr);
+        }
+        if (mode === "pde") {
+            return this.buildPDESummary(expression, variableStr, pointStr);
+        }
+        if (mode === "sde") {
+            return this.buildSDESummary(expression, pointStr);
         }
 
         throw new Error(`Unsupported differential mode: ${mode}`);
@@ -950,6 +962,27 @@ export class DifferentialMathService {
         const field = this.buildSlopeField(parsed.rhs, parsed.x0 - 4, parsed.x0 + 6, parsed.y0 - 4, parsed.y0 + 4, 16);
         const trajectory = integrateODE(parsed.rhs, parsed.variable, parsed.x0, parsed.y0, parsed.x0 + 6, 160);
         return { field, trajectory, x0: parsed.x0, y0: parsed.y0 };
+    }
+
+    static buildODESummary(expression: string, variable: string, point: string): ODESummary {
+        const parsed = parseODEProblem(expression, variable, point);
+        const field = this.buildSlopeField(parsed.rhs, parsed.x0 - 4, parsed.x0 + 6, parsed.y0 - 4, parsed.y0 + 4, 16);
+        const trajectory = integrateODE(parsed.rhs, parsed.variable, parsed.x0, parsed.y0, parsed.x0 + 6, 160);
+        const phaseSamples = buildODEPhaseSamples(parsed.rhs);
+        const equilibriumPoints = detectODEEquilibria(parsed.rhs);
+        const stabilityLabel = classifyODEStability(parsed.rhs, equilibriumPoints);
+        return {
+            type: "ode",
+            family: isAutonomousODE(parsed.rhs, parsed.variable) ? "autonomous" : "nonautonomous",
+            valueAtPoint: trajectory[trajectory.length - 1]?.y ?? parsed.y0,
+            samples: trajectory,
+            field,
+            phaseSamples,
+            equilibriumPoints,
+            stabilityLabel,
+            x0: parsed.x0,
+            y0: parsed.y0,
+        };
     }
 
     static buildPDEHeatmap(
@@ -1015,27 +1048,79 @@ export class DifferentialMathService {
         return samples;
     }
 
+    static buildPDESummary(expression: string, variable: string, point: string): PDESummary {
+        const parsed = parsePDEProblem(expression, variable, point);
+        const heatmapSamples = this.buildPDEHeatmap(expression, variable, point);
+        const finalTime = Math.max(...heatmapSamples.map((sample) => sample.y));
+        const finalProfile = heatmapSamples
+            .filter((sample) => Math.abs(sample.y - finalTime) < 1e-9)
+            .sort((left, right) => left.x - right.x)
+            .map((sample) => ({ x: sample.x, y: sample.z }));
+        const midSample = heatmapSamples[Math.floor(heatmapSamples.length / 2)];
+        const stabilityRatio =
+            parsed.family === "heat"
+                ? computePDEStabilityRatio(parsed.diffusivity)
+                : Math.abs(parsed.speed);
+        return {
+            type: "pde",
+            family: parsed.family,
+            valueAtPoint: midSample?.z ?? 0,
+            samples: finalProfile,
+            heatmapSamples,
+            finalProfile,
+            stabilityRatio,
+            grid: {
+                nx: parsed.family === "heat" ? 48 : 36,
+                nt: parsed.family === "heat" ? 40 : 24,
+            },
+        };
+    }
+
     static buildSDEPath(expression: string, point: string): PlotPoint[] {
         const parsed = parseSDEProblem(expression, point);
-        const samples: PlotPoint[] = [];
-        let x = parsed.x0;
-        let t = parsed.t0;
-        const rng = seededRandom(42);
-        samples.push({ x: t, y: x });
+        return buildSDEPathFromParsed(parsed, 42);
+    }
 
-        for (let i = 0; i < parsed.n; i++) {
-            const mu = Number(parsed.mu.evaluate({ t, X: x }));
-            const sigma = Number(parsed.sigma.evaluate({ t, X: x }));
-            if (!Number.isFinite(mu) || !Number.isFinite(sigma)) break;
-            const dw = Math.sqrt(parsed.dt) * normalSample(rng);
-            x = x + mu * parsed.dt + sigma * dw;
-            t = t + parsed.dt;
-            if (Number.isFinite(x) && Number.isFinite(t)) {
-                samples.push({ x: t, y: x });
-            }
+    static buildSDESummary(expression: string, point: string, pathCount = 32): SDESummary {
+        const parsed = parseSDEProblem(expression, point);
+        const ensemblePaths = Array.from({ length: pathCount }, (_, index) => buildSDEPathFromParsed(parsed, 42 + index));
+        const meanPath: PlotPoint[] = [];
+        const lowerBand: PlotPoint[] = [];
+        const upperBand: PlotPoint[] = [];
+
+        for (let step = 0; step < ensemblePaths[0].length; step++) {
+            const t = ensemblePaths[0][step]?.x ?? 0;
+            const values = ensemblePaths
+                .map((path) => path[step]?.y)
+                .filter((value): value is number => Number.isFinite(value));
+            const mean = values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+            const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(values.length, 1);
+            const std = Math.sqrt(variance);
+            meanPath.push({ x: t, y: mean });
+            lowerBand.push({ x: t, y: mean - std });
+            upperBand.push({ x: t, y: mean + std });
         }
 
-        return samples;
+        const terminalValues = ensemblePaths
+            .map((path) => path[path.length - 1]?.y)
+            .filter((value): value is number => Number.isFinite(value));
+        const terminalMean = terminalValues.reduce((sum, value) => sum + value, 0) / Math.max(terminalValues.length, 1);
+        const terminalVariance = terminalValues.reduce((sum, value) => sum + (value - terminalMean) ** 2, 0) / Math.max(terminalValues.length, 1);
+        const terminalStd = Math.sqrt(terminalVariance);
+
+        return {
+            type: "sde",
+            valueAtPoint: terminalMean,
+            samples: meanPath,
+            ensemblePaths,
+            meanPath,
+            lowerBand,
+            upperBand,
+            terminalHistogram: buildTerminalHistogram(terminalValues),
+            terminalMean,
+            terminalStd,
+            pathCount,
+        };
     }
 }
 
@@ -1077,7 +1162,6 @@ function classifyHessianSignature(
 function inferCriticalPointType(
     signature: string,
     det: number | null,
-    trace: number,
 ): string {
     if (signature === "positive_definite") return "Local minimum";
     if (signature === "negative_definite") return "Local maximum";
@@ -1120,6 +1204,60 @@ function integrateODE(rhsExpression: string, variable: string, x0: number, y0: n
     return points;
 }
 
+function isAutonomousODE(rhsExpression: string, variable: string): boolean {
+    return !new RegExp(`\\b${variable}\\b`).test(rhsExpression);
+}
+
+function buildODEPhaseSamples(rhsExpression: string): PlotPoint[] {
+    const { executor } = createCompiledExpression(rhsExpression);
+    const samples: PlotPoint[] = [];
+    for (let y = -4; y <= 4.0001; y += 0.25) {
+        const slope = safeEval(executor, { x: 0, y }) ?? safeEval(executor, { y }) ?? 0;
+        if (Number.isFinite(slope)) {
+            samples.push({ x: y, y: slope });
+        }
+    }
+    return samples;
+}
+
+function detectODEEquilibria(rhsExpression: string): number[] {
+    const { executor } = createCompiledExpression(rhsExpression);
+    const points: number[] = [];
+    let prevY = -6;
+    let prevValue = safeEval(executor, { x: 0, y: prevY }) ?? safeEval(executor, { y: prevY }) ?? 0;
+    for (let y = -5.75; y <= 6.0001; y += 0.25) {
+        const currentValue = safeEval(executor, { x: 0, y }) ?? safeEval(executor, { y }) ?? 0;
+        if (Math.abs(currentValue) < 1e-3 || prevValue === 0 || prevValue * currentValue < 0) {
+            const candidate = Number(y.toFixed(2));
+            if (!points.some((item) => Math.abs(item - candidate) < 0.2)) {
+                points.push(candidate);
+            }
+        }
+        prevY = y;
+        prevValue = currentValue;
+    }
+    return points;
+}
+
+function classifyODEStability(rhsExpression: string, equilibria: number[]): "stable" | "unstable" | "mixed" | "undetermined" {
+    if (!equilibria.length) return "undetermined";
+    const { executor } = createCompiledExpression(rhsExpression);
+    const labels = equilibria.map((yEq) => {
+        const epsilon = 1e-3;
+        const plus = safeEval(executor, { x: 0, y: yEq + epsilon }) ?? 0;
+        const minus = safeEval(executor, { x: 0, y: yEq - epsilon }) ?? 0;
+        if (minus > 0 && plus < 0) return "stable";
+        if (minus < 0 && plus > 0) return "unstable";
+        return "undetermined";
+    });
+    const stable = labels.includes("stable");
+    const unstable = labels.includes("unstable");
+    if (stable && unstable) return "mixed";
+    if (stable) return "stable";
+    if (unstable) return "unstable";
+    return "undetermined";
+}
+
 function parsePDEProblem(expression: string, variable: string, point: string) {
     const text = `${expression};${point}`;
     const varNames = variable.split(",").map((item) => item.trim()).filter(Boolean);
@@ -1138,6 +1276,17 @@ function parsePDEProblem(expression: string, variable: string, point: string) {
     const rawDiffusivity = heatMatch?.[1] && heatMatch[1] !== "" ? heatMatch[1].replace(/\*$/, "") : "1";
     const diffusivity = Number(createCompiledExpression(rawDiffusivity).executor.evaluate({})) || 1;
     return { family: "heat" as const, variables: varNames, initial, diffusivity };
+}
+
+function computePDEStabilityRatio(diffusivity: number) {
+    const nx = 48;
+    const xMin = -Math.PI;
+    const xMax = Math.PI;
+    const tMax = 1.2;
+    const nt = 40;
+    const dx = (xMax - xMin) / (nx - 1);
+    const dt = Math.min(0.4 * dx * dx / Math.max(diffusivity, 1e-6), tMax / (nt - 1));
+    return (diffusivity * dt) / (dx * dx);
 }
 
 function parseSDEProblem(expression: string, point: string) {
@@ -1162,6 +1311,48 @@ function parseSDEProblem(expression: string, point: string) {
         n,
         dt: Number.isFinite(dt) && dt > 0 ? dt : 1 / n,
     };
+}
+
+function buildSDEPathFromParsed(
+    parsed: ReturnType<typeof parseSDEProblem>,
+    seed: number,
+): PlotPoint[] {
+    const samples: PlotPoint[] = [];
+    let x = parsed.x0;
+    let t = parsed.t0;
+    const rng = seededRandom(seed);
+    samples.push({ x: t, y: x });
+
+    for (let i = 0; i < parsed.n; i++) {
+        const mu = Number(parsed.mu.evaluate({ t, X: x }));
+        const sigma = Number(parsed.sigma.evaluate({ t, X: x }));
+        if (!Number.isFinite(mu) || !Number.isFinite(sigma)) break;
+        const dw = Math.sqrt(parsed.dt) * normalSample(rng);
+        x = x + mu * parsed.dt + sigma * dw;
+        t = t + parsed.dt;
+        if (Number.isFinite(x) && Number.isFinite(t)) {
+            samples.push({ x: t, y: x });
+        }
+    }
+
+    return samples;
+}
+
+function buildTerminalHistogram(values: number[], bins = 14): PlotPoint[] {
+    if (!values.length) return [];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const width = Math.max((max - min) / bins, 1e-6);
+    const counts = Array.from({ length: bins }, () => 0);
+    values.forEach((value) => {
+        const rawIndex = Math.floor((value - min) / width);
+        const index = Math.max(0, Math.min(bins - 1, rawIndex));
+        counts[index] += 1;
+    });
+    return counts.map((count, index) => ({
+        x: min + width * (index + 0.5),
+        y: count,
+    }));
 }
 
 function seededRandom(seed: number) {

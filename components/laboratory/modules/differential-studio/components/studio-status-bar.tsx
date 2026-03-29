@@ -1,7 +1,8 @@
 import React from "react";
 import { Server, Zap } from "lucide-react";
+import { DifferentialSolvePhase } from "../types";
 
-export function StudioStatusBar({ solvePhase, isResultStale }: { solvePhase: any; isResultStale: any }) {
+export function StudioStatusBar({ solvePhase, isResultStale }: { solvePhase: DifferentialSolvePhase; isResultStale: boolean }) {
     return (
         <div className="flex h-10 items-center justify-between border-t border-border/40 bg-background/70 px-4 lg:px-6">
             <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground/60">

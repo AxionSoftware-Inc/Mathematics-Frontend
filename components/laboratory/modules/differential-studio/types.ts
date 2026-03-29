@@ -172,6 +172,64 @@ export type HessianSummary = {
     latex: string;
 };
 
+export type ODEFieldSample = {
+    x: number;
+    y: number;
+    slope: number;
+};
+
+export type ODEPhaseSample = {
+    x: number;
+    y: number;
+};
+
+export type ODESummary = {
+    type: "ode";
+    family: "autonomous" | "nonautonomous";
+    valueAtPoint: number;
+    samples: PlotPoint[];
+    field: ODEFieldSample[];
+    phaseSamples: ODEPhaseSample[];
+    equilibriumPoints: number[];
+    stabilityLabel: "stable" | "unstable" | "mixed" | "undetermined";
+    x0: number;
+    y0: number;
+};
+
+export type PDEFieldSample = {
+    x: number;
+    y: number;
+    z: number;
+};
+
+export type PDESummary = {
+    type: "pde";
+    family: "transport" | "heat";
+    valueAtPoint: number;
+    samples: PlotPoint[];
+    heatmapSamples: PDEFieldSample[];
+    finalProfile: PlotPoint[];
+    stabilityRatio: number;
+    grid: {
+        nx: number;
+        nt: number;
+    };
+};
+
+export type SDESummary = {
+    type: "sde";
+    valueAtPoint: number;
+    samples: PlotPoint[];
+    ensemblePaths: PlotPoint[][];
+    meanPath: PlotPoint[];
+    lowerBand: PlotPoint[];
+    upperBand: PlotPoint[];
+    terminalHistogram: PlotPoint[];
+    terminalMean: number;
+    terminalStd: number;
+    pathCount: number;
+};
+
 /** Union of all numerical computation summaries. */
 export type DifferentialComputationSummary =
     | DerivativeSummary
@@ -180,7 +238,10 @@ export type DifferentialComputationSummary =
     | GradientSummary
     | DirectionalDerivativeSummary
     | JacobianSummary
-    | HessianSummary;
+    | HessianSummary
+    | ODESummary
+    | PDESummary
+    | SDESummary;
 
 // ─── Step-size sweep ──────────────────────────────────────────────────────────
 

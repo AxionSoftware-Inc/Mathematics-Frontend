@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { WriteTypeSelector } from "@/components/write-type-selector";
+import { fetchPublic, isExpectedBackendOfflineError } from "@/lib/api";
 
 interface Paper {
     id: number;
@@ -43,25 +44,35 @@ const filterOptions: Array<{
 export default function WriteIndexPage() {
     const [papers, setPapers] = useState<Paper[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [archiveNotice, setArchiveNotice] = useState<string | null>(null);
     const [filterStatus, setFilterStatus] = useState<"all" | "published" | "draft">("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [isWriteSelectorOpen, setIsWriteSelectorOpen] = useState(false);
 
     const fetchPapers = useCallback(async () => {
         setIsLoading(true);
+        setArchiveNotice(null);
         try {
-            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
             const query = new URLSearchParams();
             if (filterStatus !== "all") query.append("status", filterStatus);
             if (searchQuery.trim()) query.append("q", searchQuery.trim());
 
-            const res = await fetch(`${apiUrl}/api/builder/papers/?${query.toString()}`);
+            const res = await fetchPublic(`/api/builder/papers/?${query.toString()}`);
             if (res.ok) {
                 const data = await res.json();
                 setPapers(data);
+            } else {
+                setPapers([]);
+                setArchiveNotice("Arxiv servisi hozir javob bermayapti. Yangi hujjat yaratish va lokal workspace ishlashda davom etadi.");
             }
-        } catch (e) {
-            console.error(e);
+        } catch (error) {
+            setPapers([]);
+            if (isExpectedBackendOfflineError(error)) {
+                setArchiveNotice("Backend ulanmagan. Writer arxivi vaqtincha yuklanmadi, lekin yangi hujjat yaratish mumkin.");
+            } else {
+                console.error(error);
+                setArchiveNotice("Arxivni yuklashda xatolik yuz berdi. Sahifa qayta urinib ko'rmoqda.");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -226,6 +237,12 @@ export default function WriteIndexPage() {
                             {papers.length} ta hujjat
                         </div>
                     </div>
+
+                    {archiveNotice ? (
+                        <div className="mt-5 rounded-3xl border border-amber-500/25 bg-amber-500/10 px-5 py-4 text-sm text-amber-800 dark:text-amber-200">
+                            {archiveNotice}
+                        </div>
+                    ) : null}
 
                     {isLoading ? (
                         <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">

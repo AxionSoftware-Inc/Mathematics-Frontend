@@ -213,16 +213,38 @@ function buildHistogram(values: number[], bins = 6): ProbabilityBin[] {
     });
 }
 
+function quantile(values: number[], q: number) {
+    if (!values.length) {
+        return 0;
+    }
+    const sorted = [...values].sort((left, right) => left - right);
+    const position = (sorted.length - 1) * q;
+    const lower = Math.floor(position);
+    const upper = Math.ceil(position);
+    if (lower === upper) {
+        return sorted[lower];
+    }
+    const weight = position - lower;
+    return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
+
+function rootMeanSquare(values: number[]) {
+    if (!values.length) {
+        return 0;
+    }
+    return Math.sqrt(values.reduce((sum, value) => sum + value * value, 0) / values.length);
+}
+
+function formatInterval(low: number, high: number, digits = 3) {
+    return `[${low.toFixed(digits)}, ${high.toFixed(digits)}]`;
+}
+
 function lcg(seed: number) {
     let state = seed >>> 0;
     return () => {
         state = (1664525 * state + 1013904223) >>> 0;
         return state / 4294967296;
     };
-}
-
-function transpose(matrix: number[][]) {
-    return Array.from({ length: matrix[0]?.length ?? 0 }, (_, column) => matrix.map((row) => row[column]));
 }
 
 function multiplyMatrixVector(matrix: number[][], vector: number[]) {
@@ -299,17 +321,27 @@ function analyzeDescriptive(datasetExpression: string, parameterExpression: stri
     const kurt = values.length ? kurtosis(values, avg, stdDev) : 0;
     const params = parseParams(parameterExpression);
     const bins = Number(params.bins ?? 6) || 6;
-    const sorted = [...values].sort((left, right) => left - right);
-    const q1 = sorted[Math.floor((sorted.length - 1) * 0.25)] ?? null;
-    const median = sorted[Math.floor((sorted.length - 1) * 0.5)] ?? null;
-    const q3 = sorted[Math.floor((sorted.length - 1) * 0.75)] ?? null;
+    const q1 = values.length ? quantile(values, 0.25) : null;
+    const median = values.length ? quantile(values, 0.5) : null;
+    const q3 = values.length ? quantile(values, 0.75) : null;
+    const iqr = q1 !== null && q3 !== null ? q3 - q1 : null;
+    const lowerFence = q1 !== null && iqr !== null ? q1 - 1.5 * iqr : null;
+    const upperFence = q3 !== null && iqr !== null ? q3 + 1.5 * iqr : null;
+    const outliers =
+        lowerFence !== null && upperFence !== null ? values.filter((value) => value < lowerFence || value > upperFence).length : 0;
     const summary: ProbabilitySummary = {
         sampleSize: values.length ? String(values.length) : "pending",
         mean: values.length ? avg.toFixed(3) : null,
+        median: values.length && median !== null ? median.toFixed(3) : null,
         variance: values.length ? variance.toFixed(3) : null,
         stdDev: values.length ? stdDev.toFixed(3) : null,
+        iqr: values.length && iqr !== null ? iqr.toFixed(3) : null,
         skewness: values.length ? skew.toFixed(3) : null,
         kurtosis: values.length ? kurt.toFixed(3) : null,
+        outlierSignal:
+            values.length && lowerFence !== null && upperFence !== null
+                ? `${outliers} outside Tukey fence ${formatInterval(lowerFence, upperFence)}`
+                : null,
         riskSignal: values.length ? "empirical spread ready" : "dataset pending",
         shape: values.length ? "1d sample" : null,
     };
@@ -774,14 +806,17 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
         const ssRes = residuals.reduce((sum, value) => sum + value * value, 0);
         const r2 = ssTot ? 1 - ssRes / ssTot : 1;
         const maxResidual = Math.max(...residuals.map((value) => Math.abs(value)));
+        const rmse = rootMeanSquare(residuals);
+
         return {
             summary: {
                 sampleSize: String(rows.length),
                 regressionFit: coefficients.map((value, index) => (index === 0 ? value.toFixed(3) : `${value.toFixed(3)}x${index}`)).join(" + "),
-                residualSignal: `max residual ≈ ${maxResidual.toFixed(3)}`,
-                outlierSignal: `largest residual row ${String(residuals.findIndex((value) => Math.abs(value) === maxResidual) + 1)}`,
+                residualSignal: `RMSE approx ${rmse.toFixed(3)}`,
+                outlierSignal: `largest residual row ${String(residuals.findIndex((value) => Math.abs(value) === maxResidual) + 1)} (|e|=${maxResidual.toFixed(3)})`,
                 leverageSignal: `predictors=${rows[0].xs.length}`,
-                riskSignal: `R^2 ≈ ${r2.toFixed(3)}`,
+                intervalSignal: `residual envelope approx +/- ${(1.96 * rmse).toFixed(3)}`,
+                riskSignal: `R^2 approx ${r2.toFixed(3)}`,
                 shape: "multiple regression",
             },
             steps: [
@@ -816,13 +851,17 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
         }
         const fitSeries = rows.map((row) => ({ x: row.x, y: sigmoid(b0 + b1 * row.x) }));
         const residuals = rows.map((row, index) => row.y - fitSeries[index].y);
+        const accuracy = rows.filter((row, index) => (fitSeries[index].y >= 0.5 ? 1 : 0) === row.y).length / rows.length;
+        const decisionBoundary = -b0 / Math.max(Math.abs(b1), 1e-9);
+
         return {
             summary: {
                 sampleSize: String(rows.length),
                 regressionFit: `logit(p) = ${b0.toFixed(3)} + ${b1.toFixed(3)}x`,
-                residualSignal: `mean residual ≈ ${mean(residuals).toFixed(3)}`,
-                outlierSignal: `max residual ≈ ${Math.max(...residuals.map((value) => Math.abs(value))).toFixed(3)}`,
-                leverageSignal: `decision boundary ≈ ${(-b0 / Math.max(Math.abs(b1), 1e-9)).toFixed(3)}`,
+                residualSignal: `mean residual approx ${mean(residuals).toFixed(3)}`,
+                outlierSignal: `max residual approx ${Math.max(...residuals.map((value) => Math.abs(value))).toFixed(3)}`,
+                leverageSignal: `decision boundary approx ${decisionBoundary.toFixed(3)}`,
+                intervalSignal: `accuracy approx ${(accuracy * 100).toFixed(1)}%`,
                 riskSignal: "binary classification fit",
                 shape: "logistic regression",
             },
@@ -831,7 +870,7 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
                 { title: "Gradient Fit", summary: "Simple logistic gradient updates bajarildi.", formula: `b0=${b0.toFixed(3)}, b1=${b1.toFixed(3)}` },
             ],
             finalFormula: `logit(p) = ${b0.toFixed(3)} + ${b1.toFixed(3)}x`,
-            auxiliaryFormula: `boundary ≈ ${(-b0 / Math.max(Math.abs(b1), 1e-9)).toFixed(3)}`,
+            auxiliaryFormula: `boundary approx ${decisionBoundary.toFixed(3)}`,
             scatterSeries: rows.map((row) => ({ x: row.x, y: row.y })),
             fitSeries,
         };
@@ -844,6 +883,7 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
             steps: [{ title: "Parse", summary: "Regression uchun (x,y) nuqtalar kutilmoqda.", formula: null }],
         };
     }
+
     const xs = points.map((point) => point.x);
     const ys = points.map((point) => point.y);
     const yBar = mean(ys);
@@ -856,13 +896,18 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
         const residuals = points.map((point) => point.y - (a + b * point.x + c * point.x * point.x));
         const ssRes = residuals.reduce((sum, value) => sum + value * value, 0);
         const r2 = ssTot ? 1 - ssRes / ssTot : 1;
+        const rmse = Math.sqrt(ssRes / Math.max(points.length, 1));
+        const intervalUpperSeries = points.map((point, index) => ({ x: point.x, y: fitSeries[index].y + 1.96 * rmse }));
+        const intervalLowerSeries = points.map((point, index) => ({ x: point.x, y: fitSeries[index].y - 1.96 * rmse }));
+
         return {
             summary: {
                 sampleSize: String(points.length),
-                regressionFit: `y ≈ ${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x^2`,
-                residualSignal: `RMSE ≈ ${Math.sqrt(ssRes / points.length).toFixed(3)}`,
-                outlierSignal: `max residual ≈ ${Math.max(...residuals.map((value) => Math.abs(value))).toFixed(3)}`,
-                riskSignal: `R^2 ≈ ${r2.toFixed(3)}`,
+                regressionFit: `y approx ${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x^2`,
+                residualSignal: `RMSE approx ${rmse.toFixed(3)}`,
+                outlierSignal: `max residual approx ${Math.max(...residuals.map((value) => Math.abs(value))).toFixed(3)}`,
+                intervalSignal: `95% fit band approx +/- ${(1.96 * rmse).toFixed(3)}`,
+                riskSignal: `R^2 approx ${r2.toFixed(3)}`,
                 forecast: `x_next=${(Math.max(...xs) + 1).toFixed(1)} -> ${(a + b * (Math.max(...xs) + 1) + c * (Math.max(...xs) + 1) ** 2).toFixed(3)}`,
                 shape: "quadratic fit",
             },
@@ -874,6 +919,8 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
             auxiliaryFormula: `R^2 = ${r2.toFixed(3)}`,
             scatterSeries: points,
             fitSeries,
+            intervalUpperSeries,
+            intervalLowerSeries,
         };
     }
 
@@ -887,14 +934,26 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
     const ssTot = ys.reduce((sum, y) => sum + (y - yBar) ** 2, 0);
     const ssRes = residuals.reduce((sum, value) => sum + value * value, 0);
     const r2 = ssTot ? 1 - ssRes / ssTot : 1;
+    const rmse = Math.sqrt(ssRes / Math.max(points.length, 1));
+    const leverageScale = Math.max(den, 1e-9);
+    const intervalUpperSeries = points.map((point, index) => {
+        const leverage = 1 / points.length + ((point.x - xBar) ** 2) / leverageScale;
+        return { x: point.x, y: fitSeries[index].y + 1.96 * rmse * Math.sqrt(Math.max(leverage, 1 / points.length)) };
+    });
+    const intervalLowerSeries = points.map((point, index) => {
+        const leverage = 1 / points.length + ((point.x - xBar) ** 2) / leverageScale;
+        return { x: point.x, y: fitSeries[index].y - 1.96 * rmse * Math.sqrt(Math.max(leverage, 1 / points.length)) };
+    });
+
     return {
         summary: {
             sampleSize: String(points.length),
-            regressionFit: `y ≈ ${slope.toFixed(3)}x + ${intercept.toFixed(3)}`,
-            residualSignal: `RMSE ≈ ${Math.sqrt(ssRes / points.length).toFixed(3)}`,
-            outlierSignal: `max residual ≈ ${Math.max(...residuals.map((value) => Math.abs(value))).toFixed(3)}`,
-            leverageSignal: `x spread ≈ ${(Math.max(...xs) - Math.min(...xs)).toFixed(3)}`,
-            riskSignal: `R^2 ≈ ${r2.toFixed(3)}`,
+            regressionFit: `y approx ${slope.toFixed(3)}x + ${intercept.toFixed(3)}`,
+            residualSignal: `RMSE approx ${rmse.toFixed(3)}`,
+            outlierSignal: `max residual approx ${Math.max(...residuals.map((value) => Math.abs(value))).toFixed(3)}`,
+            leverageSignal: `x spread approx ${(Math.max(...xs) - Math.min(...xs)).toFixed(3)}`,
+            intervalSignal: `95% fit band approx +/- ${(1.96 * rmse).toFixed(3)}`,
+            riskSignal: `R^2 approx ${r2.toFixed(3)}`,
             forecast: `x_next=${(Math.max(...xs) + 1).toFixed(1)} -> ${(slope * (Math.max(...xs) + 1) + intercept).toFixed(3)}`,
             shape: "linear fit",
         },
@@ -906,6 +965,8 @@ function analyzeRegression(datasetExpression: string, parameterExpression: strin
         auxiliaryFormula: `R^2 = ${r2.toFixed(3)}`,
         scatterSeries: points,
         fitSeries,
+        intervalUpperSeries,
+        intervalLowerSeries,
     };
 }
 
@@ -991,6 +1052,7 @@ function analyzeMultivariate(datasetExpression: string, parameterExpression: str
     while (labels.length < columnCount) {
         labels.push(`v${labels.length + 1}`);
     }
+
     const means = Array.from({ length: columnCount }, (_, column) => mean(rows.map((row) => row[column])));
     const covarianceValues = Array.from({ length: columnCount }, (_, rowIndex) =>
         Array.from({ length: columnCount }, (_, columnIndex) =>
@@ -1007,9 +1069,15 @@ function analyzeMultivariate(datasetExpression: string, parameterExpression: str
     const centered = rows.map((row) => row.map((value, index) => value - means[index]));
     const correlation = buildMatrix(labels, correlationValues);
     const pca = powerIteration(covarianceValues);
+    const totalVariance = covarianceValues.reduce((sum, row, index) => sum + Math.max(row[index], 0), 0);
+    const explainedVariance = totalVariance ? pca.eigenvalue / totalVariance : 0;
     const mahalanobis = Math.sqrt(centered[0].reduce((sum, value, index) => sum + (value * value) / Math.max(covarianceValues[index][index], 1e-9), 0));
+    const pc1Scores = centered.map((row) => dot(row, pca.vector));
+    const firstAxis = stds[0] || 1;
+    const secondAxis = stds[1] || 1;
     let centroids = [rows[0].slice(0, 2), rows[Math.min(1, rows.length - 1)].slice(0, 2)];
     let assignments = Array.from({ length: rows.length }, () => 0);
+
     for (let iter = 0; iter < 6; iter += 1) {
         assignments = rows.map((row) => {
             const point = row.slice(0, 2);
@@ -1021,15 +1089,21 @@ function analyzeMultivariate(datasetExpression: string, parameterExpression: str
             return group.length ? [mean(group.map((point) => point[0])), mean(group.map((point) => point[1]))] : centroids[cluster];
         });
     }
+
+    const clusterA = assignments.filter((value) => value === 0).length;
+    const clusterB = assignments.length - clusterA;
+
     return {
         summary: {
             sampleSize: String(rows.length),
             mean: means.map((value) => value.toFixed(3)).join(", "),
             covarianceSignal: `cov(${labels[0]}, ${labels[1]}) = ${(covarianceValues[0]?.[1] ?? 0).toFixed(3)}`,
             correlationSignal: `corr(${labels[0]}, ${labels[1]}) = ${(correlationValues[0]?.[1] ?? 0).toFixed(3)}`,
-            pcaSignal: `PC1 λ ≈ ${pca.eigenvalue.toFixed(3)}`,
-            mahalanobisSignal: `d_M(row1) ≈ ${mahalanobis.toFixed(3)}`,
-            clusterSignal: `k-means split ≈ ${assignments.filter((value) => value === 0).length}/${assignments.filter((value) => value === 1).length}`,
+            pcaSignal: `PC1 loading = (${pca.vector.map((value) => value.toFixed(2)).join(", ")})`,
+            explainedVariance: `PC1 captures ${(explainedVariance * 100).toFixed(1)}%`,
+            mahalanobisSignal: `d_M(row1) approx ${mahalanobis.toFixed(3)}`,
+            clusterSignal: `k-means split approx ${clusterA}/${clusterB}`,
+            clusterBalance: `${((Math.min(clusterA, clusterB) / Math.max(clusterA, clusterB || 1)) * 100).toFixed(0)}% balance`,
             riskSignal: "multivariate structure ready",
             shape: `${columnCount}-variable sample`,
         },
@@ -1039,10 +1113,16 @@ function analyzeMultivariate(datasetExpression: string, parameterExpression: str
             { title: "Distance / Clustering", summary: "Mahalanobis signal va simple k-means audit ko'rildi.", formula: `d_M=${mahalanobis.toFixed(3)}` },
         ],
         finalFormula: `corr(${labels[0]}, ${labels[1]}) = ${(correlationValues[0]?.[1] ?? 0).toFixed(3)}`,
-        auxiliaryFormula: `PC1 λ = ${pca.eigenvalue.toFixed(3)}`,
+        auxiliaryFormula: `PC1 variance ratio = ${(explainedVariance * 100).toFixed(1)}\\%`,
         matrix: correlation,
-        scatterSeries: rows.map((row) => ({ x: row[0], y: row[1] })),
-        fitSeries: centroids.map((centroid) => ({ x: centroid[0], y: centroid[1] })),
+        scatterSeries: rows.map((row, index) => ({
+            x: pc1Scores[index],
+            y: ((row[1] ?? row[0]) - means[1]) / secondAxis,
+        })),
+        fitSeries: centroids.map((centroid) => ({
+            x: ((centroid[0] - means[0]) / firstAxis) * (Math.abs(pca.vector[0] || 1)),
+            y: (centroid[1] - means[1]) / secondAxis,
+        })),
     };
 }
 
@@ -1093,17 +1173,26 @@ function analyzeTimeSeries(datasetExpression: string, parameterExpression: strin
     const pacfSeries = acfSeries.map((point, index) => ({ x: point.x, y: point.y - (acfSeries[index - 1]?.y ?? 0) * 0.4 }));
     const ar1Phi = autocorrelation(values, 1);
     const arimaForecast = values.at(-1)! * ar1Phi + (1 - ar1Phi) * yBar;
+    const residuals = values.map((value, index) => value - trendSeries[index].y);
+    const residualStd = sampleStd(residuals);
+    const intervalUpperSeries = forecastSeries.map((point, index) => ({ x: point.x, y: point.y + 1.96 * residualStd * Math.sqrt(index + 1) }));
+    const intervalLowerSeries = forecastSeries.map((point, index) => ({ x: point.x, y: point.y - 1.96 * residualStd * Math.sqrt(index + 1) }));
     return {
         summary: {
             sampleSize: String(values.length),
             mean: yBar.toFixed(3),
-            drift: `slope ≈ ${slope.toFixed(3)}`,
-            forecast: `t+${horizon} ≈ ${forecastSeries.at(-1)?.y.toFixed(3) ?? "pending"}`,
+            drift: `slope approx ${slope.toFixed(3)}`,
+            forecast: `t+${horizon} approx ${forecastSeries.at(-1)?.y.toFixed(3) ?? "pending"}`,
+            forecastInterval:
+                forecastSeries.length && intervalLowerSeries.length && intervalUpperSeries.length
+                    ? `t+${horizon} ${formatInterval(intervalLowerSeries.at(-1)?.y ?? 0, intervalUpperSeries.at(-1)?.y ?? 0)}`
+                    : null,
             stationarity: Math.abs(slope) < 0.1 ? "nearly stationary" : "trend present",
-            seasonality: `period-${period} swing ≈ ${(Math.max(...seasonalMeans) - Math.min(...seasonalMeans)).toFixed(3)}`,
-            acfSignal: `lag1 ≈ ${acfSeries[0]?.y.toFixed(3) ?? "pending"}`,
-            pacfSignal: `pacf1 ≈ ${pacfSeries[0]?.y.toFixed(3) ?? "pending"}`,
-            riskSignal: `AR(1) φ ≈ ${ar1Phi.toFixed(3)}`,
+            seasonality: `period-${period} swing approx ${(Math.max(...seasonalMeans) - Math.min(...seasonalMeans)).toFixed(3)}`,
+            acfSignal: `lag1 approx ${acfSeries[0]?.y.toFixed(3) ?? "pending"}`,
+            pacfSignal: `pacf1 approx ${pacfSeries[0]?.y.toFixed(3) ?? "pending"}`,
+            intervalSignal: `forecast sigma approx ${residualStd.toFixed(3)}`,
+            riskSignal: `AR(1) phi approx ${ar1Phi.toFixed(3)}`,
             shape: "time-series lane",
         },
         steps: [
@@ -1120,6 +1209,8 @@ function analyzeTimeSeries(datasetExpression: string, parameterExpression: strin
         forecastSeries,
         densitySeries: acfSeries,
         monteCarloTrail: pacfSeries,
+        intervalUpperSeries,
+        intervalLowerSeries,
     };
 }
 
@@ -1140,11 +1231,16 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
         bootMeans.sort((left, right) => left - right);
         const low = bootMeans[Math.floor(0.025 * (bootMeans.length - 1))];
         const high = bootMeans[Math.floor(0.975 * (bootMeans.length - 1))];
+        const bootMedian = quantile(bootMeans, 0.5);
+        const bootIqr = quantile(bootMeans, 0.75) - quantile(bootMeans, 0.25);
         return {
             summary: {
                 sampleSize: String(values.length),
                 mean: mean(values).toFixed(3),
-                bootstrapSignal: `bootstrap CI ≈ [${low.toFixed(3)}, ${high.toFixed(3)}]`,
+                median: bootMedian.toFixed(3),
+                iqr: bootIqr.toFixed(3),
+                bootstrapSignal: `bootstrap CI approx ${formatInterval(low, high)}`,
+                convergenceSignal: `bootstrap spread approx ${bootIqr.toFixed(3)}`,
                 riskSignal: "resampling lane",
                 shape: "bootstrap lane",
             },
@@ -1172,12 +1268,20 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
                 trail.push({ x: index, y: crude / index });
             }
         }
+        const crudeEstimate = crude / samples;
+        const antitheticEstimate = antithetic / samples;
+        const closedForm = 1 - Math.exp(-1);
+        const stderr = sampleStd(trail.map((point) => point.y));
+        const intervalUpperSeries = trail.map((point) => ({ x: point.x, y: point.y + 1.96 * stderr }));
+        const intervalLowerSeries = trail.map((point) => ({ x: point.x, y: point.y - 1.96 * stderr }));
         return {
             summary: {
                 sampleSize: String(samples),
-                monteCarloEstimate: `E[e^{-U}] ≈ ${(crude / samples).toFixed(4)}`,
-                varianceReduction: `antithetic ≈ ${(antithetic / samples).toFixed(4)}`,
-                samplerSignal: `closed form = ${(1 - Math.exp(-1)).toFixed(4)}`,
+                monteCarloEstimate: `E[e^{-U}] approx ${crudeEstimate.toFixed(4)}`,
+                varianceReduction: `antithetic approx ${antitheticEstimate.toFixed(4)}`,
+                samplerSignal: `closed form = ${closedForm.toFixed(4)}`,
+                convergenceSignal: `running stderr approx ${stderr.toFixed(4)}`,
+                confidenceInterval: formatInterval(crudeEstimate - 1.96 * stderr, crudeEstimate + 1.96 * stderr, 4),
                 riskSignal: "variance reduction lane",
                 shape: "simulation lane",
             },
@@ -1185,9 +1289,11 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
                 { title: "Crude Monte Carlo", summary: "Naive estimator qurildi.", formula: `N=${samples}` },
                 { title: "Antithetic Pairing", summary: "Variance reduction uchun antithetic pairing ishlatildi.", formula: `mu_vr=${(antithetic / samples).toFixed(4)}` },
             ],
-            finalFormula: `\\hat{\\mu}_{crude} = ${(crude / samples).toFixed(4)}`,
-            auxiliaryFormula: `\\hat{\\mu}_{anti} = ${(antithetic / samples).toFixed(4)}`,
+            finalFormula: `\\hat{\\mu}_{crude} = ${crudeEstimate.toFixed(4)}`,
+            auxiliaryFormula: `\\hat{\\mu}_{anti} = ${antitheticEstimate.toFixed(4)}`,
             lineSeries: trail,
+            intervalUpperSeries,
+            intervalLowerSeries,
         };
     }
 
@@ -1216,12 +1322,16 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
                 stratTrail.push({ x: index, y: (4 * stratifiedInside) / index });
             }
         }
+        const crudeEstimate = (4 * crudeInside) / samples;
+        const stratifiedEstimate = (4 * stratifiedInside) / samples;
+        const convergenceGap = Math.abs(crudeTrail.at(-1)?.y ?? crudeEstimate - (stratTrail.at(-1)?.y ?? stratifiedEstimate));
         return {
             summary: {
                 sampleSize: String(samples),
-                monteCarloEstimate: `crude π ≈ ${(4 * crudeInside / samples).toFixed(4)}`,
-                samplerSignal: `stratified π ≈ ${(4 * stratifiedInside / samples).toFixed(4)}`,
-                varianceReduction: `gap ≈ ${Math.abs((4 * crudeInside) / samples - (4 * stratifiedInside) / samples).toFixed(4)}`,
+                monteCarloEstimate: `crude pi approx ${crudeEstimate.toFixed(4)}`,
+                samplerSignal: `stratified pi approx ${stratifiedEstimate.toFixed(4)}`,
+                varianceReduction: `gap approx ${Math.abs(crudeEstimate - stratifiedEstimate).toFixed(4)}`,
+                convergenceSignal: `trail gap approx ${convergenceGap.toFixed(4)}`,
                 riskSignal: "sampler comparison lane",
                 shape: "simulation lane",
             },
@@ -1229,8 +1339,8 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
                 { title: "Crude Sampling", summary: "Baseline uniform sampler yuritildi.", formula: `pi_crude=${(4 * crudeInside / samples).toFixed(4)}` },
                 { title: "Stratified Sampling", summary: "Grid-stratified sampler bilan taqqoslandi.", formula: `pi_strat=${(4 * stratifiedInside / samples).toFixed(4)}` },
             ],
-            finalFormula: `\\hat{\\pi}_{crude} = ${(4 * crudeInside / samples).toFixed(4)}`,
-            auxiliaryFormula: `\\hat{\\pi}_{strat} = ${(4 * stratifiedInside / samples).toFixed(4)}`,
+            finalFormula: `\\hat{\\pi}_{crude} = ${crudeEstimate.toFixed(4)}`,
+            auxiliaryFormula: `\\hat{\\pi}_{strat} = ${stratifiedEstimate.toFixed(4)}`,
             lineSeries: crudeTrail,
             secondaryLineSeries: stratTrail,
         };
@@ -1254,11 +1364,17 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
         }
     }
     const estimate = (4 * inside) / samples;
+    const runningValues = monteCarloTrail.map((point) => point.y);
+    const stderr = sampleStd(runningValues);
+    const intervalUpperSeries = monteCarloTrail.map((point) => ({ x: point.x, y: point.y + 1.96 * stderr }));
+    const intervalLowerSeries = monteCarloTrail.map((point) => ({ x: point.x, y: point.y - 1.96 * stderr }));
     return {
         summary: {
             sampleSize: String(samples),
-            monteCarloEstimate: `pi ≈ ${estimate.toFixed(4)}`,
+            monteCarloEstimate: `pi approx ${estimate.toFixed(4)}`,
             variance: Math.abs(Math.PI - estimate).toFixed(4),
+            confidenceInterval: formatInterval(estimate - 1.96 * stderr, estimate + 1.96 * stderr, 4),
+            convergenceSignal: `running stderr approx ${stderr.toFixed(4)}`,
             riskSignal: "stochastic estimate",
             shape: "simulation lane",
         },
@@ -1271,6 +1387,8 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
         monteCarloTrail,
         monteCarloCloud,
         lineSeries: monteCarloTrail,
+        intervalUpperSeries,
+        intervalLowerSeries,
     };
 }
 

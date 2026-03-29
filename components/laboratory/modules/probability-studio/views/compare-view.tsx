@@ -44,6 +44,7 @@ export function CompareView({ state }: { state: ProbabilityStudioState }) {
                             title="Evidence Stack"
                             items={[
                                 `Mean / estimate: ${state.summary.mean ?? state.summary.posteriorMean ?? state.summary.monteCarloEstimate ?? "pending"}`,
+                                `Median / IQR: ${state.summary.median ?? state.summary.iqr ?? "pending"}`,
                                 `Variance / CI: ${state.summary.variance ?? state.summary.confidenceInterval ?? state.summary.credibleInterval ?? "pending"}`,
                                 `Statistic: ${state.summary.testStatistic ?? state.summary.bayesFactor ?? "pending"}`,
                                 `Forecast / predictive: ${state.summary.forecast ?? state.summary.posteriorPredictive ?? "pending"}`,
@@ -60,9 +61,10 @@ export function CompareView({ state }: { state: ProbabilityStudioState }) {
                             title="Diagnostics"
                             items={[
                                 `Residual / outlier: ${state.summary.residualSignal ?? state.summary.outlierSignal ?? "pending"}`,
-                                `Correlation / PCA: ${state.summary.correlationSignal ?? state.summary.pcaSignal ?? "pending"}`,
-                                `ACF / PACF: ${state.summary.acfSignal ?? state.summary.pacfSignal ?? "pending"}`,
-                                `Bootstrap / sampler: ${state.summary.bootstrapSignal ?? state.summary.samplerSignal ?? "pending"}`,
+                                `Band / leverage: ${state.summary.intervalSignal ?? state.summary.leverageSignal ?? "pending"}`,
+                                `Correlation / PCA: ${state.summary.correlationSignal ?? state.summary.pcaSignal ?? state.summary.explainedVariance ?? "pending"}`,
+                                `ACF / PACF / forecast: ${state.summary.acfSignal ?? state.summary.pacfSignal ?? state.summary.forecastInterval ?? "pending"}`,
+                                `Bootstrap / sampler / convergence: ${state.summary.bootstrapSignal ?? state.summary.samplerSignal ?? state.summary.convergenceSignal ?? "pending"}`,
                             ]}
                         />
                     ),

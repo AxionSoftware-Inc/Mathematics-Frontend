@@ -116,7 +116,13 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
                           ? solvedSummary.determinant != null
                               ? solvedSummary.determinant.toFixed(4)
                               : `${solvedSummary.size.rows}x${solvedSummary.size.cols}`
-                          : solvedSummary.trace.toFixed(4);
+                          : solvedSummary.type === "hessian"
+                            ? solvedSummary.trace.toFixed(4)
+                            : solvedSummary.type === "ode"
+                              ? solvedSummary.valueAtPoint.toFixed(4)
+                              : solvedSummary.type === "pde"
+                                ? solvedSummary.stabilityRatio.toFixed(4)
+                                : solvedSummary.terminalMean.toFixed(4);
 
         const primaryLabel =
             solvedSummary.type === "derivative"
@@ -131,7 +137,13 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
                         ? "Taylor Order"
                         : solvedSummary.type === "jacobian"
                           ? "Jacobian Result"
-                          : "Hessian Trace";
+                          : solvedSummary.type === "hessian"
+                            ? "Hessian Trace"
+                            : solvedSummary.type === "ode"
+                              ? "Terminal State"
+                              : solvedSummary.type === "pde"
+                                ? "Stability Ratio"
+                                : "Terminal Mean";
 
         return [
             { eyebrow: primaryLabel, value: primaryValue, detail: "Primary result", tone: "success" as const },
@@ -188,6 +200,18 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
             lines.push(`- **Solve lane:** numerical fallback`);
             if ("matrix" in summary) {
                 lines.push(`- **Matrix size:** \`${summary.type === "jacobian" ? `${summary.size.rows}x${summary.size.cols}` : `${summary.size}x${summary.size}`}\``);
+            } else if (summary.type === "ode") {
+                lines.push(`- **Terminal state:** \`${summary.valueAtPoint.toFixed(6)}\``);
+                lines.push(`- **Equilibria:** \`${summary.equilibriumPoints.map((value) => value.toFixed(3)).join(", ") || "none"}\``);
+                lines.push(`- **Stability:** \`${summary.stabilityLabel}\``);
+            } else if (summary.type === "pde") {
+                lines.push(`- **Family:** \`${summary.family}\``);
+                lines.push(`- **Mesh:** \`${summary.grid.nx}x${summary.grid.nt}\``);
+                lines.push(`- **Stability ratio:** \`${summary.stabilityRatio.toFixed(4)}\``);
+            } else if (summary.type === "sde") {
+                lines.push(`- **Ensemble paths:** \`${summary.pathCount}\``);
+                lines.push(`- **Terminal mean:** \`${summary.terminalMean.toFixed(6)}\``);
+                lines.push(`- **Terminal std:** \`${summary.terminalStd.toFixed(6)}\``);
             } else if ("tangentLine" in summary) {
                 lines.push(`- **Primary rate:** \`${summary.derivativeAtPoint.toFixed(6)}\``);
                 lines.push(`- **f(point):** \`${summary.valueAtPoint.toFixed(6)}\``);
@@ -284,8 +308,24 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
                     <LaboratorySolveDetailCard
                         id="3"
                         action="Central Difference"
-                        result="Local response evaluated with O(h^2) truncation behaviour"
-                        formula="\frac{f(x+h) - f(x-h)}{2h}"
+                        result={
+                            state.mode === "ode"
+                                ? "RK4 trajectory and slope-field diagnostics computed from the parsed initial-value problem"
+                                : state.mode === "pde"
+                                  ? "Explicit space-time mesh evolved with a simple numeric lane for the active PDE family"
+                                  : state.mode === "sde"
+                                    ? "Euler-Maruyama ensemble generated with variance bands and terminal histogram"
+                                    : "Local response evaluated with O(h^2) truncation behaviour"
+                        }
+                        formula={
+                            state.mode === "ode"
+                                ? "y_{n+1}=y_n+\\frac{h}{6}(k_1+2k_2+2k_3+k_4)"
+                                : state.mode === "pde"
+                                  ? "u_i^{n+1}=u_i^n+r(u_{i+1}^n-2u_i^n+u_{i-1}^n)"
+                                  : state.mode === "sde"
+                                    ? "X_{n+1}=X_n+\\mu\\Delta t+\\sigma\\Delta W_n"
+                                    : "\\frac{f(x+h) - f(x-h)}{2h}"
+                        }
                         tone="success"
                     />
                 </div>

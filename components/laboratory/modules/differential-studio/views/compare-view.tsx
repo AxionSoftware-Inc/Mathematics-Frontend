@@ -133,6 +133,66 @@ export function CompareView({ state }: { state: CompareViewState }) {
             ];
         }
 
+        if (summary.type === "ode") {
+            return [
+                {
+                    label: "Quick read",
+                    tone: "text-accent",
+                    summary: `Trajectory reaches ${summary.valueAtPoint.toFixed(4)} with ${summary.stabilityLabel} phase behaviour.`,
+                },
+                {
+                    label: "Technical",
+                    tone: "text-sky-600",
+                    summary: `Equilibria: ${summary.equilibriumPoints.length ? summary.equilibriumPoints.map((item) => item.toFixed(2)).join(", ") : "none"}. Family: ${summary.family}.`,
+                },
+                {
+                    label: "Research",
+                    tone: "text-amber-600",
+                    summary: "Read the trajectory together with phase portrait and equilibrium classification.",
+                },
+            ];
+        }
+
+        if (summary.type === "pde") {
+            return [
+                {
+                    label: "Quick read",
+                    tone: "text-accent",
+                    summary: `${summary.family} lane evolved on a ${summary.grid.nx}x${summary.grid.nt} mesh.`,
+                },
+                {
+                    label: "Technical",
+                    tone: "text-sky-600",
+                    summary: `Explicit stability ratio ${summary.stabilityRatio.toFixed(4)}. Final spatial profile is available in the visual deck.`,
+                },
+                {
+                    label: "Research",
+                    tone: "text-amber-600",
+                    summary: "Use this as a first numeric surrogate, not as a general PDE solver framework.",
+                },
+            ];
+        }
+
+        if (summary.type === "sde") {
+            return [
+                {
+                    label: "Quick read",
+                    tone: "text-accent",
+                    summary: `${summary.pathCount} ensemble paths produced terminal mean ${summary.terminalMean.toFixed(4)}.`,
+                },
+                {
+                    label: "Technical",
+                    tone: "text-sky-600",
+                    summary: `Terminal std ${summary.terminalStd.toFixed(4)}; compare mean path with ±1σ bands and histogram.`,
+                },
+                {
+                    label: "Research",
+                    tone: "text-amber-600",
+                    summary: "Stochastic interpretation should rely on ensemble spread, not on one representative path.",
+                },
+            ];
+        }
+
         return [
             {
                 label: "Quick read",

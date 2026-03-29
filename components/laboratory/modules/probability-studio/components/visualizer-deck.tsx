@@ -32,6 +32,8 @@ export function VisualizerDeck({
     const secondary = result.secondaryLineSeries ?? result.forecastSeries ?? [];
     const tertiary = result.tertiaryLineSeries ?? [];
     const quaternary = result.quaternaryLineSeries ?? [];
+    const intervalUpper = result.intervalUpperSeries ?? [];
+    const intervalLower = result.intervalLowerSeries ?? [];
     const max = Math.max(0, ...histogram.map((bin) => bin.count));
 
     const primaryVisual = (() => {
@@ -45,7 +47,7 @@ export function VisualizerDeck({
             return <CategoryPlot points={scatter} />;
         }
         if (mode === "regression" && scatter.length) {
-            return <ScatterFitPlot scatter={scatter} fit={fit} />;
+            return <ScatterFitPlot scatter={scatter} fit={fit} upper={intervalUpper} lower={intervalLower} />;
         }
         if (mode === "bayesian" && lineSeries.length) {
             return <LinePlot points={lineSeries} />;
@@ -54,10 +56,10 @@ export function VisualizerDeck({
             return <Heatmap matrix={result.matrix} />;
         }
         if (mode === "time-series" && lineSeries.length) {
-            return <LinePlot points={lineSeries} secondary={secondary} tertiary={tertiary} quaternary={quaternary} />;
+            return <LinePlot points={lineSeries} secondary={secondary} tertiary={tertiary} quaternary={quaternary} upper={intervalUpper} lower={intervalLower} />;
         }
         if (trail.length) {
-            return <LinePlot points={trail} reference={{ label: "pi", value: Math.PI }} />;
+            return <LinePlot points={trail} reference={{ label: "pi", value: Math.PI }} upper={intervalUpper} lower={intervalLower} />;
         }
         return (
             <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
@@ -91,11 +93,26 @@ export function VisualizerDeck({
                 <div className="mt-4 space-y-3">{primaryVisual}</div>
             </div>
 
+            {(summary.intervalSignal || summary.forecastInterval || summary.convergenceSignal || summary.explainedVariance) ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                    {summary.intervalSignal ? <SignalCard label="Interval Signal" value={summary.intervalSignal} /> : null}
+                    {summary.forecastInterval ? <SignalCard label="Forecast Band" value={summary.forecastInterval} /> : null}
+                    {summary.convergenceSignal ? <SignalCard label="Convergence" value={summary.convergenceSignal} /> : null}
+                    {summary.explainedVariance ? <SignalCard label="Explained Variance" value={summary.explainedVariance} /> : null}
+                </div>
+            ) : null}
+
             {mode === "multivariate" && scatter.length ? (
                 <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Paired Scatter</div>
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Projection Scatter</div>
+                            <div className="mt-1 text-sm font-semibold text-foreground">PC1 vs normalized secondary axis</div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{summary.clusterBalance ?? summary.clusterSignal ?? "cluster audit"}</div>
+                    </div>
                     <div className="mt-4">
-                        <ScatterFitPlot scatter={scatter} fit={[]} />
+                        <ScatterFitPlot scatter={scatter} fit={fit} />
                     </div>
                 </div>
             ) : null}
@@ -121,11 +138,22 @@ export function VisualizerDeck({
     );
 }
 
+function SignalCard({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+            <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
+        </div>
+    );
+}
+
 function LinePlot({
     points,
     secondary,
     tertiary,
     quaternary,
+    upper,
+    lower,
     highlight,
     reference,
 }: {
@@ -133,12 +161,14 @@ function LinePlot({
     secondary?: ProbabilitySeriesPoint[];
     tertiary?: ProbabilitySeriesPoint[];
     quaternary?: ProbabilitySeriesPoint[];
+    upper?: ProbabilitySeriesPoint[];
+    lower?: ProbabilitySeriesPoint[];
     highlight?: ProbabilitySeriesPoint;
     reference?: { label: string; value: number };
 }) {
     const width = 420;
     const height = 260;
-    const allPoints = [...points, ...(secondary ?? []), ...(tertiary ?? []), ...(quaternary ?? []), ...(highlight ? [highlight] : [])];
+    const allPoints = [...points, ...(secondary ?? []), ...(tertiary ?? []), ...(quaternary ?? []), ...(upper ?? []), ...(lower ?? []), ...(highlight ? [highlight] : [])];
     const xs = allPoints.map((point) => point.x);
     const ys = allPoints.map((point) => point.y);
     const minX = Math.min(...xs);
@@ -193,6 +223,32 @@ function LinePlot({
                     }).join(" ")}
                 />
             ) : null}
+            {upper?.length ? (
+                <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 4"
+                    className="text-orange-500/80"
+                    points={upper.map((point) => {
+                        const projected = project(point);
+                        return `${projected.x},${projected.y}`;
+                    }).join(" ")}
+                />
+            ) : null}
+            {lower?.length ? (
+                <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 4"
+                    className="text-orange-500/80"
+                    points={lower.map((point) => {
+                        const projected = project(point);
+                        return `${projected.x},${projected.y}`;
+                    }).join(" ")}
+                />
+            ) : null}
             <polyline
                 fill="none"
                 stroke="currentColor"
@@ -222,10 +278,20 @@ function CategoryPlot({ points }: { points: ProbabilitySeriesPoint[] }) {
     );
 }
 
-function ScatterFitPlot({ scatter, fit }: { scatter: ProbabilitySeriesPoint[]; fit: ProbabilitySeriesPoint[] }) {
+function ScatterFitPlot({
+    scatter,
+    fit,
+    upper,
+    lower,
+}: {
+    scatter: ProbabilitySeriesPoint[];
+    fit: ProbabilitySeriesPoint[];
+    upper?: ProbabilitySeriesPoint[];
+    lower?: ProbabilitySeriesPoint[];
+}) {
     const width = 420;
     const height = 260;
-    const all = fit.length ? [...scatter, ...fit] : scatter;
+    const all = fit.length || upper?.length || lower?.length ? [...scatter, ...fit, ...(upper ?? []), ...(lower ?? [])] : scatter;
     const minX = Math.min(...all.map((point) => point.x));
     const maxX = Math.max(...all.map((point) => point.x));
     const minY = Math.min(...all.map((point) => point.y));
@@ -244,6 +310,32 @@ function ScatterFitPlot({ scatter, fit }: { scatter: ProbabilitySeriesPoint[]; f
                     strokeWidth="3"
                     className="text-accent"
                     points={fit.map((point) => {
+                        const projected = project(point);
+                        return `${projected.x},${projected.y}`;
+                    }).join(" ")}
+                />
+            ) : null}
+            {upper?.length ? (
+                <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 4"
+                    className="text-orange-500/80"
+                    points={upper.map((point) => {
+                        const projected = project(point);
+                        return `${projected.x},${projected.y}`;
+                    }).join(" ")}
+                />
+            ) : null}
+            {lower?.length ? (
+                <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 4"
+                    className="text-orange-500/80"
+                    points={lower.map((point) => {
                         const projected = project(point);
                         return `${projected.x},${projected.y}`;
                     }).join(" ")}

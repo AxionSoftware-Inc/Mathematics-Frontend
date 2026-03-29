@@ -1,4 +1,4 @@
-import { fetchPublic } from "@/lib/api";
+import { fetchPublic, isExpectedBackendOfflineError } from "@/lib/api";
 import { laboratoryModuleCatalog, supportedLaboratorySlugs } from "@/lib/laboratory-catalog";
 
 export type LaboratoryModuleMeta = {
@@ -93,7 +93,9 @@ export async function fetchLaboratoryModules() {
             }
         }
     } catch (error) {
-        console.error("Failed to fetch laboratory modules", error);
+        if (!isExpectedBackendOfflineError(error)) {
+            console.error("Failed to fetch laboratory modules", error);
+        }
     }
 
     return sortModules(fallbackLaboratoryModules);
@@ -114,7 +116,9 @@ export async function fetchLaboratoryModule(slug: string) {
             }
         }
     } catch (error) {
-        console.error("Failed to fetch laboratory module", error);
+        if (!isExpectedBackendOfflineError(error)) {
+            console.error("Failed to fetch laboratory module", error);
+        }
     }
 
     return fallbackLaboratoryModules.find((entry) => entry.slug === slug) || null;

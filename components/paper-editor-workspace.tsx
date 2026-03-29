@@ -141,13 +141,10 @@ const blockPresets: BlockPreset[] = [
 
 const templateIconMap: Record<WriterTemplateIcon, typeof Sigma> = {
     "book-open": BookText,
-    "briefcase": FileStack,
     flask: Sparkles,
     "graduation-cap": Layers2,
     newspaper: ScanText,
     "scroll-text": Heading,
-    sparkles: Sparkles,
-    sigma: Sigma,
 };
 
 function splitCommaValues(value: string) {

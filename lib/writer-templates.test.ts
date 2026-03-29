@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_WRITER_PRESET_ID, DEFAULT_WRITER_TEMPLATE_ID, createDraftFromTemplate, getDefaultWriterTemplate, getDefaultWriterTemplatePreset, getWriterTemplate, getWriterTemplatePreset, resolveWriterTemplateAddOns, writerTemplates } from "./writer-templates";
 
 describe("writer templates", () => {
-    it("exposes a broad professional template set", () => {
-        expect(writerTemplates.length).toBeGreaterThanOrEqual(14);
+    it("exposes a curated professional template set", () => {
+        expect(writerTemplates).toHaveLength(6);
         expect(writerTemplates.map((template) => template.id)).toContain("research-paper");
         expect(writerTemplates.map((template) => template.id)).toContain("lab-report");
         expect(writerTemplates.map((template) => template.id)).toContain("textbook-manuscript");
-        expect(writerTemplates.map((template) => template.id)).toContain("problem-book");
-        expect(writerTemplates.map((template) => template.id)).toContain("lecture-book");
-        expect(writerTemplates.map((template) => template.id)).toContain("olympiad-book");
+        expect(writerTemplates.map((template) => template.id)).toContain("expository-article");
+        expect(writerTemplates.map((template) => template.id)).toContain("lecture-note");
+        expect(writerTemplates.map((template) => template.id)).toContain("thesis-chapter");
         expect(writerTemplates.map((template) => template.id)).toContain(DEFAULT_WRITER_TEMPLATE_ID);
     });
 
@@ -41,7 +41,8 @@ describe("writer templates", () => {
         expect(getWriterTemplate("research")?.id).toBe("research-paper");
         expect(getWriterTemplate("article")?.id).toBe("expository-article");
         expect(getWriterTemplate("book")?.id).toBe("textbook-manuscript");
-        expect(getWriterTemplate("simple")?.id).toBe("simple-draft");
+        expect(getWriterTemplate("simple")?.id).toBe("expository-article");
+        expect(getWriterTemplate("problem-book")?.id).toBe("textbook-manuscript");
     });
 
     it("appends selected add-on snippets to the generated draft", () => {
@@ -63,12 +64,13 @@ describe("writer templates", () => {
         expect(draft.content).toContain("Mashqlar");
     });
 
-    it("supports specialized book writing flows", () => {
-        const olympiadDraft = createDraftFromTemplate(getWriterTemplate("olympiad-book")!, ["theorem-pack"]);
-        const problemDraft = createDraftFromTemplate(getWriterTemplate("problem-book")!);
+    it("keeps book and thesis templates chapter-based", () => {
+        const textbookDraft = createDraftFromTemplate(getWriterTemplate("textbook-manuscript")!, ["theorem-pack"]);
+        const thesisDraft = createDraftFromTemplate(getWriterTemplate("thesis-chapter")!);
 
-        expect(olympiadDraft.document_kind).toBe("book");
-        expect(olympiadDraft.content).toContain("Challenge ladder");
-        expect(problemDraft.content).toContain("### Hint");
+        expect(textbookDraft.document_kind).toBe("book");
+        expect(textbookDraft.content).toContain("Mashqlar");
+        expect(thesisDraft.document_kind).toBe("book");
+        expect(thesisDraft.content).toContain("Nazariy asoslar");
     });
 });

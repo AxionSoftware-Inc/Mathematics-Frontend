@@ -12,7 +12,10 @@ import type {
     HigherOrderDerivativeSummary,
     DirectionalDerivativeSummary,
     DifferentialExtendedMode,
+    ODESummary,
+    PDESummary,
     PlotPoint,
+    SDESummary,
     StepSweepEntry,
     DifferentialCoordinateSystem,
 } from "../types";
@@ -39,6 +42,18 @@ function isJacobian(summary: unknown): summary is JacobianSummary {
 
 function isHessian(summary: unknown): summary is HessianSummary {
     return (summary as HessianSummary)?.type === "hessian";
+}
+
+function isODE(summary: unknown): summary is ODESummary {
+    return (summary as ODESummary)?.type === "ode";
+}
+
+function isPDE(summary: unknown): summary is PDESummary {
+    return (summary as PDESummary)?.type === "pde";
+}
+
+function isSDE(summary: unknown): summary is SDESummary {
+    return (summary as SDESummary)?.type === "sde";
 }
 
 function StabilityBadge({ label, tone }: { label: string; tone: "ok" | "warn" | "rough" }) {
@@ -88,7 +103,7 @@ function ODESlopeFieldPanel({
     const py = (y: number) => 100 - ((y - yMin) / Math.max(1e-9, yMax - yMin)) * 100;
 
     return (
-        <div className="site-outline-card p-4 space-y-3">
+        <div className="site-outline-card p-4 space-y-3" data-testid="diff-ode-slope-field">
             <div className="site-eyebrow text-accent">Slope Field</div>
             <svg viewBox="0 0 100 100" className="w-full rounded-2xl border border-border/40 bg-muted/10">
                 {field.map((sample, index) => {
@@ -133,7 +148,7 @@ function PDEHeatmapPanel({ samples }: { samples: Array<{ x: number; y: number; z
     const cell = 3.1;
 
     return (
-        <div className="site-outline-card p-4 space-y-3">
+        <div className="site-outline-card p-4 space-y-3" data-testid="diff-pde-heatmap">
             <div className="site-eyebrow text-accent">Space-Time Heatmap</div>
             <svg viewBox="0 0 100 100" className="w-full rounded-2xl border border-border/40 bg-muted/10">
                 {samples.map((sample, index) => {
@@ -149,6 +164,74 @@ function PDEHeatmapPanel({ samples }: { samples: Array<{ x: number; y: number; z
             <div className="grid grid-cols-2 gap-3 text-[11px] text-muted-foreground">
                 <div>x: <span className="font-mono text-foreground">{xMin.toFixed(2)} .. {xMax.toFixed(2)}</span></div>
                 <div>t: <span className="font-mono text-foreground">{yMin.toFixed(2)} .. {yMax.toFixed(2)}</span></div>
+            </div>
+        </div>
+    );
+}
+
+function ODEPhasePanel({ summary }: { summary: ODESummary }) {
+    return (
+        <div className="site-outline-card p-4 space-y-3" data-testid="diff-ode-phase-panel">
+            <div className="site-eyebrow text-accent">Phase Portrait</div>
+            <CartesianPlot
+                title="Phase Line / Flow"
+                series={[{ label: "dy/dx vs y", color: "#f59e0b", points: summary.phaseSamples }]}
+            />
+            <div className="grid gap-3 sm:grid-cols-3 text-[11px] text-muted-foreground">
+                <div>family: <span className="font-mono text-foreground">{summary.family}</span></div>
+                <div>equilibria: <span className="font-mono text-foreground">{summary.equilibriumPoints.length || 0}</span></div>
+                <div>stability: <span className="font-mono text-foreground">{summary.stabilityLabel}</span></div>
+            </div>
+        </div>
+    );
+}
+
+function PDEProfilePanel({ summary }: { summary: PDESummary }) {
+    return (
+        <div className="site-outline-card p-4 space-y-3" data-testid="diff-pde-profile-panel">
+            <div className="site-eyebrow text-accent">Final Spatial Profile</div>
+            <CartesianPlot
+                title="u(x, T)"
+                series={[{ label: "final profile", color: "var(--accent)", points: summary.finalProfile }]}
+            />
+            <div className="grid gap-3 sm:grid-cols-3 text-[11px] text-muted-foreground">
+                <div>family: <span className="font-mono text-foreground">{summary.family}</span></div>
+                <div>grid: <span className="font-mono text-foreground">{summary.grid.nx}x{summary.grid.nt}</span></div>
+                <div>ratio: <span className="font-mono text-foreground">{summary.stabilityRatio.toFixed(3)}</span></div>
+            </div>
+        </div>
+    );
+}
+
+function SDEEnsemblePanel({ summary }: { summary: SDESummary }) {
+    const bandSeries = [
+        { label: "mean", color: "var(--accent)", points: summary.meanPath },
+        { label: "+1σ", color: "#10b981", points: summary.upperBand },
+        { label: "-1σ", color: "#f59e0b", points: summary.lowerBand },
+    ];
+    const pathSeries = summary.ensemblePaths.slice(0, 8).map((path, index) => ({
+        label: `path ${index + 1}`,
+        color: index === 0 ? "#94a3b8" : "#cbd5e1",
+        points: path,
+    }));
+
+    return (
+        <div className="space-y-4" data-testid="diff-sde-ensemble-panel">
+            <div className="site-outline-card p-4 space-y-3">
+                <div className="site-eyebrow text-accent">Ensemble Paths</div>
+                <CartesianPlot title="Monte Carlo Trajectories" series={[...pathSeries, ...bandSeries]} />
+            </div>
+            <div className="site-outline-card p-4 space-y-3">
+                <div className="site-eyebrow text-accent">Terminal Distribution</div>
+                <CartesianPlot
+                    title="Histogram"
+                    series={[{ label: "terminal density", color: "#8b5cf6", points: summary.terminalHistogram }]}
+                />
+                <div className="grid gap-3 sm:grid-cols-3 text-[11px] text-muted-foreground">
+                    <div>paths: <span className="font-mono text-foreground">{summary.pathCount}</span></div>
+                    <div>mean: <span className="font-mono text-foreground">{summary.terminalMean.toFixed(4)}</span></div>
+                    <div>std: <span className="font-mono text-foreground">{summary.terminalStd.toFixed(4)}</span></div>
+                </div>
             </div>
         </div>
     );
@@ -260,7 +343,7 @@ function ScalarFieldMapPanel({
                 <div>z max: <span className="font-mono text-foreground">{zMax.toFixed(4)}</span></div>
             </div>
             <div className="text-[11px] leading-5 text-muted-foreground">
-                Accent arrow gradient directionni, dashed orange arrow esa directional lane uchun unit directionni ko'rsatadi.
+                Accent arrow gradient directionni, dashed orange arrow esa directional lane uchun unit directionni ko&apos;rsatadi.
             </div>
         </div>
     );
@@ -352,7 +435,6 @@ export interface VisualizerDeckState {
 export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
     const {
         summary,
-        analyticSolution,
         error,
         solveErrorMessage,
         expression,
@@ -385,9 +467,7 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                         ? "PDE lane"
                         : "SDE lane";
 
-    if ((mode === "ode" || mode === "pde" || mode === "sde") && analyticSolution?.status === "exact") {
-        if (mode === "ode") {
-            const ode = DifferentialMathService.buildODEFieldAndTrajectory(expression, vars[0] ?? "x", point);
+    if (isODE(summary)) {
             return (
                 <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
                     <div className="mb-3 flex items-center justify-between px-2">
@@ -397,18 +477,18 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                     <div className={`site-panel-strong space-y-5 p-5 ${staleClass}`}>
                         <CartesianPlot
                             title="Solution Trajectory"
-                            domainX={[ode.x0 - 1, ode.x0 + 6]}
-                            series={[{ label: "y(x)", color: "var(--accent)", points: ode.trajectory }]}
+                            domainX={[summary.x0 - 1, summary.x0 + 6]}
+                            series={[{ label: "y(x)", color: "var(--accent)", points: summary.samples }]}
                         />
-                        <ODESlopeFieldPanel field={ode.field} trajectory={ode.trajectory} />
+                        <ODESlopeFieldPanel field={summary.field} trajectory={summary.samples} />
+                        <ODEPhasePanel summary={summary} />
                     </div>
                 </div>
             );
-        }
+    }
 
-        if (mode === "pde") {
-            const pdeSamples = DifferentialMathService.buildPDEHeatmap(expression, variable, point);
-            const pdeGrid = surfaceGridFromSamples(pdeSamples);
+    if (isPDE(summary)) {
+            const pdeGrid = surfaceGridFromSamples(summary.heatmapSamples);
             return (
                 <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
                     <div className="mb-3 flex items-center justify-between px-2">
@@ -416,7 +496,7 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                         {isResultStale && <StabilityBadge label="Stale" tone="warn" />}
                     </div>
                     <div className={`site-panel-strong space-y-5 p-5 ${staleClass}`}>
-                        <PDEHeatmapPanel samples={pdeSamples} />
+                        <PDEHeatmapPanel samples={summary.heatmapSamples} />
                         <ScientificPlot
                             type="surface"
                             title="Space-Time Surface"
@@ -433,12 +513,13 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                             ]}
                             insights={["x-space vs time", "surface height shows field amplitude"]}
                         />
+                        <PDEProfilePanel summary={summary} />
                     </div>
                 </div>
             );
-        }
+    }
 
-        const sdePath = DifferentialMathService.buildSDEPath(expression, point);
+    if (isSDE(summary)) {
         return (
             <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
                 <div className="mb-3 flex items-center justify-between px-2">
@@ -446,23 +527,19 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                     {isResultStale && <StabilityBadge label="Stale" tone="warn" />}
                 </div>
                 <div className={`site-panel-strong space-y-5 p-5 ${staleClass}`}>
-                    <CartesianPlot
-                        title="Sample Path"
-                        domainX={[sdePath[0]?.x ?? 0, sdePath[sdePath.length - 1]?.x ?? 1]}
-                        series={[{ label: "X(t)", color: "var(--accent)", points: sdePath }]}
-                    />
+                    <SDEEnsemblePanel summary={summary} />
                     <div className="grid gap-3 sm:grid-cols-3">
                         <div className="site-outline-card p-4">
                             <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Start</div>
-                            <div className="mt-1 font-mono text-sm font-bold tabular-nums">{sdePath[0]?.y.toFixed(6) ?? "n/a"}</div>
+                            <div className="mt-1 font-mono text-sm font-bold tabular-nums">{summary.meanPath[0]?.y.toFixed(6) ?? "n/a"}</div>
                         </div>
                         <div className="site-outline-card p-4">
-                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Terminal</div>
-                            <div className="mt-1 font-mono text-sm font-bold tabular-nums">{sdePath[sdePath.length - 1]?.y.toFixed(6) ?? "n/a"}</div>
+                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Terminal Mean</div>
+                            <div className="mt-1 font-mono text-sm font-bold tabular-nums">{summary.terminalMean.toFixed(6)}</div>
                         </div>
                         <div className="site-outline-card p-4">
-                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Samples</div>
-                            <div className="mt-1 font-mono text-sm font-bold tabular-nums">{sdePath.length}</div>
+                            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Ensemble</div>
+                            <div className="mt-1 font-mono text-sm font-bold tabular-nums">{summary.pathCount}</div>
                         </div>
                     </div>
                 </div>
@@ -474,7 +551,7 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
         return (
             <div className="rounded-3xl border border-border/60 bg-background/45 p-6">
                 <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Visualizer Deck</div>
-                <div className="rounded-2xl border border-dashed border-border/60 bg-background/45 px-4 py-10 text-center text-sm text-muted-foreground">
+                    <div className="rounded-2xl border border-dashed border-border/60 bg-background/45 px-4 py-10 text-center text-sm text-muted-foreground">
                     {mode === "ode" || mode === "pde" || mode === "sde"
                         ? "Bu lane uchun solve natijasi pastdagi analytic/result panellarida chiqadi. Maxsus chart qatlami keyingi bosqichda kengaytiriladi."
                         : "Grafik va audit solve tugagandan keyin shu yerda chiqadi."}
@@ -498,9 +575,9 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
         return (
             <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-6">
                 <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-rose-500/70">Error</div>
-                <div className="text-sm text-rose-700 dark:text-rose-300">{error || solveErrorMessage}</div>
-            </div>
-        );
+                    <div className="text-sm text-rose-700 dark:text-rose-300">{error || solveErrorMessage}</div>
+                </div>
+            );
     }
 
     if (isDerivative(summary)) {
@@ -743,7 +820,7 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
         <div className="rounded-3xl border border-border/60 bg-background/45 p-6">
             <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Visualizer Deck</div>
             <div className="rounded-2xl border border-dashed border-border/60 bg-background/45 px-4 py-10 text-center text-sm text-muted-foreground">
-                Natija ko'rinishi bu lane uchun hali tayyor emas.
+                Natija ko&apos;rinishi bu lane uchun hali tayyor emas.
             </div>
         </div>
     );
