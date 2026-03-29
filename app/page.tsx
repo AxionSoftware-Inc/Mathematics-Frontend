@@ -123,7 +123,7 @@ function HeroConsole() {
                         <div className="mt-2 h-2 w-[68%] rounded-full bg-foreground/12" />
                         <div className="mt-5 grid grid-cols-[1fr_110px] gap-3">
                             <div className="h-16 rounded-[1.2rem] bg-foreground/6" />
-                            <div className="h-16 rounded-[1.2rem] border border-border/80 bg-white" />
+                            <div className="site-overlay-card h-16" />
                         </div>
                     </div>
                 </div>
@@ -132,14 +132,14 @@ function HeroConsole() {
                     <div className="site-command-card site-command-card-dark">
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <div className="site-eyebrow text-white/45">Analytical studio</div>
+                                <div className="site-eyebrow site-inverse-subtle">Analytical studio</div>
                                 <div className="mt-3 text-2xl font-black tracking-tight text-white">Differential Flow</div>
                             </div>
                             <Sigma className="h-5 w-5 text-white/80" />
                         </div>
                         <div className="mt-5 grid grid-cols-4 gap-2">
                             {[35, 52, 66, 81, 62, 84, 72, 55].map((height, index) => (
-                                <div key={index} className="rounded-[1rem] bg-white/6 p-2">
+                                <div key={index} className="site-inverse-panel rounded-[1rem] p-2">
                                     <div className="flex h-16 items-end">
                                         <div className="w-full rounded-md bg-gradient-to-t from-white via-white/75 to-white/30" style={{ height: `${height}%` }} />
                                     </div>
@@ -147,10 +147,10 @@ function HeroConsole() {
                             ))}
                         </div>
                         <div className="mt-4 space-y-2">
-                            <div className="rounded-[1rem] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/72">
+                            <div className="site-inverse-panel site-inverse-text rounded-[1rem] px-3 py-2 text-xs">
                                 Solve, visualize va compare bir-biridan uzilmagan oqimda ishlaydi.
                             </div>
-                            <div className="rounded-[1rem] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/72">
+                            <div className="site-inverse-panel site-inverse-text rounded-[1rem] px-3 py-2 text-xs">
                                 Natija Writer ichiga research asset sifatida ko&apos;chadi.
                             </div>
                         </div>
@@ -179,7 +179,7 @@ function WorkflowVisual({ kind }: { kind: "writer" | "lab" }) {
     if (kind === "writer") {
         return (
             <div className="site-capability-visual">
-                <div className="rounded-[1.8rem] border border-border/80 bg-white/70 p-5">
+                <div className="site-surface-card rounded-[1.8rem] p-5">
                     <div className="flex items-center justify-between">
                         <div className="site-eyebrow">Document map</div>
                         <BookOpenText className="h-5 w-5 text-foreground" />
@@ -210,14 +210,14 @@ function WorkflowVisual({ kind }: { kind: "writer" | "lab" }) {
 
     return (
         <div className="site-capability-visual site-capability-visual-dark">
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-5">
+            <div className="site-inverse-panel rounded-[1.8rem] p-5">
                 <div className="flex items-center justify-between">
-                    <div className="site-eyebrow text-white/45">Analytical evidence</div>
+                    <div className="site-eyebrow site-inverse-subtle">Analytical evidence</div>
                     <FlaskConical className="h-5 w-5 text-white/85" />
                 </div>
                 <div className="mt-5 grid grid-cols-[1.05fr_0.95fr] gap-3">
-                    <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-3">
-                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Visual output</div>
+                    <div className="site-inverse-panel rounded-[1.4rem] p-3">
+                        <div className="site-inverse-subtle text-[10px] font-black uppercase tracking-[0.18em]">Visual output</div>
                         <div className="mt-3 flex h-28 items-end gap-2">
                             {[30, 44, 63, 79, 68, 84, 72, 57].map((height, index) => (
                                 <div key={index} className="flex-1 rounded-t-xl bg-gradient-to-t from-white to-white/25" style={{ height: `${height}%` }} />
@@ -226,7 +226,7 @@ function WorkflowVisual({ kind }: { kind: "writer" | "lab" }) {
                     </div>
                     <div className="space-y-3">
                         {["Analitik yechim", "Solishtirish qatlami", "Hisobotga tayyor blok"].map((item) => (
-                            <div key={item} className="rounded-[1.2rem] border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/75">
+                            <div key={item} className="site-inverse-panel site-inverse-text rounded-[1.2rem] px-3 py-3 text-sm">
                                 {item}
                             </div>
                         ))}

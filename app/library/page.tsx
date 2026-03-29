@@ -82,13 +82,13 @@ export default function LibraryPage() {
                             </HeroBadge>
                             <div className="space-y-4">
                                 <h1 className="site-display text-4xl md:text-6xl xl:text-[4.55rem]">
-                                    Kutubxona endi
-                                    <span className="site-kicker"> katalog emas, </span>
-                                    ko'rishga yoqimli va tez topiladigan ilmiy shelf sifatida ishlaydi.
+                                    Library endi
+                                    <span className="site-kicker"> katalogdan ko‘ra yaxshiroq, </span>
+                                    tartibli ilmiy shelf va discovery yuzasi sifatida ishlaydi.
                                 </h1>
                                 <p className="site-lead max-w-2xl">
-                                    Book cover, metadata va discovery oqimi qayta yig'ildi. Rasm bloki alohida sahna
-                                    ichida ko'rsatiladi, card hierarchy esa mobil va desktopda bir xil tartibda o'qiladi.
+                                    Cover, metadata va discovery oqimi qayta yig‘ildi. Har bir nashr media sahna,
+                                    editorial meta va detailga olib o‘tuvchi aniq kartaga ega.
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-3">
@@ -130,11 +130,11 @@ export default function LibraryPage() {
                                             shelfPreview.map((book, index) => (
                                                 <div
                                                     key={book.id}
-                                                    className={`relative w-[92px] shrink-0 rounded-[1.5rem] border border-white/50 bg-white/60 p-2 shadow-2xl shadow-slate-900/10 sm:w-[104px] ${
+                                                    className={`site-cover-stage relative w-[92px] shrink-0 p-2 sm:w-[104px] ${
                                                         index === 1 ? "translate-y-6 rotate-[-4deg]" : index === 2 ? "translate-y-2 rotate-[5deg]" : "rotate-[3deg]"
                                                     }`}
                                                 >
-                                                    <div className="relative aspect-[3/4] overflow-hidden rounded-[1.15rem] border border-border bg-white/70">
+                                                    <div className="site-cover-inner relative aspect-[3/4]">
                                                         {book.cover_image ? (
                                                             <img
                                                                 src={getMediaUrl(book.cover_image)}
@@ -161,8 +161,8 @@ export default function LibraryPage() {
                                     <div className="site-outline-card p-5">
                                         <div className="site-eyebrow">Visual Rule</div>
                                         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Cover endi to'g'ridan to'g'ri cardni bosmaydi. U maxsus frame ichida,
-                                            soyali va aniq proporsiyada ko'rsatiladi.
+                                            Cover to‘g‘ridan-to‘g‘ri karta foniga yopishtirilmaydi. U alohida frame
+                                            ichida, aniq proporsiya va toza kontrast bilan ko‘rsatiladi.
                                         </p>
                                     </div>
                                     <div className="site-outline-card p-5">
@@ -223,8 +223,8 @@ export default function LibraryPage() {
                                     </div>
 
                                     <div className="site-media-frame p-5">
-                                        <div className="mx-auto max-w-[230px] rounded-[1.8rem] border border-white/50 bg-white/55 p-3 shadow-2xl shadow-slate-900/10">
-                                            <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] border border-border bg-white/70">
+                                        <div className="site-cover-stage mx-auto max-w-[230px] p-3">
+                                            <div className="site-cover-inner relative aspect-[3/4]">
                                                 {spotlightBook.cover_image ? (
                                                     <img
                                                         src={getMediaUrl(spotlightBook.cover_image)}
@@ -250,7 +250,7 @@ export default function LibraryPage() {
                                         className="site-panel group flex h-full flex-col gap-5 p-5 sm:flex-row sm:items-center"
                                     >
                                         <div className="site-media-frame shrink-0 p-3 sm:w-[168px]">
-                                            <div className="relative aspect-[3/4] overflow-hidden rounded-[1.1rem] border border-border bg-white/70">
+                                            <div className="site-cover-inner relative aspect-[3/4]">
                                                 {book.cover_image ? (
                                                     <img
                                                         src={getMediaUrl(book.cover_image)}
@@ -301,8 +301,8 @@ export default function LibraryPage() {
                                 <input
                                     value={query}
                                     onChange={(event) => setQuery(event.target.value)}
-                                    placeholder="Kitob, muallif yoki bo'lim bo'yicha qidiring"
-                                    className="h-[52px] w-full rounded-full border border-border bg-white/55 pl-11 pr-4 text-sm outline-none transition-colors focus:border-[var(--accent)] dark:bg-white/5"
+                                    placeholder="Kitob, muallif yoki bo‘lim bo‘yicha qidiring"
+                                    className="site-search-input pl-11 pr-4 text-sm"
                                 />
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -348,14 +348,14 @@ export default function LibraryPage() {
                                 >
                                     <div className="site-media-frame p-4">
                                         <div className="flex items-center justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                                            <span className="rounded-full bg-black/70 px-3 py-1 text-white">
+                                            <span className="site-status-pill">
                                                 {book.pdf_file ? "PDF" : "Archive"}
                                             </span>
                                             <span>{getPublicationYear(book.published_date)}</span>
                                         </div>
 
-                                        <div className="mx-auto mt-4 max-w-[230px] rounded-[1.8rem] border border-white/50 bg-white/60 p-3 shadow-2xl shadow-slate-900/10">
-                                            <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] border border-border bg-white/75">
+                                        <div className="site-cover-stage mx-auto mt-4 max-w-[230px] p-3">
+                                            <div className="site-cover-inner relative aspect-[3/4]">
                                                 {book.cover_image ? (
                                                     <img
                                                         src={getMediaUrl(book.cover_image)}
@@ -408,8 +408,8 @@ export default function LibraryPage() {
                             </div>
                             <h3 className="mt-5 font-serif text-3xl font-black">Kutubxonada mos natija topilmadi</h3>
                             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
-                                Qidiruv va filter bo'yicha natija chiqmadi. Bo'sh holat ham aniq, toza va mahsulotga
-                                mos ko'rinishda qoldirildi.
+                                Qidiruv va filter bo‘yicha natija chiqmadi. Bo‘sh holat ham shu katalog tizimida,
+                                toza kontrast va aniq signal bilan saqlandi.
                             </p>
                         </div>
                     )}

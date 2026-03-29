@@ -73,13 +73,13 @@ export default function AcademyPage() {
                             </HeroBadge>
                             <div className="space-y-4">
                                 <h1 className="site-display text-4xl md:text-6xl xl:text-[4.5rem]">
-                                    Akademiya endi
-                                    <span className="site-kicker"> tartibli o'quv oqimi </span>
-                                    va professor darajasidagi ko'rinish bilan ishlaydi.
+                                    Academy endi
+                                    <span className="site-kicker"> tartibli o‘quv katalogi </span>
+                                    va aniq product hierarchiyasi bilan ishlaydi.
                                 </h1>
                                 <p className="site-lead max-w-2xl">
-                                    Kurslar ro'yxati, instructor profillari va level bo'yicha navigatsiya endi bitta
-                                    tizimda. Thumbnail, meta va CTA bloklari har kartada bir xil ritmga keltirildi.
+                                    Kurs katalogi, instructor signallari va level bo‘yicha filtrlash endi bitta izchil
+                                    tizimda o‘qiladi. Har karta bir xil ritm, media sahna va metadata qatlamiga ega.
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-3">
@@ -143,15 +143,15 @@ export default function AcademyPage() {
                                     <div className="site-outline-card p-5">
                                         <div className="site-eyebrow">Visual Rule</div>
                                         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Har bir kursda thumbnail alohida media frame ichida, qolgan content esa
-                                            pastdagi aniq tipografik blokda joylashadi.
+                                            Har bir kursda cover media alohida sahnada, qolgan ma’lumot esa sokin va
+                                            aniq tipografik qatlamda beriladi.
                                         </p>
                                     </div>
                                     <div className="site-outline-card p-5">
                                         <div className="site-eyebrow">Decision Speed</div>
                                         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Instructor, vaqt, level va asosiy taglar bir qarashda ko'rinadi. Foydalanuvchi
-                                            qayerdan boshlashni darrov tushunadi.
+                                            Instructor, davomiylik, level va asosiy taglar bir qarashda ko‘rinadi.
+                                            Foydalanuvchi qayerdan boshlash kerakligini tez anglaydi.
                                         </p>
                                     </div>
                                 </div>
@@ -170,8 +170,8 @@ export default function AcademyPage() {
                                 <input
                                     value={query}
                                     onChange={(event) => setQuery(event.target.value)}
-                                    placeholder="Kurs, instructor yoki tag bo'yicha qidiring"
-                                    className="h-[52px] w-full rounded-full border border-border bg-white/55 pl-11 pr-4 text-sm outline-none transition-colors focus:border-[var(--accent)] dark:bg-white/5"
+                                    placeholder="Kurs, instructor yoki tag bo‘yicha qidiring"
+                                    className="site-search-input pl-11 pr-4 text-sm"
                                 />
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -217,14 +217,14 @@ export default function AcademyPage() {
                                 >
                                     <div className="site-media-frame p-4">
                                         <div className="flex items-center justify-between gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                                            <span className="rounded-full bg-black/70 px-3 py-1 text-white">
+                                            <span className="site-status-pill">
                                                 {course.level_type || "Beginner"}
                                             </span>
                                             <span>{course.duration_hours || "12"}h</span>
                                         </div>
 
-                                        <div className="mx-auto mt-4 max-w-[280px] rounded-[1.8rem] border border-white/50 bg-white/60 p-3 shadow-2xl shadow-slate-900/10">
-                                            <div className="relative aspect-[16/10] overflow-hidden rounded-[1.4rem] border border-border bg-white/75">
+                                        <div className="site-cover-stage mx-auto mt-4 max-w-[280px] p-3">
+                                            <div className="site-cover-inner relative aspect-[16/10]">
                                                 {course.thumbnail ? (
                                                     <img
                                                         src={getMediaUrl(course.thumbnail)}
@@ -249,7 +249,7 @@ export default function AcademyPage() {
                                             {course.title}
                                         </h3>
                                         <p className="mt-4 line-clamp-3 text-sm leading-7 text-muted-foreground">
-                                            {course.description || "Nazariya va amaliyotni bog'laydigan strukturali kurs oqimi."}
+                                            {course.description || "Nazariya va amaliyotni bog‘laydigan tartibli o‘quv oqimi."}
                                         </p>
 
                                         <div className="mt-5 flex flex-wrap gap-2">
@@ -294,8 +294,8 @@ export default function AcademyPage() {
                             </div>
                             <h3 className="mt-5 font-serif text-3xl font-black">Mos kurs topilmadi</h3>
                             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
-                                Qidiruv so'zini yoki level filtrini o'zgartiring. Bo'sh holat ham shu vizual tizimda,
-                                aniq signal bilan ko'rsatiladi.
+                                Qidiruv so‘zini yoki level filtrini yangilang. Bo‘sh holat ham shu product tilida,
+                                ortiqcha bezaksiz va aniq signal bilan ko‘rsatiladi.
                             </p>
                         </div>
                     )}

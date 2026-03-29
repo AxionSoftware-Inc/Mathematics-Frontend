@@ -37,7 +37,7 @@ function plainText(value?: string | null) {
 }
 
 function getArticleSummary(article: Article, limit = 220) {
-    return plainText(article.summary || article.content).slice(0, limit) || "Ilmiy maqola preview qismi shu yerda ko'rsatiladi.";
+    return plainText(article.summary || article.content).slice(0, limit) || "Maqolaning qisqa annotatsiyasi shu yerda ko‘rsatiladi.";
 }
 
 export default function JournalPage() {
@@ -101,13 +101,13 @@ export default function JournalPage() {
                             </HeroBadge>
                             <div className="space-y-4">
                                 <h1 className="site-display text-4xl md:text-6xl xl:text-[4.5rem]">
-                                    Jurnal endi
-                                    <span className="site-kicker"> ko'p qatlamli vitringa </span>
-                                    aylandi va bir qarashda ko'proq asosiy maqolalarni ko'rsatadi.
+                                    Journal endi
+                                    <span className="site-kicker"> aniq editorial vitringa </span>
+                                    ega va asosiy nashrlarni bir qarashda ko‘rsatadi.
                                 </h1>
                                 <p className="site-lead max-w-2xl">
-                                    Endi yuqorida bitta ulkan karta turmaydi. 6-8 tagacha asosiy maqola premium
-                                    vitrina ichida ko'rinadi, qolganlari esa pastdagi ixcham arxiv oqimida davom etadi.
+                                    Asosiy maqolalar editorial vitrina ichida ajratiladi, qolganlari esa pastdagi arxiv
+                                    oqimida mantiqiy ravishda davom etadi. Bu sahifani katalog emas, nashr yuzasi sifatida o‘qitadi.
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-3">
@@ -152,8 +152,8 @@ export default function JournalPage() {
                             <div className="mt-6 site-outline-card p-6">
                                 <div className="site-eyebrow">Publishing Experience</div>
                                 <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                    Maqola topish, preview qilish va detailga o'tish endi ancha tirik ko'rinadi.
-                                    Asosiy maqolalar yuqorida to'planadi, qolgan oqim esa pastda uzilmaydi.
+                                    Topish, preview va detailga o‘tish endi bir xil editorial ritmda ishlaydi.
+                                    Asosiy nashrlar yuqorida jamlanadi, qolgan oqim esa pastda uzilmasdan davom etadi.
                                 </p>
                             </div>
                         </div>
@@ -170,8 +170,8 @@ export default function JournalPage() {
                             <input
                                 value={query}
                                 onChange={(event) => setQuery(event.target.value)}
-                                placeholder="Maqola, muallif yoki mavzu bo'yicha qidiring"
-                                className="h-[52px] w-full rounded-full border border-border bg-white/55 pl-11 pr-4 text-sm outline-none transition-colors focus:border-[var(--accent)] dark:bg-white/5"
+                                placeholder="Maqola, muallif yoki mavzu bo‘yicha qidiring"
+                                className="site-search-input pl-11 pr-4 text-sm"
                             />
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -224,30 +224,30 @@ export default function JournalPage() {
                                         </div>
                                     ) : null}
                                     <div className="p-8 md:p-10 xl:p-12">
-                                        <div className={`flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-[0.22em] ${leadArticle.cover_image ? "text-white/72" : "text-muted-foreground"}`}>
-                                            <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[var(--accent)]">
+                                        <div className={`flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-[0.22em] ${leadArticle.cover_image ? "site-muted-inverse" : "text-muted-foreground"}`}>
+                                            <span className="site-status-pill">
                                                 Lead Paper
                                             </span>
                                             <span>{leadArticle.category_name || "Scientific Article"}</span>
                                         </div>
-                                        <h2 className={`mt-5 font-serif text-4xl font-black leading-tight transition-colors group-hover:text-[var(--accent)] md:text-5xl ${leadArticle.cover_image ? "text-white" : ""}`}>
+                                        <h2 className={`mt-5 font-serif text-4xl font-black leading-tight transition-colors group-hover:text-[var(--accent)] md:text-5xl ${leadArticle.cover_image ? "text-foreground dark:text-white" : ""}`}>
                                             {leadArticle.title}
                                         </h2>
-                                        <p className={`mt-5 max-w-2xl text-base leading-8 ${leadArticle.cover_image ? "text-white/84" : "text-muted-foreground"}`}>
+                                        <p className={`mt-5 max-w-2xl text-base leading-8 ${leadArticle.cover_image ? "site-inverse-text" : "text-muted-foreground"}`}>
                                             {getArticleSummary(leadArticle, 320)}
                                         </p>
                                         <div className={`mt-8 flex flex-wrap items-center gap-6 border-t pt-6 text-sm font-semibold ${leadArticle.cover_image ? "border-white/20" : "border-border"}`}>
-                                            <span className={`inline-flex items-center gap-2 ${leadArticle.cover_image ? "text-white/80" : "text-muted-foreground"}`}>
+                                            <span className={`inline-flex items-center gap-2 ${leadArticle.cover_image ? "site-inverse-text" : "text-muted-foreground"}`}>
                                                 <User2 className="h-4 w-4 text-[var(--accent)]" />
                                                 {leadArticle.author || "MathSphere Researcher"}
                                             </span>
-                                            <span className={`inline-flex items-center gap-2 ${leadArticle.cover_image ? "text-white/80" : "text-muted-foreground"}`}>
+                                            <span className={`inline-flex items-center gap-2 ${leadArticle.cover_image ? "site-inverse-text" : "text-muted-foreground"}`}>
                                                 <CalendarDays className="h-4 w-4 text-[var(--accent-alt)]" />
                                                 {leadArticle.created_at
                                                     ? new Date(leadArticle.created_at).toLocaleDateString()
                                                     : "Recent issue"}
                                             </span>
-                                            <span className={`inline-flex items-center gap-2 ${leadArticle.cover_image ? "text-white/80" : "text-muted-foreground"}`}>
+                                            <span className={`inline-flex items-center gap-2 ${leadArticle.cover_image ? "site-inverse-text" : "text-muted-foreground"}`}>
                                                 <Clock3 className="h-4 w-4" />
                                                 {leadArticle.read_time_minutes || 5} min read
                                             </span>
@@ -320,7 +320,7 @@ export default function JournalPage() {
                                                     <Newspaper className="h-12 w-12 text-[var(--accent)]/40" />
                                                 </div>
                                             )}
-                                            <div className="absolute left-5 top-5 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">
+                                            <div className="site-status-pill absolute left-5 top-5">
                                                 {article.read_time_minutes || 5} min
                                             </div>
                                         </div>
@@ -369,8 +369,8 @@ export default function JournalPage() {
                             </div>
                             <h3 className="mt-5 font-serif text-3xl font-black">Maqola topilmadi</h3>
                             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
-                                Qidiruv yoki category filter natija bermadi. Bo'sh holat ham mahsulotning bir qismi,
-                                shuning uchun bu yerda ham aniq va professional signal saqlandi.
+                                Qidiruv yoki category filter natija bermadi. Bo‘sh holat ham shu editorial tizimda,
+                                ortiqcha bezaksiz va aniq signal bilan ko‘rsatiladi.
                             </p>
                         </div>
                     ) : archiveArticles.length ? (
@@ -382,7 +382,7 @@ export default function JournalPage() {
                                     className="site-panel group flex h-full gap-5 overflow-hidden p-5 sm:flex-row sm:items-center"
                                 >
                                     <div className="site-media-frame shrink-0 p-3 sm:w-48">
-                                        <div className="relative h-32 overflow-hidden rounded-[1.2rem] border border-border bg-white/70">
+                                        <div className="site-cover-inner relative h-32">
                                             {article.cover_image ? (
                                                 <img
                                                     src={getMediaUrl(article.cover_image)}

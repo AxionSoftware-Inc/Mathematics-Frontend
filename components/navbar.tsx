@@ -32,7 +32,7 @@ export default function Navbar() {
                     <div>
                         <div className="font-serif text-2xl font-black tracking-tight">MathSphere</div>
                         <div className="text-[10px] font-extrabold uppercase tracking-[0.26em] text-muted-foreground">
-                            Premium mathematics platform
+                            Research computing and writing
                         </div>
                     </div>
                 </Link>
@@ -92,7 +92,7 @@ export default function Navbar() {
                             </Link>
                         ))}
                         <Link href="/write" onClick={() => setIsOpen(false)} className="site-button-primary mt-2">
-                            Maqola Yozish
+                            Writer Workspace
                         </Link>
                     </SiteContainer>
                 </div>

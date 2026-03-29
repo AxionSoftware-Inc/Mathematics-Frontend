@@ -159,8 +159,8 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
                             <div className="site-panel p-6">
                                 <div className="site-eyebrow">Course Intent</div>
                                 <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Detail sahifasi endi faqat sarlavha va video emas. Kursning professional
-                                    positioning'i, instructor signali va foydalanuvchi nimani olishini aniq ko'rsatadi.
+                                    Detail sahifasi endi faqat sarlavha va video emas. U kursning yo‘nalishi,
+                                    instructor signali va foydalanuvchi nimani olishini aniq ko‘rsatadi.
                                 </p>
                             </div>
                         </div>
@@ -207,8 +207,8 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
                             <div className="site-panel-strong p-8">
                                 <div className="site-eyebrow">Action</div>
                                 <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Kursni o'rganib bo'lgach, shu mavzu asosida maqola yoki ishlanma yozishni bir
-                                    klikda boshlash mumkin.
+                                    Kursdan keyin shu mavzu asosida maqola, lecture note yoki tadqiqot draftini
+                                    bevosita Writer ichida boshlash mumkin.
                                 </p>
                                 <Link href="/write" className="site-button-primary mt-6">
                                     Shu mavzuda yozishni boshlash
@@ -222,8 +222,8 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
                                     Learning Signal
                                 </div>
                                 <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Preview, natijalar va modul oqimi bitta detail sahifada yig'ilgani sabab foydalanuvchi
-                                    kursni tanlashdan oldin to'liq kontekst oladi.
+                                    Preview, natijalar va modul oqimi bitta detail sahifada jamlangani sabab
+                                    foydalanuvchi qaror qabul qilishdan oldin to‘liq kontekst oladi.
                                 </p>
                             </div>
                         </div>
@@ -236,7 +236,7 @@ export default async function AcademyDetailPage(props: { params: Promise<{ id: s
                     <SectionHeading
                         eyebrow="Module Flow"
                         title="Tartibli o'quv yo'li"
-                        description="Mundarija bloki ham professional ko'rinadi: foydalanuvchi bu kurs qaerdan boshlanib, qayerga olib borishini darrov anglaydi."
+                        description="Mundarija bloki foydalanuvchiga kurs qayerdan boshlanib, qaysi natijaga olib borishini bir qarashda anglatishi kerak."
                     />
                     <div className="mt-10 grid gap-6 lg:grid-cols-3">
                         {modules.map((module) => (

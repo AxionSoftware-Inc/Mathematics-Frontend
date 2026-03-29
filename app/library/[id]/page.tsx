@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unescaped-entities */
 import { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, CalendarDays, Download, LibraryBig, Sparkles, Star, User2 } from "lucide-react";
@@ -102,8 +101,8 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
                         <div className="xl:sticky xl:top-24 xl:self-start">
                             <div className="site-panel-strong p-5 md:p-6">
                                 <div className="site-media-frame p-4">
-                                    <div className="rounded-[1.9rem] border border-white/45 bg-white/60 p-3 shadow-2xl shadow-slate-900/10">
-                                        <div className="relative aspect-[3/4] overflow-hidden rounded-[1.5rem] border border-border bg-white/70">
+                                    <div className="site-cover-stage p-3">
+                                        <div className="site-cover-inner relative aspect-[3/4]">
                                             {book.cover_image ? (
                                                 <img
                                                     src={getMediaUrl(book.cover_image)}
@@ -208,7 +207,7 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
                             <SectionHeading
                                 eyebrow="Book Abstract"
                                 title="Mazmun va o'qish konteksti"
-                                description="Detail sahifa endi oddiy metadata ro'yxati emas. U kitobning ilmiy yoki o'quv qiymatini aniq ritmda ko'rsatadi."
+                                description="Detail sahifa oddiy metadata ro‘yxati emas. U nashrning ilmiy yoki o‘quv qiymatini sokin, aniq ritmda ko‘rsatadi."
                             />
 
                             <div className="mt-8 grid gap-5">
@@ -223,15 +222,15 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
                                     <div className="site-outline-card p-6">
                                         <div className="site-eyebrow">Reading Value</div>
                                         <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                            Ushbu nashr nazariya va amaliy masalalar orasida ko'prik vazifasini bajaradigan,
-                                            kutubxona ichida qayta murojaat qilinadigan resurs sifatida ko'rsatilmoqda.
+                                            Ushbu nashr nazariya va amaliy masalalar orasida ko‘prik vazifasini bajaradigan,
+                                            kutubxona ichida qayta murojaat qilinadigan manba sifatida ko‘rsatilmoqda.
                                         </p>
                                     </div>
                                     <div className="site-outline-card p-6">
                                         <div className="site-eyebrow">Use Case</div>
                                         <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                            Kurs tayyorgarligi, mustaqil o'qish yoki maqola yozish jarayonida manba
-                                            sifatida ishlatish uchun detail card va access yo'llari yuqorida aniq berildi.
+                                            Kurs tayyorgarligi, mustaqil o‘qish yoki maqola yozish jarayonida manba
+                                            sifatida ishlatish uchun access yo‘llari va metadata yuqorida aniq berildi.
                                         </p>
                                     </div>
                                 </div>
@@ -267,8 +266,8 @@ export default async function BookDetailPage(props: { params: Promise<{ id: stri
                                     Reader Note
                                 </div>
                                 <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Cover, metadata va action tugmalari bir ekranda qolishi uchun asosiy summary yuqoriga
-                                    chiqarildi. Pastdagi blok esa kitobning nima uchun muhimligini sokin ritmda tushuntiradi.
+                                    Cover, metadata va action tugmalari bitta ekranda qolishi uchun asosiy summary
+                                    yuqoriga chiqarildi. Pastdagi blok esa kitobning nima uchun muhimligini sokin ritmda tushuntiradi.
                                 </p>
                             </div>
                         </div>

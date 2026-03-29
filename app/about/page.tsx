@@ -7,10 +7,10 @@ import { ArrowRight, Globe, Network, ShieldCheck, Sparkles, Users } from "lucide
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 
 const stats = [
-    { value: "10k+", label: "Faol a'zolar" },
-    { value: "500+", label: "Ilmiy maqolalar" },
-    { value: "25+", label: "Hamkor tashkilotlar" },
-    { value: "1.2k+", label: "O'quv materiallari" },
+    { value: "10k+", label: "Active members" },
+    { value: "500+", label: "Published papers" },
+    { value: "25+", label: "Institutional partners" },
+    { value: "1.2k+", label: "Learning assets" },
 ];
 
 const partners = ["MIT", "Oxford", "Cambridge", "Stanford", "Caltech", "CERN"];
@@ -28,19 +28,19 @@ export default function AboutPage() {
                             </HeroBadge>
                             <div className="space-y-4">
                                 <h1 className="site-display text-4xl md:text-6xl xl:text-[4.5rem]">
-                                    Ilm-fan uchun
-                                    <span className="site-kicker"> markazlashgan, </span>
-                                    ishonchli va professional ekotizim.
+                                    A disciplined product surface
+                                    <span className="site-kicker"> for mathematical work, </span>
+                                    publication and learning.
                                 </h1>
                                 <p className="site-lead max-w-2xl">
-                                    MathSphere yosh tadqiqotchilar, o'qituvchilar va olimlar uchun ilmiy axborot,
-                                    ta'lim, nashr va tajriba muhiti yaratadi. Maqsad chiroyli sahifalar emas, balki
-                                    kuchli akademik mahsulot qurish.
+                                    MathSphere is being shaped as a coherent environment for research, teaching,
+                                    publication and technical authorship. The objective is not decorative software,
+                                    but a credible academic product.
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-3">
                                 <Link href="/write" className="site-button-primary">
-                                    Hamkorlikni boshlash
+                                    Open Writer
                                     <ArrowRight className="h-4 w-4" />
                                 </Link>
                             </div>
@@ -77,15 +77,15 @@ export default function AboutPage() {
                                             <div className="site-eyebrow">Trust Layer</div>
                                         </div>
                                         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Platformadagi har bir modul ilmiy axborotni tartibli, topiladigan va professional
-                                            kontekstda ko'rsatishi kerak.
+                                            Every surface is expected to present mathematical information in a way that is searchable,
+                                            legible and institutionally credible.
                                         </p>
                                     </div>
                                     <div className="site-outline-card p-5">
                                         <div className="site-eyebrow">Mission Note</div>
                                         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Brend hissi bilan mahsulot sifati bir joyga kelishi kerak. Shu sabab public
-                                            sahifalar ham institutsional darajada ko'rinishi maqsad qilingan.
+                                            Product quality and brand discipline should not diverge. Public pages therefore carry
+                                            the same standards as the core workspaces.
                                         </p>
                                     </div>
                                 </div>
@@ -98,27 +98,27 @@ export default function AboutPage() {
             <SiteSection className="pt-6">
                 <SiteContainer>
                     <SectionHeading
-                        eyebrow="Platforma Vektori"
-                        title="Bizning ish printsiplarimiz"
-                        description="MathSphere foydalanuvchiga nafaqat kontent, balki akademik ishonch hissini ham berishi kerak."
+                        eyebrow="Platform Direction"
+                        title="Platforma qanday tamoyillar asosida shakllanmoqda"
+                        description="MathSphere faqat kontent saqlaydigan sayt emas. U ilmiy ish, o‘qitish va nashr jarayonini bitta ishonchli tizim sifatida taqdim etishi kerak."
                         align="center"
                     />
                     <div className="mt-12 grid gap-6 lg:grid-cols-3">
                         {[
                             {
                                 icon: Globe,
-                                title: "Global moslashuv",
-                                text: "Mahalliy foydalanuvchi uchun qulay, xalqaro standartlarga yaqin interfeys va axborot modeli.",
+                                title: "Xalqaro o‘qiladigan til",
+                                text: "Interfeys mahalliy foydalanuvchiga qulay bo‘lishi kerak, lekin uning product tili va axborot ritmi xalqaro ilmiy muhitga mos o‘qilishi lozim.",
                             },
                             {
                                 icon: Users,
-                                title: "Hamjamiyat markazi",
-                                text: "Talaba, ustoz va tadqiqotchini bir xil professional platforma ostida bog'lash.",
+                                title: "Yagona ish muhiti",
+                                text: "Talaba, o‘qituvchi va tadqiqotchi bir-biridan uzilgan servislar bilan emas, umumiy matematik ish oqimi bilan ishlashi kerak.",
                             },
                             {
                                 icon: Network,
-                                title: "Tizimli bog'lanish",
-                                text: "Kutubxona, jurnal, akademiya va writer bo'limlari parchalanib ketmasligi uchun bir xil UX tili.",
+                                title: "Tizimli bog‘lanish",
+                                text: "Library, Journal, Academy va Writer bir-biriga ulanadigan modullar bo‘lishi kerak, alohida-alohida mahsulotlar emas.",
                             },
                         ].map((item) => (
                             <div key={item.title} className="site-panel p-7">
@@ -137,9 +137,9 @@ export default function AboutPage() {
                 <SiteContainer>
                     <div className="site-panel-strong p-8 md:p-10">
                         <SectionHeading
-                            eyebrow="Hamkor Tarmog'i"
-                            title="Akademik signalni kuchaytiradigan tashkilotlar"
-                            description="Hamkorlar bloki dekor emas, platformaning professional positioning qismini ko'rsatadi."
+                            eyebrow="Institutional Signal"
+                            title="Platformaning institutsional yo‘nalishini ko‘rsatadigan qatlam"
+                            description="Hamkorlar bo‘limi dekor uchun emas. U mahsulotning qaysi saviyada o‘qilishini va qanday auditoriyaga mo‘ljallanganini ko‘rsatadi."
                         />
                         <div className="mt-10 flex flex-wrap gap-3">
                             {partners.map((partner) => (
@@ -153,13 +153,13 @@ export default function AboutPage() {
                             <div className="site-outline-card p-6">
                                 <div className="site-eyebrow">Hamkorlik</div>
                                 <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                    Platforma rivoji uchun kontent, ta'lim yoki ilmiy nashr yo'nalishida qo'shilish mumkin.
+                                    Collaborations can extend across content, teaching programs, research publishing and institutional partnerships.
                                 </p>
                             </div>
                             <div className="site-outline-card p-6">
                                 <div className="site-eyebrow">Ta'lim va nashr</div>
                                 <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                    Akademik kurslar, resurslar va nashr oqimlari bir xil standartda olib boriladi.
+                                    Courses, archives and publication flows are expected to operate under one visual and editorial standard.
                                 </p>
                             </div>
                         </div>

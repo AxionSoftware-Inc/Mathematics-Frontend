@@ -32,18 +32,18 @@ export default function Footer() {
                             <div>
                                 <div className="font-serif text-2xl font-black">MathSphere</div>
                                 <div className="text-[10px] font-extrabold uppercase tracking-[0.26em] text-muted-foreground">
-                                    Minimal premium ecosystem
+                                    Unified mathematical workspace
                                 </div>
                             </div>
                         </div>
                         <p className="mt-6 text-sm leading-7 text-muted-foreground">
-                            O&apos;zbekistondagi matematika, ilmiy nashr, akademik kurs va eksperimental laboratoriya
-                            oqimlarini bitta professional platformaga birlashtiruvchi tizim.
+                            Mathematical computing, scientific writing, course delivery and research publishing
+                            workflows gathered into one coherent product surface.
                         </p>
                         <div className="mt-6 rounded-[1.5rem] border border-border/70 bg-background/60 p-4">
                             <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-muted-foreground">Pozitsiya</div>
                             <p className="mt-3 text-sm leading-7 text-foreground/68">
-                                Matematik mahsulot ham premium brend intizomi bilan taqdim etilishi mumkinligini ko&apos;rsatadigan interfeys.
+                                A product direction built around clarity, institutional tone and disciplined information design.
                             </p>
                         </div>
                     </div>
@@ -63,7 +63,7 @@ export default function Footer() {
                         <div className="site-eyebrow">Sahifalar</div>
                         <div className="mt-3 space-y-3">
                             <Link href="/about" className="block text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
-                                Biz haqimizda
+                                Platforma haqida
                             </Link>
                             <Link href="/write" className="block text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
                                 Writer Workspace
@@ -79,7 +79,7 @@ export default function Footer() {
                         <div className="mt-5 space-y-4 text-sm text-muted-foreground">
                             <div className="flex items-start gap-3">
                                 <Globe className="mt-1 h-4 w-4 text-[var(--accent)]" />
-                                <span>Toshkent, O&apos;zbekiston. Raqamli ta&apos;lim va tadqiqot markazi.</span>
+                                <span>Tashkent, Uzbekistan. Product, research and educational operations base.</span>
                             </div>
                             <div className="flex items-start gap-3">
                                 <Mail className="mt-1 h-4 w-4 text-[var(--accent-alt)]" />
@@ -99,7 +99,7 @@ export default function Footer() {
                     <div className="flex items-center gap-2">
                         <span>&copy; {new Date().getFullYear()} MathSphere.</span>
                         <InfinityIcon className="h-4 w-4 text-[var(--accent)]" />
-                        <span>Aniqlik, struktura, davomiylik.</span>
+                        <span>Clarity, structure, continuity.</span>
                     </div>
                     <div className="text-[10px] font-extrabold uppercase tracking-[0.26em]">Unified academic interface</div>
                 </div>

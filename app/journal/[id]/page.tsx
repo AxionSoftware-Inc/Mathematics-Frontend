@@ -153,8 +153,8 @@ export default async function JournalDetailPage(props: { params: Promise<{ id: s
                             <div className="site-panel p-6">
                                 <div className="site-eyebrow">Reading Note</div>
                                 <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Detail sahifasi metadata va export signallarini o'ng railga olib chiqadi. Asosiy
-                                    o'qish oqimi esa chap tomonda sokin va uzun formatda davom etadi.
+                                    Metadata va export signallari o‘ng railda jamlanadi. Asosiy o‘qish oqimi esa chap
+                                    tomonda sokin, uzun formatli editorial ritmda davom etadi.
                                 </p>
                             </div>
                         </div>
@@ -181,7 +181,7 @@ export default async function JournalDetailPage(props: { params: Promise<{ id: s
                             <SectionHeading
                                 eyebrow="Full Paper"
                                 title="Maqola matni"
-                                description="Markdown, LaTeX va boy bloklar professional o'qish ritmida render qilinadi."
+                                description="Markdown, LaTeX va boy bloklar toza editorial ritmda, uzun o‘qish uchun mos ko‘rinishda render qilinadi."
                             />
                             <ArticleRichContent
                                 content={paper.content || ""}
@@ -214,8 +214,8 @@ export default async function JournalDetailPage(props: { params: Promise<{ id: s
                                     Editorial Signal
                                 </div>
                                 <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                                    Summary yuqorida, to'liq matn pastda va citation yon panelda joylashgani sabab sahifa
-                                    jurnal ruhiga yaqinroq va professionalroq ko'rinadi.
+                                    Summary yuqorida, to‘liq matn pastda va citation yon panelda joylashgani sabab
+                                    sahifa journal mahsuloti sifatida ancha ishonchli o‘qiladi.
                                 </p>
                             </div>
                         </div>

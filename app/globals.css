@@ -530,6 +530,71 @@ h6 {
   color: var(--foreground);
 }
 
+.site-search-input {
+  height: 52px;
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  color: var(--foreground);
+  padding-left: 2.75rem;
+  padding-right: 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.site-search-input:focus {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+}
+
+.site-cover-stage {
+  border-radius: calc(var(--radius-panel) + 0.2rem);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+  box-shadow: 0 22px 40px -34px rgba(15, 23, 42, 0.28);
+}
+
+.dark .site-cover-stage {
+  box-shadow: 0 24px 44px -34px rgba(0, 0, 0, 0.58);
+}
+
+.site-cover-inner {
+  overflow: hidden;
+  border-radius: calc(var(--radius-card) + 0.2rem);
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.site-muted-inverse {
+    color: color-mix(in srgb, white 78%, transparent);
+}
+
+.site-surface-card {
+    border-radius: calc(var(--radius-panel) - 0.15rem);
+    border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.site-overlay-card {
+    border-radius: calc(var(--radius-card) + 0.05rem);
+    border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.site-inverse-panel {
+    border: 1px solid color-mix(in srgb, white 12%, transparent);
+    background: color-mix(in srgb, white 6%, transparent);
+}
+
+.site-inverse-subtle {
+    color: color-mix(in srgb, white 46%, transparent);
+}
+
+.site-inverse-text {
+    color: color-mix(in srgb, white 76%, transparent);
+}
+
 .site-mini-tile {
   @apply rounded-[1.3rem] border px-4 py-4;
   border-color: color-mix(in srgb, var(--border) 82%, transparent);
