@@ -1,179 +1,171 @@
 import Link from "next/link";
 import {
-    Activity,
     ArrowRight,
-    Blocks,
     BookOpenText,
-    ChartSpline,
-    FileText,
+    CirclePlay,
+    Compass,
     FlaskConical,
     Orbit,
-    ScrollText,
     Sigma,
     Sparkles,
+    SquareChartGantt,
 } from "lucide-react";
 
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 
-const trustMetrics = [
-    { value: "01", label: "Unified research workflow", detail: "Laboratory, writer, publication direction in one system." },
-    { value: "05", label: "Structured mathematics studios", detail: "Integral, differential, matrix, probability, series-limit." },
-    { value: "∞", label: "Long-form writing capacity", detail: "Books, articles, notes, chapters and technical manuscripts." },
+const metrics = [
+    { value: "01", label: "Yagona platforma", detail: "Hisoblash, yozish va nashrga tayyorlash bitta muhitda." },
+    { value: "05", label: "Asosiy studio", detail: "Integral, differensial, matritsa, ehtimollar va qatorlar." },
+    { value: "24/7", label: "Ish ritmi", detail: "Tadqiqot oqimini to'xtatmasdan davom ettirish uchun." },
 ];
 
-const platformPillars = [
+const flagshipSurfaces = [
     {
-        eyebrow: "Scientific Writer",
-        title: "Long-form academic writing without leaving the product.",
-        text: "Books, papers and structured chapters are written inside a real workspace with section architecture, formula rendering, preview discipline and laboratory import flow.",
+        eyebrow: "Writer Workspace",
+        title: "Kitob, maqola va ilmiy matnlar uchun tartibli yozuv muhiti.",
+        description:
+            "Bo'lim arxitekturasi, formulalar bilan ishlash, preview intizomi va laboratoriyadan import qilingan natijalar bitta professional yozuv yuzasiga yig'iladi.",
         href: "/write",
-        cta: "Open Writer",
-        icon: ScrollText,
-        accent: "from-slate-950 via-slate-900 to-slate-800 text-white",
-        stats: ["Books and manuscripts", "Research papers", "Preview-driven editing"],
+        cta: "Writer'ga o'tish",
+        icon: BookOpenText,
+        points: ["Uzun formatli matnlar", "Formulali kontent", "Nashrga yaqin ko'rinish"],
     },
     {
-        eyebrow: "Mathematics Laboratory",
-        title: "Professional analytical studios, not toy calculators.",
-        text: "Integral and differential workflows now read like serious computational modules: solve, visualize, compare and report are connected as one continuous research surface.",
+        eyebrow: "Laboratoriya",
+        title: "Matematik tahlil kalkulyator emas, vizual dalilga ega studio bo'lishi kerak.",
+        description:
+            "Yechim, vizualizatsiya, solishtirish va hisobot oqimi uzilmagan holatda ishlaydi. Natija yozuv muhitiga ko'chadi va izsiz yo'qolmaydi.",
         href: "/laboratory",
-        cta: "Open Laboratory",
+        cta: "Laboratoriyani ko'rish",
         icon: FlaskConical,
-        accent: "from-[#0f2d42] via-[#113b5d] to-[#16507a] text-white",
-        stats: ["Symbolic + numerical flow", "Visual diagnostics", "Save and import to Writer"],
+        points: ["Analitik va sonli yechim", "Diagnostik ko'rinishlar", "Writer bilan bog'langan oqim"],
     },
 ];
 
-const systemHighlights = [
+const highlights = [
     {
-        title: "Write books and papers",
-        text: "The writer is now positioned as a serious editorial environment rather than a basic page editor.",
-        icon: BookOpenText,
+        title: "Ilmiy ish uchun qurilgan",
+        text: "Landing oddiy kurs loyihasidek emas, ishonch uyg'otadigan produkt darajasida ko'rinishi kerak.",
+        icon: Compass,
     },
     {
-        title: "Run integral and differential analysis",
-        text: "Laboratory modules present computation, diagnostics and visual interpretation in a single premium workflow.",
-        icon: Sigma,
+        title: "Minimal, ammo boy detal",
+        text: "Oq-qora palitra, toza tipografiya va qat'iy ritm premium taassurot beradi.",
+        icon: Sparkles,
     },
     {
-        title: "Move results into documents",
-        text: "Research assets created in the lab can be saved, imported and reused inside writing workflows.",
-        icon: FileText,
-    },
-    {
-        title: "Present a cohesive product",
-        text: "Navigation, cards, typography and page rhythm are being shaped as one product system, not disconnected pages.",
+        title: "Bir-biriga ulangan modullar",
+        text: "Laboratoriyada olingan natija writer ichida qayta ishlanadigan aktivga aylanadi.",
         icon: Orbit,
     },
-];
-
-const capabilityRows = [
     {
-        label: "Writer stack",
-        title: "Manuscript-grade structure with formula-friendly editing.",
-        text: "Use disciplined templates, long-form composition, preview-led review and multi-section organization to write articles, notes and books with a publishing mindset.",
-        chips: ["Article flow", "Book layout", "LaTeX rendering", "Structured sections"],
-        visual: "writer",
-    },
-    {
-        label: "Laboratory stack",
-        title: "Mathematical analysis with visual evidence, not just answers.",
-        text: "Integral and differential modules now expose analytical steps, numerical fallback, comparison layers and reporting panels that feel closer to a research product.",
-        chips: ["Solve", "Visualize", "Compare", "Report"],
-        visual: "lab",
+        title: "Brend ohangi aniq",
+        text: "Har bir blok kompaniya qimmat mahsulot yaratganini his qildirishi kerak.",
+        icon: SquareChartGantt,
     },
 ];
 
-const productSignals = [
-    "Professional typography and spacing discipline across the public site.",
-    "Writer and Laboratory are now framed as flagship surfaces, not secondary utilities.",
-    "Saved analytical results can feed structured writing rather than disappearing after one computation.",
+const workflows = [
+    {
+        label: "Matn tizimi",
+        title: "Maqola va kitob yozish jarayoni uchun qatlamli arxitektura.",
+        text: "Bo'limlar, preview, izohlar va formulalar bir xil vizual tartibda ishlaydi. Kontent o'sgani sari interfeys buzilmaydi.",
+        chips: ["Bo'limlar", "Preview", "Formulalar", "Nashr ruhi"],
+        kind: "writer" as const,
+    },
+    {
+        label: "Hisoblash tizimi",
+        title: "Matematik natijani faqat chiqarish emas, isbotlash va ko'rsatish muhiti.",
+        text: "Grafiklar, solishtirish bloklari va hisobot kartalari natijani auditoriyaga ko'rsatishga tayyor holatga olib keladi.",
+        chips: ["Yechim", "Grafik", "Taqqoslash", "Hisobot"],
+        kind: "lab" as const,
+    },
 ];
 
-function CommandCenterVisual() {
+const productPrinciples = [
+    "Bosh sahifa foydalanuvchiga mahsulotning narxi va sifati borligini birinchi ekranidayoq his qildiradi.",
+    "Vizual til qora, oq va yumshoq kulrang orqali premium minimalizmni ushlab turadi.",
+    "CTA, bo'limlar va tipografiya bir-biridan uzilgan emas, bitta dizayn sistemasi sifatida ishlaydi.",
+];
+
+function HeroConsole() {
     return (
-        <div className="site-media-frame relative overflow-hidden p-5 md:p-6">
-            <div className="absolute inset-x-6 top-6 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-70" />
-            <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-                <div className="space-y-4">
-                    <div className="site-command-card">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <div className="site-eyebrow text-slate-500">Writer Surface</div>
-                                <div className="mt-2 text-2xl font-black tracking-tight text-slate-950">Research Paper</div>
-                            </div>
-                            <div className="rounded-full bg-emerald-500/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                                Active Draft
-                            </div>
+        <div className="site-hero-visual">
+            <div className="site-hero-visual-glow" />
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                <div className="site-command-card">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <div className="site-eyebrow">Editorial Frame</div>
+                            <div className="mt-3 text-3xl font-black tracking-tight text-foreground">Research Draft</div>
                         </div>
-                        <div className="mt-4 grid gap-3">
-                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Section Stack</div>
-                                <div className="mt-3 space-y-2">
-                                    {["Abstract", "Methodology", "Analytical Result", "Discussion"].map((item, index) => (
-                                        <div key={item} className={`rounded-xl px-3 py-2 text-sm font-semibold ${index === 2 ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"}`}>
-                                            {item}
-                                        </div>
-                                    ))}
-                                </div>
+                        <div className="site-status-pill">live</div>
+                    </div>
+                    <div className="mt-6 space-y-3">
+                        {["Abstract", "Methodology", "Analytical Result", "Conclusion"].map((item, index) => (
+                            <div
+                                key={item}
+                                className={`rounded-[1.35rem] border px-4 py-3 text-sm font-semibold ${
+                                    index === 2
+                                        ? "border-foreground bg-foreground text-background"
+                                        : "border-border/80 bg-background/60 text-foreground/80"
+                                }`}
+                            >
+                                {item}
                             </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Preview Signal</div>
-                                <div className="mt-3 h-28 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,rgba(241,245,249,0.88))] p-4">
-                                    <div className="h-2.5 w-32 rounded-full bg-slate-900" />
-                                    <div className="mt-3 h-2 w-full rounded-full bg-slate-200" />
-                                    <div className="mt-2 h-2 w-[86%] rounded-full bg-slate-200" />
-                                    <div className="mt-2 h-2 w-[78%] rounded-full bg-slate-200" />
-                                    <div className="mt-5 flex gap-2">
-                                        <div className="h-14 flex-1 rounded-xl bg-slate-100" />
-                                        <div className="h-14 w-24 rounded-xl bg-blue-50" />
-                                    </div>
-                                </div>
-                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-6 rounded-[1.6rem] border border-border/80 bg-background/70 p-4">
+                        <div className="site-eyebrow">Preview discipline</div>
+                        <div className="mt-4 h-2.5 w-36 rounded-full bg-foreground" />
+                        <div className="mt-3 h-2 w-full rounded-full bg-foreground/12" />
+                        <div className="mt-2 h-2 w-[88%] rounded-full bg-foreground/12" />
+                        <div className="mt-2 h-2 w-[68%] rounded-full bg-foreground/12" />
+                        <div className="mt-5 grid grid-cols-[1fr_110px] gap-3">
+                            <div className="h-16 rounded-[1.2rem] bg-foreground/6" />
+                            <div className="h-16 rounded-[1.2rem] border border-border/80 bg-white" />
                         </div>
                     </div>
                 </div>
+
                 <div className="space-y-4">
-                    <div className="site-command-card bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.9))] text-white">
+                    <div className="site-command-card site-command-card-dark">
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <div className="site-eyebrow text-slate-400">Laboratory Signal</div>
-                                <div className="mt-2 text-xl font-black tracking-tight">Differential Studio</div>
+                                <div className="site-eyebrow text-white/45">Analytical studio</div>
+                                <div className="mt-3 text-2xl font-black tracking-tight text-white">Differential Flow</div>
                             </div>
-                            <Activity className="h-5 w-5 text-cyan-300" />
+                            <Sigma className="h-5 w-5 text-white/80" />
                         </div>
-                        <div className="mt-5 grid grid-cols-3 gap-2">
-                            {[42, 58, 76, 61, 84, 72, 66, 87, 79].map((height, index) => (
-                                <div key={index} className="rounded-xl bg-white/6 px-2 py-2">
+                        <div className="mt-5 grid grid-cols-4 gap-2">
+                            {[35, 52, 66, 81, 62, 84, 72, 55].map((height, index) => (
+                                <div key={index} className="rounded-[1rem] bg-white/6 p-2">
                                     <div className="flex h-16 items-end">
-                                        <div
-                                            className="w-full rounded-md bg-gradient-to-t from-cyan-400 via-sky-300 to-white/90"
-                                            style={{ height: `${height}%` }}
-                                        />
+                                        <div className="w-full rounded-md bg-gradient-to-t from-white via-white/75 to-white/30" style={{ height: `${height}%` }} />
                                     </div>
                                 </div>
                             ))}
                         </div>
-                        <div className="mt-4 grid gap-2">
-                            <div className="rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-xs text-slate-300">
-                                ODE phase portrait and SDE ensemble are treated as first-class analytical views.
+                        <div className="mt-4 space-y-2">
+                            <div className="rounded-[1rem] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/72">
+                                Solve, visualize va compare bir-biridan uzilmagan oqimda ishlaydi.
                             </div>
-                            <div className="rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-xs text-slate-300">
-                                Saved results can move into Writer as reusable research assets.
+                            <div className="rounded-[1rem] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/72">
+                                Natija Writer ichiga research asset sifatida ko&apos;chadi.
                             </div>
                         </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         {[
-                            { icon: ChartSpline, label: "Visual layer", value: "Active" },
-                            { icon: Blocks, label: "Structured cards", value: "Unified" },
-                            { icon: ScrollText, label: "Draft system", value: "Long-form" },
-                            { icon: Sparkles, label: "Product tone", value: "Premium" },
-                        ].map((item) => (
-                            <div key={item.label} className="rounded-2xl border border-white/45 bg-white/80 px-4 py-4 shadow-sm">
-                                <item.icon className="h-5 w-5 text-slate-900" />
-                                <div className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{item.label}</div>
-                                <div className="mt-2 text-sm font-black text-slate-950">{item.value}</div>
+                            ["Interfeys", "Minimal"],
+                            ["Signal", "Premium"],
+                            ["Ritm", "Tartibli"],
+                            ["Ohang", "Ishonchli"],
+                        ].map(([label, value]) => (
+                            <div key={label} className="site-mini-tile">
+                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+                                <div className="mt-3 text-base font-black tracking-tight text-foreground">{value}</div>
                             </div>
                         ))}
                     </div>
@@ -183,28 +175,33 @@ function CommandCenterVisual() {
     );
 }
 
-function CapabilityVisual({ kind }: { kind: "writer" | "lab" }) {
+function WorkflowVisual({ kind }: { kind: "writer" | "lab" }) {
     if (kind === "writer") {
         return (
             <div className="site-capability-visual">
-                <div className="rounded-[1.7rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="rounded-[1.8rem] border border-border/80 bg-white/70 p-5">
                     <div className="flex items-center justify-between">
-                        <div className="site-eyebrow text-slate-400">Document Architecture</div>
-                        <ScrollText className="h-5 w-5 text-slate-900" />
+                        <div className="site-eyebrow">Document map</div>
+                        <BookOpenText className="h-5 w-5 text-foreground" />
                     </div>
-                    <div className="mt-4 space-y-2.5">
-                        {["Front Matter", "Chapter I", "Analytical Core", "Appendix Notes"].map((item, index) => (
-                            <div key={item} className={`rounded-2xl px-4 py-3 text-sm font-semibold ${index === 2 ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"}`}>
+                    <div className="mt-5 space-y-3">
+                        {["Front Matter", "Chapter I", "Core Proof", "Appendix"].map((item, index) => (
+                            <div
+                                key={item}
+                                className={`rounded-[1.3rem] px-4 py-3 text-sm font-semibold ${
+                                    index === 2 ? "bg-foreground text-background" : "bg-foreground/6 text-foreground/80"
+                                }`}
+                            >
                                 {item}
                             </div>
                         ))}
                     </div>
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Publication Preview</div>
-                        <div className="mt-4 h-2.5 w-40 rounded-full bg-slate-900" />
-                        <div className="mt-3 h-2 w-full rounded-full bg-slate-200" />
-                        <div className="mt-2 h-2 w-[90%] rounded-full bg-slate-200" />
-                        <div className="mt-2 h-2 w-[74%] rounded-full bg-slate-200" />
+                    <div className="mt-5 rounded-[1.5rem] border border-border/80 bg-background/80 p-4">
+                        <div className="site-eyebrow">Publication preview</div>
+                        <div className="mt-4 h-2.5 w-44 rounded-full bg-foreground" />
+                        <div className="mt-3 h-2 w-full rounded-full bg-foreground/12" />
+                        <div className="mt-2 h-2 w-[91%] rounded-full bg-foreground/12" />
+                        <div className="mt-2 h-2 w-[75%] rounded-full bg-foreground/12" />
                     </div>
                 </div>
             </div>
@@ -212,34 +209,27 @@ function CapabilityVisual({ kind }: { kind: "writer" | "lab" }) {
     }
 
     return (
-        <div className="site-capability-visual bg-[radial-gradient(circle_at_top_left,rgba(17,89,145,0.22),transparent_38%),linear-gradient(180deg,#0b1623,#13273d)] text-white">
-            <div className="rounded-[1.7rem] border border-white/10 bg-white/5 p-5 shadow-sm backdrop-blur-sm">
+        <div className="site-capability-visual site-capability-visual-dark">
+            <div className="rounded-[1.8rem] border border-white/10 bg-white/5 p-5">
                 <div className="flex items-center justify-between">
-                    <div className="site-eyebrow text-slate-400">Analytical Evidence</div>
-                    <FlaskConical className="h-5 w-5 text-cyan-300" />
+                    <div className="site-eyebrow text-white/45">Analytical evidence</div>
+                    <FlaskConical className="h-5 w-5 text-white/85" />
                 </div>
-                <div className="mt-5 grid grid-cols-[1.1fr_0.9fr] gap-3">
-                    <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
-                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Solve / Compare</div>
+                <div className="mt-5 grid grid-cols-[1.05fr_0.95fr] gap-3">
+                    <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-3">
+                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Visual output</div>
                         <div className="mt-3 flex h-28 items-end gap-2">
-                            {[28, 44, 52, 63, 78, 69, 84, 72].map((height, index) => (
-                                <div key={index} className="flex-1 rounded-t-xl bg-gradient-to-t from-cyan-500 via-sky-400 to-white/90" style={{ height: `${height}%` }} />
+                            {[30, 44, 63, 79, 68, 84, 72, 57].map((height, index) => (
+                                <div key={index} className="flex-1 rounded-t-xl bg-gradient-to-t from-white to-white/25" style={{ height: `${height}%` }} />
                             ))}
                         </div>
                     </div>
                     <div className="space-y-3">
-                        <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cards</div>
-                            <div className="mt-3 space-y-2">
-                                <div className="rounded-xl bg-white/8 px-3 py-2 text-xs text-slate-200">Analytic derivation</div>
-                                <div className="rounded-xl bg-white/8 px-3 py-2 text-xs text-slate-200">Visual diagnostics</div>
-                                <div className="rounded-xl bg-white/8 px-3 py-2 text-xs text-slate-200">Report-ready output</div>
+                        {["Analitik yechim", "Solishtirish qatlami", "Hisobotga tayyor blok"].map((item) => (
+                            <div key={item} className="rounded-[1.2rem] border border-white/10 bg-white/6 px-3 py-3 text-sm text-white/75">
+                                {item}
                             </div>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Signal</div>
-                            <div className="mt-2 text-sm font-black text-white">Research-grade flow</div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -250,91 +240,112 @@ function CapabilityVisual({ kind }: { kind: "writer" | "lab" }) {
 export default function Home() {
     return (
         <div className="site-shell">
-            <SiteSection className="pb-12 pt-12 md:pb-16 md:pt-16">
+            <SiteSection className="pb-10 pt-10 md:pb-16 md:pt-14">
                 <SiteContainer>
                     <div className="site-hero-shell">
                         <div className="site-hero-orb site-hero-orb-left" />
                         <div className="site-hero-orb site-hero-orb-right" />
-                        <div className="grid items-start gap-10 xl:grid-cols-[0.92fr_1.08fr]">
-                            <div className="relative z-10 space-y-7">
+                        <div className="grid items-start gap-10 xl:grid-cols-[0.9fr_1.1fr]">
+                            <div className="relative z-10 space-y-8">
                                 <HeroBadge>
                                     <Sparkles className="h-4 w-4" />
-                                    Research Platform For Modern Mathematics
+                                    O&apos;zbekcha premium matematika platformasi
                                 </HeroBadge>
+
                                 <div className="space-y-5">
-                                    <h1 className="site-display text-5xl md:text-6xl xl:text-[5.35rem]">
-                                        Mathematics,
-                                        <span className="site-kicker"> writing </span>
-                                        and analytical workflow in one premium system.
+                                    <h1 className="site-display text-5xl md:text-6xl xl:text-[5.6rem]">
+                                        Matematik ish
+                                        <span className="site-kicker"> qimmat, </span>
+                                        tartibli va premium ko&apos;rinishi kerak.
                                     </h1>
-                                    <p className="site-lead max-w-2xl text-slate-600">
-                                        MathSphere is being shaped as a serious product for mathematical work: compute in the laboratory,
-                                        capture the result, move it into writer, and build papers, notes or books inside a cohesive editorial environment.
+                                    <p className="site-lead max-w-2xl text-foreground/68">
+                                        MathSphere laboratoriya, yozuv muhiti va ilmiy workflow&apos;ni bitta zamonaviy tizimga yig&apos;adi.
+                                        Bu bosh sahifa esa shu mahsulotga mos ravishda minimal, qimmat va ishonchli ko&apos;rinishi kerak.
                                     </p>
                                 </div>
+
                                 <div className="flex flex-wrap gap-3">
                                     <Link href="/write" className="site-button-primary">
-                                        Enter Writer
+                                        Platformaga kirish
                                         <ArrowRight className="h-4 w-4" />
                                     </Link>
                                     <Link href="/laboratory" className="site-button-secondary">
-                                        Explore Laboratory
+                                        Laboratoriyani ko&apos;rish
+                                    </Link>
+                                    <Link href="/about" className="site-button-ghost">
+                                        <CirclePlay className="h-4 w-4" />
+                                        Loyihaning ruhi
                                     </Link>
                                 </div>
+
                                 <div className="grid gap-3 sm:grid-cols-3">
-                                    {trustMetrics.map((metric) => (
-                                        <div key={metric.label} className="site-signal-card">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{metric.label}</div>
-                                            <div className="mt-3 site-display text-4xl text-slate-950">{metric.value}</div>
-                                            <p className="mt-3 text-sm leading-6 text-slate-500">{metric.detail}</p>
+                                    {metrics.map((item) => (
+                                        <div key={item.label} className="site-signal-card">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{item.label}</div>
+                                            <div className="mt-4 site-display text-4xl text-foreground">{item.value}</div>
+                                            <p className="mt-3 text-sm leading-6 text-foreground/58">{item.detail}</p>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
                             <div className="relative z-10">
-                                <CommandCenterVisual />
+                                <HeroConsole />
                             </div>
                         </div>
                     </div>
                 </SiteContainer>
             </SiteSection>
 
-            <SiteSection className="pt-6">
+            <SiteSection className="pt-4">
                 <SiteContainer>
                     <SectionHeading
-                        eyebrow="Core Surfaces"
-                        title="Two flagship surfaces define the platform."
-                        description="The product should read like a coordinated research company built it: one side for computation, one side for high-value academic writing."
+                        eyebrow="Flagship yuzalar"
+                        title="Platformaning qiymatini ikki asosiy surface ko'rsatadi."
+                        description="Writer va Laboratoriya bir-biridan alohida utilita emas, yagona premium mahsulotning ikkita asosiy yo'nalishi sifatida ko'rinadi."
                         align="center"
                     />
                     <div className="mt-12 grid gap-6 xl:grid-cols-2">
-                        {platformPillars.map((pillar) => (
-                            <div key={pillar.title} className={`site-panel-strong overflow-hidden p-0 ${pillar.accent}`}>
-                                <div className="grid gap-6 p-7 md:p-8">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div>
-                                            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-white/60">{pillar.eyebrow}</div>
-                                            <h2 className="mt-4 max-w-xl font-serif text-4xl font-black tracking-tight">{pillar.title}</h2>
-                                        </div>
-                                        <div className="rounded-2xl border border-white/12 bg-white/8 p-3">
-                                            <pillar.icon className="h-6 w-6" />
-                                        </div>
-                                    </div>
-                                    <p className="max-w-2xl text-sm leading-7 text-white/72">{pillar.text}</p>
-                                    <div className="grid gap-3 sm:grid-cols-3">
-                                        {pillar.stats.map((item) => (
-                                            <div key={item} className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3 text-sm font-semibold text-white/90">
-                                                {item}
-                                            </div>
-                                        ))}
-                                    </div>
+                        {flagshipSurfaces.map((surface, index) => (
+                            <div
+                                key={surface.title}
+                                className={`site-feature-panel ${index === 1 ? "site-feature-panel-dark" : ""}`}
+                            >
+                                <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <Link href={pillar.href} className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-950 transition hover:translate-y-[-1px]">
-                                            {pillar.cta}
-                                            <ArrowRight className="h-4 w-4" />
-                                        </Link>
+                                        <div className={`text-[10px] font-black uppercase tracking-[0.24em] ${index === 1 ? "text-white/45" : "text-muted-foreground"}`}>
+                                            {surface.eyebrow}
+                                        </div>
+                                        <h2 className={`mt-4 max-w-xl font-serif text-4xl font-black tracking-tight ${index === 1 ? "text-white" : "text-foreground"}`}>
+                                            {surface.title}
+                                        </h2>
                                     </div>
+                                    <div className={`rounded-[1.2rem] border p-3 ${index === 1 ? "border-white/10 bg-white/6 text-white" : "border-border/80 bg-white/60 text-foreground"}`}>
+                                        <surface.icon className="h-6 w-6" />
+                                    </div>
+                                </div>
+                                <p className={`mt-6 max-w-2xl text-sm leading-7 ${index === 1 ? "text-white/70" : "text-foreground/68"}`}>
+                                    {surface.description}
+                                </p>
+                                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                                    {surface.points.map((point) => (
+                                        <div
+                                            key={point}
+                                            className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${
+                                                index === 1
+                                                    ? "border-white/10 bg-white/6 text-white/88"
+                                                    : "border-border/80 bg-background/65 text-foreground/78"
+                                            }`}
+                                        >
+                                            {point}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-8">
+                                    <Link href={surface.href} className={index === 1 ? "site-button-invert" : "site-button-primary"}>
+                                        {surface.cta}
+                                        <ArrowRight className="h-4 w-4" />
+                                    </Link>
                                 </div>
                             </div>
                         ))}
@@ -344,20 +355,20 @@ export default function Home() {
 
             <SiteSection className="pt-4">
                 <SiteContainer>
-                    <div className="grid gap-10 xl:grid-cols-[0.85fr_1.15fr]">
+                    <div className="grid gap-10 xl:grid-cols-[0.84fr_1.16fr]">
                         <SectionHeading
-                            eyebrow="Platform Signals"
-                            title="The public site should communicate product maturity before a single click."
-                            description="Every section below is intended to signal that the platform is deliberate, expensive, cohesive and built around serious mathematical work."
+                            eyebrow="Premium signal"
+                            title="Birinchi taassurotning o'zi mahsulot saviyasini aytib turishi kerak."
+                            description="Qimmat sayt hissi effektlar ko'pligidan emas, ritm, tipografiya, bo'sh joy va qat'iy detal nazoratidan paydo bo'ladi."
                         />
                         <div className="grid gap-4 md:grid-cols-2">
-                            {systemHighlights.map((item) => (
-                                <div key={item.title} className="site-panel p-6">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                            {highlights.map((item) => (
+                                <div key={item.title} className="site-panel p-6 md:p-7">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-[1.1rem] bg-foreground text-background">
                                         <item.icon className="h-5 w-5" />
                                     </div>
-                                    <h3 className="mt-5 font-serif text-2xl font-black tracking-tight">{item.title}</h3>
-                                    <p className="mt-3 text-sm leading-7 text-muted-foreground">{item.text}</p>
+                                    <h3 className="mt-5 font-serif text-2xl font-black tracking-tight text-foreground">{item.title}</h3>
+                                    <p className="mt-3 text-sm leading-7 text-foreground/62">{item.text}</p>
                                 </div>
                             ))}
                         </div>
@@ -368,21 +379,26 @@ export default function Home() {
             <SiteSection className="pt-4">
                 <SiteContainer>
                     <div className="space-y-12">
-                        {capabilityRows.map((row, index) => (
-                            <div key={row.label} className={`grid items-center gap-8 xl:grid-cols-[0.92fr_1.08fr] ${index % 2 === 1 ? "xl:[&>*:first-child]:order-2 xl:[&>*:last-child]:order-1" : ""}`}>
+                        {workflows.map((workflow, index) => (
+                            <div
+                                key={workflow.label}
+                                className={`grid items-center gap-8 xl:grid-cols-[0.92fr_1.08fr] ${
+                                    index % 2 === 1 ? "xl:[&>*:first-child]:order-2 xl:[&>*:last-child]:order-1" : ""
+                                }`}
+                            >
                                 <div className="space-y-5">
-                                    <div className="site-eyebrow">{row.label}</div>
-                                    <h2 className="site-display text-4xl md:text-5xl">{row.title}</h2>
-                                    <p className="site-lead max-w-2xl">{row.text}</p>
+                                    <div className="site-eyebrow">{workflow.label}</div>
+                                    <h2 className="site-display text-4xl md:text-5xl">{workflow.title}</h2>
+                                    <p className="site-lead max-w-2xl text-foreground/68">{workflow.text}</p>
                                     <div className="flex flex-wrap gap-2">
-                                        {row.chips.map((chip) => (
+                                        {workflow.chips.map((chip) => (
                                             <div key={chip} className="site-chip site-chip-active">
                                                 {chip}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                                <CapabilityVisual kind={row.visual as "writer" | "lab"} />
+                                <WorkflowVisual kind={workflow.kind} />
                             </div>
                         ))}
                     </div>
@@ -392,20 +408,20 @@ export default function Home() {
             <SiteSection className="pt-8">
                 <SiteContainer>
                     <div className="site-panel-strong overflow-hidden p-8 md:p-10">
-                        <div className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr]">
+                        <div className="grid gap-8 xl:grid-cols-[0.92fr_1.08fr]">
                             <div>
-                                <div className="site-eyebrow">Product Direction</div>
+                                <div className="site-eyebrow">Mahsulot pozitsiyasi</div>
                                 <h2 className="site-display mt-4 text-4xl md:text-5xl">
-                                    The homepage should feel like the front door of a serious research company.
+                                    Bu landing oddiy &quot;frontend qilingan sahifa&quot; emas, mahsulotning kirish eshigi bo&apos;lishi kerak.
                                 </h2>
                             </div>
                             <div className="grid gap-4">
-                                {productSignals.map((item) => (
+                                {productPrinciples.map((item) => (
                                     <div key={item} className="site-outline-card flex items-start gap-4 p-5">
-                                        <div className="mt-1 rounded-full bg-[var(--accent-soft)] p-2 text-[var(--accent)]">
+                                        <div className="mt-1 rounded-full bg-foreground p-2 text-background">
                                             <ArrowRight className="h-4 w-4" />
                                         </div>
-                                        <p className="text-sm leading-7 text-muted-foreground">{item}</p>
+                                        <p className="text-sm leading-7 text-foreground/66">{item}</p>
                                     </div>
                                 ))}
                             </div>

@@ -52,16 +52,16 @@
   */
 
   /* 1. RANGLAR (Colors - Kunduzgi rejim) */
-  --background: #f4f2ec;
-  --foreground: #111827;
-  --muted: #e8e3d8;
-  --muted-foreground: #6b7280;
-  --border: #d9d3c6;
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-strong: rgba(255, 255, 255, 0.88);
-  --accent: #1d4ed8;
-  --accent-soft: rgba(29, 78, 216, 0.1);
-  --accent-alt: #0f766e;
+  --background: #f3f3f1;
+  --foreground: #090909;
+  --muted: #e7e5e1;
+  --muted-foreground: #6c6a67;
+  --border: #d7d3ce;
+  --surface: rgba(255, 255, 255, 0.76);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --accent: #090909;
+  --accent-soft: rgba(9, 9, 9, 0.06);
+  --accent-alt: #4b4b4b;
 
   /* 2. TUGMALAR (Buttons) */
   --btn-px: 1.25rem;         /* Yonlamasiga qanchalik uzunligi */
@@ -109,9 +109,9 @@ body {
   font-size: var(--text-base);
   @apply antialiased transition-colors duration-300;
   background-image:
-    radial-gradient(circle at top left, rgba(29, 78, 216, 0.08), transparent 28%),
-    radial-gradient(circle at top right, rgba(15, 118, 110, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%);
+    radial-gradient(circle at top left, rgba(0, 0, 0, 0.045), transparent 28%),
+    radial-gradient(circle at top right, rgba(0, 0, 0, 0.03), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 40%);
 }
 
 .dark body {
@@ -203,7 +203,7 @@ h6 {
   font-size: 0.75rem;
   font-weight: 800;
   background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
   color: var(--accent);
 }
 
@@ -240,8 +240,8 @@ h6 {
 }
 
 .site-outline-card:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, var(--background));
 }
 
 .site-button-primary {
@@ -252,6 +252,7 @@ h6 {
   font-weight: var(--btn-font-weight);
   background: var(--foreground);
   color: var(--background);
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.5);
 }
 
 .site-button-primary:hover {
@@ -269,6 +270,31 @@ h6 {
 }
 .site-button-secondary:hover {
   background: color-mix(in srgb, var(--surface-strong) 95%, transparent);
+}
+
+.site-button-ghost {
+  @apply inline-flex items-center justify-center gap-3 border transition-all outline-none;
+  border-radius: var(--btn-radius);
+  padding: var(--btn-py) var(--btn-px);
+  font-size: var(--btn-text);
+  font-weight: var(--btn-font-weight);
+  border-color: transparent;
+  color: var(--foreground);
+  background: transparent;
+}
+
+.site-button-ghost:hover {
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+.site-button-invert {
+  @apply inline-flex items-center justify-center gap-3 transition-all outline-none;
+  border-radius: var(--btn-radius);
+  padding: var(--btn-py) var(--btn-px);
+  font-size: var(--btn-text);
+  font-weight: var(--btn-font-weight);
+  background: var(--background);
+  color: var(--foreground);
 }
 
 .site-divider {
@@ -315,7 +341,7 @@ h6 {
 
 .site-chip-active {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, white), color-mix(in srgb, var(--accent-alt) 10%, white));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--foreground) 7%, white), color-mix(in srgb, var(--background) 90%, white));
   color: var(--foreground);
 }
 
@@ -339,8 +365,8 @@ h6 {
   border-radius: calc(var(--radius-panel) + 0.2rem);
   border-color: color-mix(in srgb, var(--border) 82%, transparent);
   background:
-    radial-gradient(circle at top left, rgba(29, 78, 216, 0.16), transparent 42%),
-    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.16), transparent 38%),
+    radial-gradient(circle at top left, rgba(0, 0, 0, 0.08), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(0, 0, 0, 0.06), transparent 38%),
     linear-gradient(180deg, color-mix(in srgb, white 86%, transparent), color-mix(in srgb, var(--surface) 92%, transparent));
   box-shadow:
     0 20px 50px rgba(17, 24, 39, 0.08),
@@ -382,8 +408,8 @@ h6 {
   border-color: color-mix(in srgb, var(--border) 84%, transparent);
   padding: 1.5rem;
   background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 30%),
-    radial-gradient(circle at top right, rgba(29, 78, 216, 0.14), transparent 34%),
+    radial-gradient(circle at top left, rgba(0, 0, 0, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(0, 0, 0, 0.1), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.68));
   box-shadow:
     0 40px 90px -45px rgba(15, 23, 42, 0.22),
@@ -421,14 +447,14 @@ h6 {
   inset: auto auto -4rem -4rem;
   width: 18rem;
   height: 18rem;
-  background: rgba(20, 184, 166, 0.18);
+  background: rgba(0, 0, 0, 0.12);
 }
 
 .site-hero-orb-right {
   inset: -4rem -3rem auto auto;
   width: 22rem;
   height: 22rem;
-  background: rgba(29, 78, 216, 0.16);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .site-command-card {
@@ -439,6 +465,16 @@ h6 {
   box-shadow:
     0 20px 50px -34px rgba(15, 23, 42, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.site-command-card-dark {
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 36%),
+    linear-gradient(180deg, rgba(10, 10, 10, 0.98), rgba(18, 18, 18, 0.92));
+  box-shadow:
+    0 30px 50px -34px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .site-signal-card {
@@ -459,6 +495,69 @@ h6 {
   box-shadow:
     0 24px 60px -38px rgba(15, 23, 42, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.site-capability-visual-dark {
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 32%),
+    linear-gradient(180deg, rgba(8, 8, 8, 0.98), rgba(18, 18, 18, 0.94));
+  box-shadow:
+    0 24px 60px -38px rgba(0, 0, 0, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.site-hero-visual {
+  @apply relative overflow-hidden border p-5 md:p-6;
+  border-radius: calc(var(--radius-panel-strong) + 0.25rem);
+  border-color: color-mix(in srgb, var(--border) 84%, transparent);
+  background:
+    radial-gradient(circle at top right, rgba(0, 0, 0, 0.05), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 250, 249, 0.78));
+  box-shadow:
+    0 35px 70px -44px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.site-hero-visual-glow {
+  @apply pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full blur-[90px];
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.site-status-pill {
+  @apply rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em];
+  background: color-mix(in srgb, var(--foreground) 8%, var(--background));
+  color: var(--foreground);
+}
+
+.site-mini-tile {
+  @apply rounded-[1.3rem] border px-4 py-4;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.58));
+  box-shadow: 0 18px 36px -32px rgba(0, 0, 0, 0.22);
+}
+
+.site-feature-panel {
+  @apply overflow-hidden border p-7 md:p-8;
+  border-radius: calc(var(--radius-panel-strong) + 0.1rem);
+  border-color: color-mix(in srgb, var(--border) 84%, transparent);
+  background:
+    radial-gradient(circle at top left, rgba(0, 0, 0, 0.045), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 248, 247, 0.72));
+  box-shadow:
+    0 24px 60px -42px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.site-feature-panel-dark {
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.05), transparent 32%),
+    linear-gradient(180deg, rgba(10, 10, 10, 0.98), rgba(18, 18, 18, 0.94));
+  box-shadow:
+    0 30px 70px -46px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .lab-shell-panel {

@@ -23,16 +23,16 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="sticky top-0 z-50 border-b border-border/80 bg-background/85 backdrop-blur-md">
+        <div className="sticky top-0 z-50 border-b border-border/70 bg-background/82 backdrop-blur-xl">
             <SiteContainer className="flex h-20 items-center justify-between gap-6">
                 <Link href="/" className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background shadow-lg">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-[1.2rem] border border-border/70 bg-foreground text-background shadow-lg shadow-black/10">
                         <span className="font-serif text-xl font-black">M</span>
                     </div>
                     <div>
                         <div className="font-serif text-2xl font-black tracking-tight">MathSphere</div>
                         <div className="text-[10px] font-extrabold uppercase tracking-[0.26em] text-muted-foreground">
-                            Mathematics Platform
+                            Premium mathematics platform
                         </div>
                     </div>
                 </Link>
@@ -45,7 +45,9 @@ export default function Navbar() {
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className={`rounded-full px-4 py-2.5 text-sm font-bold transition-colors ${active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                                    className={`rounded-full px-4 py-2.5 text-sm font-bold transition-colors ${
+                                        active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                                    }`}
                                 >
                                     {link.name}
                                 </Link>
@@ -54,7 +56,7 @@ export default function Navbar() {
                     </div>
 
                     <Link href="/write" className="site-button-primary">
-                        Maqola Yozish
+                        Writer Workspace
                     </Link>
                 </div>
 

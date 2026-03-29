@@ -16,8 +16,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-    title: "MathSphere | O'zbekiston matematika platformasi",
-    description: "O'zbekistonning eng yirik markazlashgan matematika va ilm-fan platformasi.",
+    title: "MathSphere | Premium matematika platformasi",
+    description: "Matematika, laboratoriya va ilmiy yozuv workflow'lari uchun premium raqamli platforma.",
 };
 
 export default function MainLayout({
