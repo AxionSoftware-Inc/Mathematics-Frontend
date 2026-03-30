@@ -17,6 +17,10 @@ import type {
     SeriesLimitWorkspaceTab,
 } from "./types";
 
+function preferPreviewSeries<T>(preview: T[] | null | undefined, fallback: T[] | undefined) {
+    return preview && preview.length ? preview : fallback;
+}
+
 export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
     const config = module.config ?? {};
     const defaultPreset = SERIES_LIMIT_PRESETS[0];
@@ -92,10 +96,10 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
     const result = React.useMemo(
         () => ({
             ...rawResult,
-            lineSeries: analyticSolution?.preview?.lineSeries ?? rawResult.lineSeries,
-            secondaryLineSeries: analyticSolution?.preview?.secondaryLineSeries ?? rawResult.secondaryLineSeries,
-            tertiaryLineSeries: analyticSolution?.preview?.tertiaryLineSeries ?? rawResult.tertiaryLineSeries,
-            quaternaryLineSeries: analyticSolution?.preview?.quaternaryLineSeries ?? rawResult.quaternaryLineSeries,
+            lineSeries: preferPreviewSeries(analyticSolution?.preview?.lineSeries, rawResult.lineSeries),
+            secondaryLineSeries: preferPreviewSeries(analyticSolution?.preview?.secondaryLineSeries, rawResult.secondaryLineSeries),
+            tertiaryLineSeries: preferPreviewSeries(analyticSolution?.preview?.tertiaryLineSeries, rawResult.tertiaryLineSeries),
+            quaternaryLineSeries: preferPreviewSeries(analyticSolution?.preview?.quaternaryLineSeries, rawResult.quaternaryLineSeries),
         }),
         [analyticSolution?.preview?.lineSeries, analyticSolution?.preview?.secondaryLineSeries, analyticSolution?.preview?.tertiaryLineSeries, analyticSolution?.preview?.quaternaryLineSeries, rawResult],
     );
