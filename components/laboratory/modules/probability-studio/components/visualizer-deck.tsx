@@ -16,10 +16,12 @@ function Bar({ label, value, max }: { label: string; value: number; max: number 
 
 export function VisualizerDeck({
     mode,
+    dimension,
     result,
     summary,
 }: {
     mode: ProbabilityMode;
+    dimension: string;
     result: ProbabilityAnalysisResult;
     summary: ProbabilitySummary;
 }) {
@@ -38,28 +40,55 @@ export function VisualizerDeck({
 
     const primaryVisual = (() => {
         if (mode === "descriptive" && histogram.length) {
+            if (dimension === "outlier audit" && scatter.length) {
+                return <ScatterFitPlot scatter={scatter} fit={[]} upper={intervalUpper} lower={intervalLower} />;
+            }
+            if (dimension === "quantile spread" && lineSeries.length) {
+                return <LinePlot points={lineSeries} secondary={secondary} tertiary={tertiary} quaternary={quaternary} />;
+            }
             return histogram.map((bin) => <Bar key={bin.label} label={bin.label} value={bin.count} max={max} />);
         }
         if (mode === "distributions" && lineSeries.length) {
-            return <LinePlot points={lineSeries} highlight={scatter[0]} />;
+            return <LinePlot points={lineSeries} secondary={secondary} highlight={scatter[0]} />;
         }
         if (mode === "inference" && scatter.length) {
+            if ((dimension === "confidence band" || dimension === "power audit") && lineSeries.length) {
+                return <LinePlot points={lineSeries} secondary={secondary} upper={intervalUpper} lower={intervalLower} reference={dimension === "power audit" ? { label: "target", value: 0.8 } : undefined} />;
+            }
             return <CategoryPlot points={scatter} />;
         }
         if (mode === "regression" && scatter.length) {
+            if (dimension === "forecast band" && lineSeries.length) {
+                return <LinePlot points={lineSeries} secondary={secondary} upper={intervalUpper} lower={intervalLower} />;
+            }
             return <ScatterFitPlot scatter={scatter} fit={fit} upper={intervalUpper} lower={intervalLower} />;
         }
         if (mode === "bayesian" && lineSeries.length) {
-            return <LinePlot points={lineSeries} />;
+            return <LinePlot points={lineSeries} secondary={secondary} />;
         }
         if (mode === "multivariate" && result.matrix) {
+            if (dimension === "pca projection" || dimension === "cluster audit") {
+                return <ScatterFitPlot scatter={scatter} fit={fit} />;
+            }
             return <Heatmap matrix={result.matrix} />;
         }
         if (mode === "time-series" && lineSeries.length) {
-            return <LinePlot points={lineSeries} secondary={secondary} tertiary={tertiary} quaternary={quaternary} upper={intervalUpper} lower={intervalLower} />;
+            return (
+                <LinePlot
+                    points={lineSeries}
+                    secondary={dimension === "seasonality audit" ? quaternary : secondary}
+                    tertiary={dimension === "seasonality audit" ? secondary : tertiary}
+                    quaternary={dimension === "forecast interval" ? quaternary : undefined}
+                    upper={dimension === "forecast interval" ? intervalUpper : undefined}
+                    lower={dimension === "forecast interval" ? intervalLower : undefined}
+                />
+            );
         }
-        if (trail.length) {
-            return <LinePlot points={trail} reference={{ label: "pi", value: Math.PI }} upper={intervalUpper} lower={intervalLower} />;
+        if (mode === "monte-carlo" && dimension === "simulation" && cloud.length) {
+            return <ScatterFitPlot scatter={cloud} fit={[]} />;
+        }
+        if (trail.length || lineSeries.length) {
+            return <LinePlot points={lineSeries.length ? lineSeries : trail} secondary={secondary} reference={{ label: "pi", value: Math.PI }} upper={intervalUpper} lower={intervalLower} />;
         }
         return (
             <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
@@ -78,17 +107,25 @@ export function VisualizerDeck({
                             {mode === "regression"
                                 ? "Trend / fit preview"
                                 : mode === "monte-carlo"
-                                  ? "Simulation convergence preview"
+                                  ? dimension === "simulation"
+                                      ? "Simulation cloud"
+                                      : "Simulation convergence preview"
                                   : mode === "bayesian"
-                                    ? "Posterior density profile"
+                                    ? dimension === "sampler diagnostics"
+                                        ? "Posterior sampler diagnostics"
+                                        : "Posterior density profile"
                                     : mode === "multivariate"
-                                      ? "Correlation structure"
+                                      ? dimension === "correlation map"
+                                          ? "Correlation structure"
+                                          : "Projection structure"
                                       : mode === "time-series"
-                                        ? "Temporal drift and forecast"
+                                        ? dimension === "seasonality audit"
+                                            ? "Seasonality and lag structure"
+                                            : "Temporal drift and forecast"
                                         : "Distribution / sample profile"}
                         </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">{summary.shape ?? mode}</div>
+                    <div className="text-xs text-muted-foreground">{dimension || summary.shape || mode}</div>
                 </div>
                 <div className="mt-4 space-y-3">{primaryVisual}</div>
             </div>

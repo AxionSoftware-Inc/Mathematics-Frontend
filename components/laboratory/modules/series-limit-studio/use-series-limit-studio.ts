@@ -4,7 +4,6 @@ import * as React from "react";
 
 import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { SERIES_LIMIT_PRESETS } from "./constants";
-import { inferSeriesLimitMode } from "./series-limit-input";
 import { SeriesLimitMathService } from "./services/math-service";
 import { SeriesLimitSolveService } from "./services/solve-service";
 import type {
@@ -38,16 +37,15 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
     const [annotations, setAnnotations] = React.useState<SeriesLimitAnnotation[]>([]);
     const [annotationTitle, setAnnotationTitle] = React.useState("");
     const [annotationNote, setAnnotationNote] = React.useState("");
-    const effectiveMode = React.useMemo(() => inferSeriesLimitMode(expression, auxiliaryExpression, mode), [auxiliaryExpression, expression, mode]);
 
     const signature = React.useMemo(
-        () => JSON.stringify({ mode: effectiveMode, expression, auxiliaryExpression, dimension }),
-        [auxiliaryExpression, dimension, effectiveMode, expression],
+        () => JSON.stringify({ mode, expression, auxiliaryExpression, dimension }),
+        [auxiliaryExpression, dimension, expression, mode],
     );
 
     const rawResult = React.useMemo(
-        () => SeriesLimitMathService.analyze(effectiveMode, expression, auxiliaryExpression),
-        [auxiliaryExpression, effectiveMode, expression],
+        () => SeriesLimitMathService.analyze(mode, expression, auxiliaryExpression, dimension),
+        [auxiliaryExpression, dimension, expression, mode],
     );
 
     React.useEffect(() => {
@@ -64,7 +62,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         setSolveErrorMessage(null);
 
         SeriesLimitSolveService.requestSolve({
-            mode: effectiveMode,
+            mode,
             expression,
             auxiliary: auxiliaryExpression,
             dimension,
@@ -89,7 +87,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         return () => {
             cancelled = true;
         };
-    }, [auxiliaryExpression, dimension, effectiveMode, expression, signature]);
+    }, [auxiliaryExpression, dimension, expression, mode, signature]);
 
     const result = React.useMemo(
         () => ({
@@ -97,8 +95,9 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             lineSeries: analyticSolution?.preview?.lineSeries ?? rawResult.lineSeries,
             secondaryLineSeries: analyticSolution?.preview?.secondaryLineSeries ?? rawResult.secondaryLineSeries,
             tertiaryLineSeries: analyticSolution?.preview?.tertiaryLineSeries ?? rawResult.tertiaryLineSeries,
+            quaternaryLineSeries: analyticSolution?.preview?.quaternaryLineSeries ?? rawResult.quaternaryLineSeries,
         }),
-        [analyticSolution?.preview?.lineSeries, analyticSolution?.preview?.secondaryLineSeries, analyticSolution?.preview?.tertiaryLineSeries, rawResult],
+        [analyticSolution?.preview?.lineSeries, analyticSolution?.preview?.secondaryLineSeries, analyticSolution?.preview?.tertiaryLineSeries, analyticSolution?.preview?.quaternaryLineSeries, rawResult],
     );
 
     const summary = React.useMemo(
@@ -107,7 +106,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
     );
 
     const visualNotes = React.useMemo(() => {
-        if (effectiveMode === "limits") {
+        if (mode === "limits") {
             return [
                 `Family: ${summary.detectedFamily ?? "pending"}`,
                 `Limit: ${summary.candidateResult ?? "pending"}`,
@@ -117,14 +116,14 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
                 `Research lane: ${summary.specialFamilySignal ?? "pending"}`,
             ];
         }
-        if (effectiveMode === "sequences") {
+        if (mode === "sequences") {
             return [
                 `Monotonicity: ${summary.monotonicity ?? "pending"}`,
                 `Tail limit: ${summary.candidateResult ?? "pending"}`,
                 `Boundedness: ${summary.boundedness ?? "pending"}`,
             ];
         }
-        if (effectiveMode === "power-series") {
+        if (mode === "power-series") {
             return [
                 `Radius: ${summary.radiusSignal ?? "pending"}`,
                 `Interval: ${summary.intervalSignal ?? "pending"}`,
@@ -140,11 +139,11 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Error bound: ${summary.errorBoundSignal ?? "pending"}`,
             `Special family: ${summary.specialFamilySignal ?? "pending"}`,
         ];
-    }, [effectiveMode, summary]);
+    }, [mode, summary]);
 
     const compareNotes = React.useMemo(
         () => [
-            `Primary lane: ${effectiveMode}`,
+            `Primary lane: ${mode}`,
             `Method: ${analyticSolution?.exact.method_label ?? "client-side preview"}`,
             `Test family: ${summary.testFamily ?? "pending"}`,
             `Secondary test: ${summary.secondaryTestFamily ?? "pending"}`,
@@ -154,12 +153,12 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Special family: ${summary.specialFamilySignal ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
         ],
-        [analyticSolution?.exact.method_label, effectiveMode, summary],
+        [analyticSolution?.exact.method_label, mode, summary],
     );
 
     const reportNotes = React.useMemo(
         () => [
-            `Mode: ${effectiveMode}`,
+            `Mode: ${mode}`,
             `Dimension: ${dimension}`,
             `Family: ${summary.detectedFamily ?? "pending"}`,
             `Result: ${analyticSolution?.exact.result_latex ?? rawResult.finalFormula ?? "pending"}`,
@@ -170,7 +169,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Expansion: ${summary.expansionSignal ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
         ],
-        [analyticSolution?.exact.result_latex, dimension, effectiveMode, rawResult.finalFormula, summary],
+        [analyticSolution?.exact.result_latex, dimension, mode, rawResult.finalFormula, summary],
     );
 
     const trustScore = React.useMemo(() => {
@@ -197,12 +196,12 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
     );
 
     const saveCurrentScenario = React.useCallback(() => {
-        const label = scenarioLabel.trim() || `${effectiveMode} snapshot`;
+        const label = scenarioLabel.trim() || `${mode} snapshot`;
         const item: SeriesLimitSavedScenario = {
             id: `${Date.now()}`,
             label,
             savedAt: new Date().toISOString(),
-            mode: effectiveMode,
+            mode,
             expression,
             auxiliaryExpression,
             dimension,
@@ -210,7 +209,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         };
         setSavedScenarios((current) => [item, ...current].slice(0, 12));
         setScenarioLabel("");
-    }, [auxiliaryExpression, dimension, effectiveMode, expression, primaryResultText, scenarioLabel]);
+    }, [auxiliaryExpression, dimension, expression, mode, primaryResultText, scenarioLabel]);
 
     const loadSavedScenario = React.useCallback((item: SeriesLimitSavedScenario) => {
         setMode(item.mode);
@@ -223,13 +222,13 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         setSavedScenarios((current) => current.filter((item) => item.id !== id));
     }, []);
 
-    const annotationAnchor = React.useMemo(() => `${effectiveMode} | ${expression} | ${auxiliaryExpression || "-"}`, [auxiliaryExpression, effectiveMode, expression]);
+    const annotationAnchor = React.useMemo(() => `${mode} | ${expression} | ${auxiliaryExpression || "-"}`, [auxiliaryExpression, expression, mode]);
 
     const addAnnotationFromCurrentResult = React.useCallback(() => {
         if (!primaryResultText) return;
         const item: SeriesLimitAnnotation = {
             id: `${Date.now()}`,
-            title: annotationTitle.trim() || `${effectiveMode} note`,
+            title: annotationTitle.trim() || `${mode} note`,
             note: annotationNote.trim() || `Observed result: ${primaryResultText}`,
             anchor: annotationAnchor,
             createdAt: new Date().toISOString(),
@@ -237,7 +236,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         setAnnotations((current) => [item, ...current].slice(0, 20));
         setAnnotationTitle("");
         setAnnotationNote("");
-    }, [annotationAnchor, annotationNote, annotationTitle, effectiveMode, primaryResultText]);
+    }, [annotationAnchor, annotationNote, annotationTitle, mode, primaryResultText]);
 
     const removeAnnotation = React.useCallback((id: string) => {
         setAnnotations((current) => current.filter((item) => item.id !== id));
@@ -256,7 +255,7 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         state: {
             experienceLevel,
             activeTab,
-            mode: effectiveMode,
+            mode,
             expression,
             auxiliaryExpression,
             dimension,

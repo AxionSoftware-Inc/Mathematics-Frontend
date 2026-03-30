@@ -56,6 +56,7 @@ export type SeriesLimitAnalysisResult = {
     lineSeries?: SeriesLimitSeriesPoint[];
     secondaryLineSeries?: SeriesLimitSeriesPoint[];
     tertiaryLineSeries?: SeriesLimitSeriesPoint[];
+    quaternaryLineSeries?: SeriesLimitSeriesPoint[];
 };
 
 export type SeriesLimitAnalyticSolveResponse = {
@@ -91,6 +92,7 @@ export type SeriesLimitAnalyticSolveResponse = {
         lineSeries?: SeriesLimitSeriesPoint[] | null;
         secondaryLineSeries?: SeriesLimitSeriesPoint[] | null;
         tertiaryLineSeries?: SeriesLimitSeriesPoint[] | null;
+        quaternaryLineSeries?: SeriesLimitSeriesPoint[] | null;
     };
 };
 

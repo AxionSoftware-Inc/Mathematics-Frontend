@@ -4,6 +4,7 @@ import * as React from "react";
 
 import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { PROBABILITY_PRESETS } from "./constants";
+import { normalizeProbabilityDimension } from "./probability-dimension-options";
 import { ProbabilityMathService } from "./services/math-service";
 import { ProbabilitySolveService } from "./services/solve-service";
 import type {
@@ -19,13 +20,15 @@ import type {
 export function useProbabilityStudio(module: LaboratoryModuleMeta) {
     const config = module.config ?? {};
     const defaultPreset = PROBABILITY_PRESETS[0];
+    const initialMode = ((config.defaultMode as ProbabilityMode | undefined) ?? defaultPreset.mode);
+    const initialDimension = normalizeProbabilityDimension(initialMode, (config.defaultDimension as string | undefined) ?? defaultPreset.dimension);
 
     const [experienceLevel, setExperienceLevel] = React.useState<ProbabilityExperienceLevel>("advanced");
     const [activeTab, setActiveTab] = React.useState<ProbabilityWorkspaceTab>("solve");
-    const [mode, setMode] = React.useState<ProbabilityMode>((config.defaultMode as ProbabilityMode | undefined) ?? defaultPreset.mode);
+    const [mode, setMode] = React.useState<ProbabilityMode>(initialMode);
     const [datasetExpression, setDatasetExpression] = React.useState<string>((config.defaultExpression as string | undefined) ?? defaultPreset.dataset);
     const [parameterExpression, setParameterExpression] = React.useState<string>((config.defaultSecondary as string | undefined) ?? defaultPreset.parameters ?? "");
-    const [dimension, setDimension] = React.useState<string>((config.defaultDimension as string | undefined) ?? defaultPreset.dimension);
+    const [dimension, setDimension] = React.useState<string>(initialDimension);
     const [activePresetLabel, setActivePresetLabel] = React.useState<string | undefined>(defaultPreset.label);
     const [solvePhase, setSolvePhase] = React.useState<ProbabilityStudioState["solvePhase"]>("analysis-ready");
     const [analyticSolution, setAnalyticSolution] = React.useState<ProbabilityAnalyticSolveResponse | null>(null);
@@ -38,9 +41,16 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
     );
 
     const result = React.useMemo<ProbabilityAnalysisResult>(
-        () => ProbabilityMathService.analyze(mode, datasetExpression, parameterExpression),
-        [datasetExpression, mode, parameterExpression],
+        () => ProbabilityMathService.analyze(mode, datasetExpression, parameterExpression, dimension),
+        [datasetExpression, dimension, mode, parameterExpression],
     );
+
+    React.useEffect(() => {
+        const normalized = normalizeProbabilityDimension(mode, dimension);
+        if (normalized !== dimension) {
+            setDimension(normalized);
+        }
+    }, [dimension, mode]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -140,7 +150,7 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
         setMode(preset.mode);
         setDatasetExpression(preset.dataset);
         setParameterExpression(preset.parameters ?? "");
-        setDimension(preset.dimension);
+        setDimension(normalizeProbabilityDimension(preset.mode, preset.dimension));
         setActivePresetLabel(preset.label);
         setSolvePhase("analysis-ready");
     }, []);

@@ -72,24 +72,17 @@ export function SolverControl({
     summary: SeriesLimitSummary;
 }) {
     const inferredMode = React.useMemo(() => inferSeriesLimitMode(expression, auxiliaryExpression, mode), [auxiliaryExpression, expression, mode]);
-    const effectiveMode = inferredMode;
-    const copy = modeCopy[effectiveMode];
-    const dimensions = dimensionOptions[effectiveMode];
+    const copy = modeCopy[mode];
+    const dimensions = dimensionOptions[mode];
     const resolvedDimension = dimensions.includes(dimension) ? dimension : dimensions[0];
-    const previewContent = React.useMemo(() => buildSeriesLimitPreview(effectiveMode, expression, auxiliaryExpression), [auxiliaryExpression, effectiveMode, expression]);
-    const auxiliaryPreviewContent = React.useMemo(() => buildSeriesLimitAuxPreview(effectiveMode, auxiliaryExpression), [auxiliaryExpression, effectiveMode]);
+    const previewContent = React.useMemo(() => buildSeriesLimitPreview(mode, expression, auxiliaryExpression), [auxiliaryExpression, expression, mode]);
+    const auxiliaryPreviewContent = React.useMemo(() => buildSeriesLimitAuxPreview(mode, auxiliaryExpression), [auxiliaryExpression, mode]);
 
     React.useEffect(() => {
         if (dimension !== resolvedDimension) {
             setDimension(resolvedDimension);
         }
     }, [dimension, resolvedDimension, setDimension]);
-
-    React.useEffect(() => {
-        if (mode !== inferredMode && expression.trim()) {
-            setMode(inferredMode);
-        }
-    }, [expression, inferredMode, mode, setMode]);
 
     return (
         <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
@@ -113,7 +106,7 @@ export function SolverControl({
             <div className="mt-5 grid gap-4 lg:grid-cols-[0.8fr_1.1fr_0.8fr]">
                 <label className="space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Analysis Mode</span>
-                    <select value={effectiveMode} onChange={(event) => setMode(event.target.value as SeriesLimitMode)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent">
+                    <select value={mode} onChange={(event) => setMode(event.target.value as SeriesLimitMode)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent">
                         <option value="limits">Limits</option>
                         <option value="sequences">Sequences</option>
                         <option value="series">Series</option>
@@ -177,7 +170,8 @@ export function SolverControl({
                             </div>
                         ) : null}
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                            <PreviewMetric label="Lane" value={modeCopy[effectiveMode].label} />
+                            <PreviewMetric label="Lane" value={modeCopy[mode].label} />
+                            <PreviewMetric label="Detected" value={modeCopy[inferredMode].label} />
                             <PreviewMetric label="Family" value={summary.detectedFamily ?? "pending"} />
                             <PreviewMetric label="Candidate" value={summary.candidateResult ?? "pending"} />
                             <PreviewMetric label="Convergence" value={summary.convergenceSignal ?? summary.radiusSignal ?? "pending"} />

@@ -4,7 +4,7 @@ import type { SeriesLimitStudioState } from "../types";
 export function VisualizeView({ state }: { state: SeriesLimitStudioState }) {
     return (
         <div className="space-y-4">
-            <VisualizerDeck mode={state.mode} result={state.result} summary={state.summary} />
+            <VisualizerDeck mode={state.mode} dimension={state.dimension} result={state.result} summary={state.summary} />
             <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
                 <AuditPanel title="Computation Audit" notes={state.visualNotes} />
                 <AuditPanel title="Rendered Data Points" notes={state.compareNotes} />

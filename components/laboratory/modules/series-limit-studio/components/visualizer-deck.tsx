@@ -21,10 +21,12 @@ type Domain = {
 
 export function VisualizerDeck({
     mode,
+    dimension,
     result,
     summary,
 }: {
     mode: SeriesLimitMode;
+    dimension: string;
     result: SeriesLimitAnalysisResult;
     summary: SeriesLimitSummary;
 }) {
@@ -41,13 +43,15 @@ export function VisualizerDeck({
         mode === "limits"
             ? [
                   { label: "Approach path", points: result.lineSeries ?? [], tone: "text-accent", swatch: "bg-accent", strokeWidth: 3 },
-                  { label: "One-sided track", points: result.secondaryLineSeries ?? [], tone: "text-sky-600 dark:text-sky-400", swatch: "bg-sky-500", strokeWidth: 2 },
-                  { label: "|f(x)| envelope", points: result.tertiaryLineSeries ?? [], tone: "text-emerald-600 dark:text-emerald-400", swatch: "bg-emerald-500", strokeWidth: 2 },
+                  { label: dimension === "one-sided" ? "Left branch" : "One-sided track", points: result.secondaryLineSeries ?? [], tone: "text-sky-600 dark:text-sky-400", swatch: "bg-sky-500", strokeWidth: 2 },
+                  { label: dimension === "one-sided" ? "Right branch" : "|f(x)| envelope", points: result.tertiaryLineSeries ?? [], tone: "text-emerald-600 dark:text-emerald-400", swatch: "bg-emerald-500", strokeWidth: 2 },
+                  { label: "Oscillation envelope", points: result.quaternaryLineSeries ?? [], tone: "text-fuchsia-600 dark:text-fuchsia-400", swatch: "bg-fuchsia-500", strokeWidth: 2 },
               ]
             : [
                   { label: "Terms", points: result.lineSeries ?? [], tone: "text-accent", swatch: "bg-accent", strokeWidth: 3 },
-                  { label: "Partial sums", points: result.secondaryLineSeries ?? [], tone: "text-sky-600 dark:text-sky-400", swatch: "bg-sky-500", strokeWidth: 2 },
+                  { label: mode === "convergence" ? "Test / ratio track" : "Secondary track", points: result.secondaryLineSeries ?? [], tone: "text-sky-600 dark:text-sky-400", swatch: "bg-sky-500", strokeWidth: 2 },
                   { label: "|Terms| / envelope", points: result.tertiaryLineSeries ?? [], tone: "text-emerald-600 dark:text-emerald-400", swatch: "bg-emerald-500", strokeWidth: 2 },
+                  { label: "Radius / endpoint track", points: result.quaternaryLineSeries ?? [], tone: "text-fuchsia-600 dark:text-fuchsia-400", swatch: "bg-fuchsia-500", strokeWidth: 2 },
               ]
     ).filter((entry) => entry.points.length);
 
@@ -70,7 +74,7 @@ export function VisualizerDeck({
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <MetricPanel
-                    title="Visual Audit"
+                    title={mode === "power-series" ? "Radius / Endpoint Audit" : mode === "convergence" ? "Test Audit" : "Visual Audit"}
                     items={compactItems([
                         summary.candidateResult ?? "pending",
                         summary.convergenceSignal ?? summary.radiusSignal ?? "pending",

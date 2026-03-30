@@ -312,6 +312,280 @@ function buildMatrix(labels: string[], values: number[][]): ProbabilityMatrix {
     };
 }
 
+function buildConstantSeries(points: ProbabilitySeriesPoint[], value: number) {
+    return points.map((point) => ({ x: point.x, y: value }));
+}
+
+function buildRollingMeanSeries(points: ProbabilitySeriesPoint[], window = 4) {
+    return points.map((point, index) => {
+        const slice = points.slice(Math.max(0, index - window + 1), index + 1);
+        return { x: point.x, y: mean(slice.map((entry) => entry.y)) };
+    });
+}
+
+function buildCumulativeSeries(points: ProbabilitySeriesPoint[]) {
+    const total = points.reduce((sum, point) => sum + Math.max(point.y, 0), 0) || 1;
+    let running = 0;
+    return points.map((point) => {
+        running += Math.max(point.y, 0);
+        return { x: point.x, y: running / total };
+    });
+}
+
+function parseNumericSignal(value?: string | null) {
+    if (!value) {
+        return null;
+    }
+    const match = value.match(/-?\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : null;
+}
+
+function resolveMonteCarloParameters(parameterExpression: string, dimension: string) {
+    const params = parseParams(parameterExpression);
+    if (!params.method) {
+        if (dimension === "sampler compare") {
+            params.method = "sampler_compare";
+        } else if (dimension === "convergence") {
+            params.method = "variance_reduction";
+        } else {
+            params.method = "pi";
+        }
+    }
+    return Object.entries(params)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("; ");
+}
+
+function withProbabilityDimensionScope(mode: ProbabilityMode, result: ProbabilityAnalysisResult, dimension: string): ProbabilityAnalysisResult {
+    if (!dimension) {
+        return result;
+    }
+
+    if (mode === "descriptive") {
+        const values = (result.scatterSeries ?? []).map((point) => point.y);
+        if (!values.length) {
+            return result;
+        }
+        const sortedValues = [...values].sort((left, right) => left - right);
+        const sortedSeries = sortedValues.map((value, index) => ({ x: index + 1, y: value }));
+        const q1 = quantile(sortedValues, 0.25);
+        const median = quantile(sortedValues, 0.5);
+        const q3 = quantile(sortedValues, 0.75);
+        const iqr = q3 - q1;
+        const lowerFence = q1 - 1.5 * iqr;
+        const upperFence = q3 + 1.5 * iqr;
+
+        if (dimension === "outlier audit") {
+            return {
+                ...result,
+                lineSeries: sortedSeries,
+                intervalUpperSeries: buildConstantSeries(sortedSeries, upperFence),
+                intervalLowerSeries: buildConstantSeries(sortedSeries, lowerFence),
+                summary: {
+                    ...result.summary,
+                    intervalSignal: `Tukey fence ${formatInterval(lowerFence, upperFence)}`,
+                    riskSignal: "outlier audit ready",
+                },
+            };
+        }
+
+        if (dimension === "quantile spread") {
+            return {
+                ...result,
+                lineSeries: sortedSeries,
+                secondaryLineSeries: buildConstantSeries(sortedSeries, q1),
+                tertiaryLineSeries: buildConstantSeries(sortedSeries, median),
+                quaternaryLineSeries: buildConstantSeries(sortedSeries, q3),
+                summary: {
+                    ...result.summary,
+                    intervalSignal: `quartiles ${formatInterval(q1, q3)}`,
+                    riskSignal: "quantile spread ready",
+                },
+            };
+        }
+
+        return {
+            ...result,
+            secondaryLineSeries: buildRollingMeanSeries(result.scatterSeries ?? []),
+            summary: {
+                ...result.summary,
+                riskSignal: "sample profile ready",
+            },
+        };
+    }
+
+    if (mode === "distributions" && result.lineSeries?.length) {
+        if (dimension === "tail audit") {
+            return {
+                ...result,
+                secondaryLineSeries: buildCumulativeSeries(result.lineSeries),
+                summary: {
+                    ...result.summary,
+                    intervalSignal: result.summary.confidenceInterval ?? result.summary.testStatistic ?? "tail audit ready",
+                    riskSignal: "tail audit ready",
+                },
+            };
+        }
+
+        if (dimension === "family compare") {
+            return {
+                ...result,
+                secondaryLineSeries: buildRollingMeanSeries(result.lineSeries, 8),
+                summary: {
+                    ...result.summary,
+                    riskSignal: "comparison curve ready",
+                },
+            };
+        }
+    }
+
+    if (mode === "inference" && result.scatterSeries?.length) {
+        if (dimension === "confidence band") {
+            const ys = result.scatterSeries.map((point) => point.y);
+            const band = Math.max(sampleStd(ys) * 0.8, 0.025);
+            return {
+                ...result,
+                lineSeries: result.scatterSeries,
+                intervalUpperSeries: result.scatterSeries.map((point) => ({ x: point.x, y: point.y + band })),
+                intervalLowerSeries: result.scatterSeries.map((point) => ({ x: point.x, y: Math.max(0, point.y - band) })),
+                summary: {
+                    ...result.summary,
+                    intervalSignal: result.summary.confidenceInterval ?? `band approx ±${(band * 100).toFixed(2)}%`,
+                },
+            };
+        }
+
+        if (dimension === "power audit") {
+            const effect = Math.abs((result.scatterSeries[1]?.y ?? result.scatterSeries[0]?.y ?? 0) - result.scatterSeries[0].y) || 0.05;
+            const scale = Math.max(effect, 0.04);
+            const powerCurve = Array.from({ length: 9 }, (_, index) => {
+                const x = (index / 8) * scale * 2.4;
+                return { x, y: 1 - Math.exp(-3.2 * ((x / scale) ** 2)) };
+            });
+            return {
+                ...result,
+                lineSeries: powerCurve,
+                secondaryLineSeries: buildConstantSeries(powerCurve, 0.8),
+                summary: {
+                    ...result.summary,
+                    power: result.summary.power ?? `target power crosses 0.8 near ${(scale * 1.2).toFixed(3)}`,
+                    riskSignal: "power audit ready",
+                },
+            };
+        }
+    }
+
+    if (mode === "regression" && result.scatterSeries?.length && result.fitSeries?.length) {
+        if (dimension === "residual audit") {
+            const residualSeries = result.scatterSeries.map((point, index) => ({ x: point.x, y: point.y - (result.fitSeries?.[index]?.y ?? 0) }));
+            const rmse = parseNumericSignal(result.summary.residualSignal) ?? sampleStd(residualSeries.map((point) => point.y));
+            return {
+                ...result,
+                scatterSeries: residualSeries,
+                fitSeries: buildConstantSeries(residualSeries, 0),
+                intervalUpperSeries: buildConstantSeries(residualSeries, rmse),
+                intervalLowerSeries: buildConstantSeries(residualSeries, -rmse),
+                summary: {
+                    ...result.summary,
+                    riskSignal: "residual audit ready",
+                },
+            };
+        }
+
+        if (dimension === "forecast band") {
+            const fit = result.fitSeries;
+            const last = fit.at(-1);
+            const prev = fit.at(-2);
+            const slope = last && prev ? last.y - prev.y : 0;
+            const forecastSeries = last
+                ? Array.from({ length: 2 }, (_, index) => ({ x: last.x + index + 1, y: last.y + slope * (index + 1) }))
+                : [];
+            return {
+                ...result,
+                lineSeries: fit,
+                secondaryLineSeries: forecastSeries,
+                summary: {
+                    ...result.summary,
+                    forecast: result.summary.forecast ?? (forecastSeries.at(-1) ? `x_next ${forecastSeries.at(-1)?.y.toFixed(3)}` : null),
+                    riskSignal: "forecast band ready",
+                },
+            };
+        }
+    }
+
+    if (mode === "bayesian") {
+        if (dimension === "sampler diagnostics" && result.secondaryLineSeries?.length) {
+            return {
+                ...result,
+                lineSeries: result.secondaryLineSeries,
+                secondaryLineSeries: buildRollingMeanSeries(result.secondaryLineSeries, 10),
+                summary: {
+                    ...result.summary,
+                    riskSignal: "sampler diagnostics ready",
+                },
+            };
+        }
+
+        if (dimension === "credible interval") {
+            return {
+                ...result,
+                summary: {
+                    ...result.summary,
+                    intervalSignal: result.summary.credibleInterval ?? "credible interval ready",
+                    riskSignal: "credible region ready",
+                },
+            };
+        }
+    }
+
+    if (mode === "multivariate") {
+        return {
+            ...result,
+            summary: {
+                ...result.summary,
+                riskSignal:
+                    dimension === "pca projection"
+                        ? "projection audit ready"
+                        : dimension === "cluster audit"
+                          ? "cluster audit ready"
+                          : "correlation map ready",
+            },
+        };
+    }
+
+    if (mode === "time-series") {
+        return {
+            ...result,
+            summary: {
+                ...result.summary,
+                riskSignal:
+                    dimension === "seasonality audit"
+                        ? "seasonality audit ready"
+                        : dimension === "forecast interval"
+                          ? "forecast interval ready"
+                          : "trend lane ready",
+            },
+        };
+    }
+
+    if (mode === "monte-carlo") {
+        return {
+            ...result,
+            summary: {
+                ...result.summary,
+                riskSignal:
+                    dimension === "sampler compare"
+                        ? "sampler comparison ready"
+                        : dimension === "convergence"
+                          ? "convergence audit ready"
+                          : "simulation lane ready",
+            },
+        };
+    }
+
+    return result;
+}
+
 function analyzeDescriptive(datasetExpression: string, parameterExpression: string): ProbabilityAnalysisResult {
     const values = parseNumberList(datasetExpression);
     const avg = values.length ? mean(values) : 0;
@@ -1393,26 +1667,32 @@ function analyzeMonteCarlo(datasetExpression: string, parameterExpression: strin
 }
 
 export class ProbabilityMathService {
-    static analyze(mode: ProbabilityMode, datasetExpression: string, parameterExpression: string): ProbabilityAnalysisResult {
-        switch (mode) {
-            case "descriptive":
-                return analyzeDescriptive(datasetExpression, parameterExpression);
-            case "distributions":
-                return analyzeDistribution(datasetExpression, parameterExpression);
-            case "inference":
-                return analyzeInference(datasetExpression, parameterExpression);
-            case "regression":
-                return analyzeRegression(datasetExpression, parameterExpression);
-            case "bayesian":
-                return analyzeBayesian(datasetExpression, parameterExpression);
-            case "multivariate":
-                return analyzeMultivariate(datasetExpression, parameterExpression);
-            case "time-series":
-                return analyzeTimeSeries(datasetExpression, parameterExpression);
-            case "monte-carlo":
-                return analyzeMonteCarlo(datasetExpression, parameterExpression);
-            default:
-                return { summary: {}, steps: [] };
-        }
+    static analyze(mode: ProbabilityMode, datasetExpression: string, parameterExpression: string, dimension = ""): ProbabilityAnalysisResult {
+        const normalizedDimension = dimension.trim().toLowerCase();
+        const resolvedParams = mode === "monte-carlo" ? resolveMonteCarloParameters(parameterExpression, normalizedDimension) : parameterExpression;
+        const baseResult = (() => {
+            switch (mode) {
+                case "descriptive":
+                    return analyzeDescriptive(datasetExpression, resolvedParams);
+                case "distributions":
+                    return analyzeDistribution(datasetExpression, resolvedParams);
+                case "inference":
+                    return analyzeInference(datasetExpression, resolvedParams);
+                case "regression":
+                    return analyzeRegression(datasetExpression, resolvedParams);
+                case "bayesian":
+                    return analyzeBayesian(datasetExpression, resolvedParams);
+                case "multivariate":
+                    return analyzeMultivariate(datasetExpression, resolvedParams);
+                case "time-series":
+                    return analyzeTimeSeries(datasetExpression, resolvedParams);
+                case "monte-carlo":
+                    return analyzeMonteCarlo(datasetExpression, resolvedParams);
+                default:
+                    return { summary: {}, steps: [] };
+            }
+        })();
+
+        return withProbabilityDimensionScope(mode, baseResult, normalizedDimension);
     }
 }

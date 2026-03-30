@@ -1,4 +1,5 @@
 import type { ProbabilityExperienceLevel, ProbabilityMode } from "../types";
+import { getProbabilityDimensionOptions } from "../probability-dimension-options";
 
 const modeCopy: Record<ProbabilityMode, { label: string; helper: string; datasetPlaceholder: string; paramPlaceholder: string }> = {
     descriptive: {
@@ -75,6 +76,8 @@ export function SolverControl({
     activePresetLabel?: string;
 }) {
     const copy = modeCopy[mode];
+    const dimensionOptions = getProbabilityDimensionOptions(mode);
+    const activeDimension = dimensionOptions.find((option) => option.value === dimension);
 
     return (
         <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
@@ -106,12 +109,19 @@ export function SolverControl({
                 </label>
                 <label className="space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Dimension Scope</span>
-                    <input value={dimension} onChange={(event) => setDimension(event.target.value)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent" />
+                    <select value={dimension} onChange={(event) => setDimension(event.target.value)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent">
+                        {dimensionOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="text-xs leading-5 text-muted-foreground">{activeDimension?.description}</div>
                 </label>
                 <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Experience</div>
                     <div className="mt-1 text-sm font-bold text-foreground">{experienceLevel}</div>
-                    <div className="mt-1 text-xs leading-5 text-muted-foreground">Probability, inference va simulation lane'lar shu shell ichida ishlaydi.</div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">Probability, inference va simulation lane&apos;lar shu shell ichida ishlaydi.</div>
                 </div>
             </div>
 
@@ -143,6 +153,9 @@ export function SolverControl({
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Rendered Preview</div>
                         <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 font-mono text-sm leading-7 text-foreground">
                             {datasetExpression}
+                        </div>
+                        <div className="mt-3 rounded-2xl border border-border/60 bg-background px-4 py-3 text-xs font-semibold text-muted-foreground">
+                            scope = {activeDimension?.label ?? "Pending"}
                         </div>
                         {parameterExpression ? (
                             <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 font-mono text-sm leading-7 text-foreground">

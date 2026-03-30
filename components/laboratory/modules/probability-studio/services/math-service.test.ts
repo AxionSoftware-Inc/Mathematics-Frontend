@@ -4,7 +4,7 @@ import { ProbabilityMathService } from "./math-service";
 
 describe("ProbabilityMathService advanced lanes", () => {
     it("adds regression confidence bands for linear fits", () => {
-        const result = ProbabilityMathService.analyze("regression", "(1,2);(2,4.1);(3,5.8);(4,8.2)", "model=linear");
+        const result = ProbabilityMathService.analyze("regression", "(1,2);(2,4.1);(3,5.8);(4,8.2)", "model=linear", "fit line");
 
         expect(result.summary.intervalSignal).toContain("95%");
         expect(result.intervalUpperSeries?.length).toBe(result.fitSeries?.length);
@@ -16,6 +16,7 @@ describe("ProbabilityMathService advanced lanes", () => {
             "multivariate",
             "2,3,4;3,5,6;4,6,7;8,9,10;9,10,12",
             "labels=a,b,c",
+            "correlation map",
         );
 
         expect(result.summary.explainedVariance).toContain("%");
@@ -28,6 +29,7 @@ describe("ProbabilityMathService advanced lanes", () => {
             "time-series",
             "10,11,12,13,14,15,16,17",
             "window=3;horizon=3;period=2",
+            "forecast interval",
         );
 
         expect(result.summary.forecastInterval).toContain("[");
@@ -36,10 +38,17 @@ describe("ProbabilityMathService advanced lanes", () => {
     });
 
     it("reports monte-carlo convergence signals", () => {
-        const result = ProbabilityMathService.analyze("monte-carlo", "", "method=pi;samples=1200;seed=7");
+        const result = ProbabilityMathService.analyze("monte-carlo", "", "method=pi;samples=1200;seed=7", "convergence");
 
         expect(result.summary.convergenceSignal).toContain("stderr");
         expect(result.summary.confidenceInterval).toContain("[");
         expect(result.intervalUpperSeries?.length).toBeGreaterThan(5);
+    });
+
+    it("switches monte-carlo sampler from dimension scope", () => {
+        const result = ProbabilityMathService.analyze("monte-carlo", "", "samples=1200;seed=7", "sampler compare");
+
+        expect(result.summary.samplerSignal).toContain("stratified");
+        expect(result.secondaryLineSeries?.length).toBeGreaterThan(5);
     });
 });

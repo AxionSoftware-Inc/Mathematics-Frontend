@@ -116,7 +116,7 @@ export function SolveView({
                     summary={state.summary}
                 />
             }
-            visual={<VisualizerDeck mode={state.mode} result={state.result} summary={state.summary} />}
+            visual={<VisualizerDeck mode={state.mode} dimension={state.dimension} result={state.result} summary={state.summary} />}
             derivation={
                 <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
                     <LaboratoryMathPanel

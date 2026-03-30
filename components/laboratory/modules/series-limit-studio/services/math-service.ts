@@ -67,14 +67,19 @@ function safePoint(pushTo: SeriesLimitSeriesPoint[], x: number, y: number) {
     }
 }
 
-function buildLimitAnalysis(expression: string, auxiliary: string): SeriesLimitAnalysisResult {
+function buildLimitAnalysis(expression: string, auxiliary: string, dimension: string): SeriesLimitAnalysisResult {
     const { variable, target, rawTarget } = parseAuxiliary(auxiliary || "x -> 0", "x");
     const evaluator = buildEvaluator(expression, variable);
     const lineSeries: SeriesLimitSeriesPoint[] = [];
     const oneSidedSeries: SeriesLimitSeriesPoint[] = [];
     const envelopeSeries: SeriesLimitSeriesPoint[] = [];
     if (evaluator && Number.isFinite(target)) {
-        const offsets = [-1, -0.5, -0.25, -0.12, -0.06, -0.03, -0.01, -0.005, 0.005, 0.01, 0.03, 0.06, 0.12, 0.25, 0.5, 1];
+        const offsets =
+            dimension === "one-sided"
+                ? [-1, -0.5, -0.25, -0.12, -0.06, -0.03, -0.01, -0.005, 0.005, 0.01, 0.03, 0.06, 0.12, 0.25, 0.5, 1]
+                : dimension === "asymptotic"
+                  ? [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3]
+                  : [-1, -0.5, -0.25, -0.12, -0.06, -0.03, -0.01, -0.005, 0.005, 0.01, 0.03, 0.06, 0.12, 0.25, 0.5, 1];
         offsets.forEach((offset) => {
             const x = target + offset;
             try {
@@ -136,12 +141,19 @@ function buildLimitAnalysis(expression: string, auxiliary: string): SeriesLimitA
         finalFormula: candidate,
         auxiliaryFormula: `${variable} -> ${rawTarget}`,
         lineSeries,
-        secondaryLineSeries: oneSidedSeries,
-        tertiaryLineSeries: envelopeSeries,
+        secondaryLineSeries:
+            dimension === "one-sided"
+                ? lineSeries.filter((point) => point.x < target)
+                : oneSidedSeries,
+        tertiaryLineSeries:
+            dimension === "one-sided"
+                ? lineSeries.filter((point) => point.x > target)
+                : envelopeSeries,
+        quaternaryLineSeries: dimension === "oscillatory" ? envelopeSeries : undefined,
     };
 }
 
-function buildSequenceAnalysis(expression: string, auxiliary: string): SeriesLimitAnalysisResult {
+function buildSequenceAnalysis(expression: string, auxiliary: string, dimension: string): SeriesLimitAnalysisResult {
     const { variable } = parseAuxiliary(auxiliary || "n -> inf", "n");
     const evaluator = buildEvaluator(expression, variable);
     const lineSeries: SeriesLimitSeriesPoint[] = [];
@@ -156,6 +168,14 @@ function buildSequenceAnalysis(expression: string, auxiliary: string): SeriesLim
         }
     }
     const deltas = lineSeries.slice(1).map((point, index) => point.y - (lineSeries[index]?.y ?? 0));
+    const runningMaxSeries = lineSeries.map((point, index) => ({
+        x: point.x,
+        y: Math.max(...lineSeries.slice(0, index + 1).map((entry) => entry.y)),
+    }));
+    const runningMinSeries = lineSeries.map((point, index) => ({
+        x: point.x,
+        y: Math.min(...lineSeries.slice(0, index + 1).map((entry) => entry.y)),
+    }));
     const monotone =
         deltas.length && deltas.every((delta) => delta >= -1e-6)
             ? "increasing"
@@ -183,10 +203,12 @@ function buildSequenceAnalysis(expression: string, auxiliary: string): SeriesLim
         finalFormula: candidate,
         auxiliaryFormula: "n -> inf",
         lineSeries,
+        secondaryLineSeries: dimension === "stability" ? deltas.map((delta, index) => ({ x: index + 2, y: delta })) : runningMaxSeries,
+        tertiaryLineSeries: dimension === "stability" ? runningMaxSeries : runningMinSeries,
     };
 }
 
-function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series", expression: string, auxiliary: string): SeriesLimitAnalysisResult {
+function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series", expression: string, auxiliary: string, dimension: string): SeriesLimitAnalysisResult {
     const parsed = parseSumExpression(expression);
     const termExpression = parsed?.term ?? expression;
     const variable = parsed?.index ?? "n";
@@ -194,7 +216,9 @@ function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series"
     const evaluator = buildEvaluator(termExpression, variable);
     const termSeries: SeriesLimitSeriesPoint[] = [];
     const partialSumSeries: SeriesLimitSeriesPoint[] = [];
+    const ratioSeries: SeriesLimitSeriesPoint[] = [];
     let partial = 0;
+    let previousValue: number | null = null;
     for (let index = 0; index < 14; index += 1) {
         const n = start + index;
         if (!evaluator) {
@@ -205,6 +229,10 @@ function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series"
             safePoint(termSeries, n, value);
             partial += value;
             safePoint(partialSumSeries, n, partial);
+            if (previousValue !== null && previousValue !== 0) {
+                safePoint(ratioSeries, n, Math.abs(value / previousValue));
+            }
+            previousValue = value;
         } catch {
             break;
         }
@@ -317,13 +345,25 @@ function buildSeriesLikeAnalysis(mode: "series" | "convergence" | "power-series"
         finalFormula: candidate,
         auxiliaryFormula: parsed ? `${parsed.index} = ${parsed.start} .. ${parsed.end}` : auxiliary,
         lineSeries: termSeries,
-        secondaryLineSeries: partialSumSeries,
-        tertiaryLineSeries: mode === "power-series" ? partialSumSeries.map((point) => ({ x: point.x, y: Math.abs(point.y) })) : undefined,
+        secondaryLineSeries:
+            mode === "convergence" && (dimension === "test audit" || dimension === "comparison lane")
+                ? ratioSeries
+                : partialSumSeries,
+        tertiaryLineSeries:
+            mode === "power-series"
+                ? partialSumSeries.map((point) => ({ x: point.x, y: Math.abs(point.y) }))
+                : dimension === "oscillatory series" || dimension === "summability"
+                  ? termSeries.map((point) => ({ x: point.x, y: Math.abs(point.y) }))
+                  : undefined,
+        quaternaryLineSeries:
+            mode === "power-series" && (dimension === "endpoint audit" || dimension === "radius study")
+                ? ratioSeries
+                : undefined,
     };
 }
 
 export class SeriesLimitMathService {
-    static analyze(mode: SeriesLimitMode, expression: string, auxiliaryExpression: string): SeriesLimitAnalysisResult {
+    static analyze(mode: SeriesLimitMode, expression: string, auxiliaryExpression: string, dimension: string): SeriesLimitAnalysisResult {
         if (!expression.trim()) {
             return {
                 summary: {
@@ -338,14 +378,14 @@ export class SeriesLimitMathService {
         }
 
         if (mode === "limits") {
-            return buildLimitAnalysis(expression, auxiliaryExpression);
+            return buildLimitAnalysis(expression, auxiliaryExpression, dimension);
         }
         if (mode === "sequences") {
-            return buildSequenceAnalysis(expression, auxiliaryExpression);
+            return buildSequenceAnalysis(expression, auxiliaryExpression, dimension);
         }
         if (mode === "power-series") {
-            return buildSeriesLikeAnalysis(mode, expression, auxiliaryExpression);
+            return buildSeriesLikeAnalysis(mode, expression, auxiliaryExpression, dimension);
         }
-        return buildSeriesLikeAnalysis(mode === "convergence" ? "convergence" : "series", expression, auxiliaryExpression);
+        return buildSeriesLikeAnalysis(mode === "convergence" ? "convergence" : "series", expression, auxiliaryExpression, dimension);
     }
 }

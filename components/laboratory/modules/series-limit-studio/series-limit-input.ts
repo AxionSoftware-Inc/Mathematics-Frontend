@@ -134,6 +134,22 @@ export function buildSeriesLimitPreview(mode: SeriesLimitMode, expression: strin
         return `$$${sumLatex}$$`;
     }
 
+    if (mode === "series" || mode === "convergence" || mode === "power-series") {
+        const indexSymbol = mode === "power-series" ? "n" : "n";
+        const termLatex = latexifyInline(trimmedExpression);
+        const sumLatex = `\\sum_{${indexSymbol}=1}^{\\infty} ${termLatex}`;
+        if (mode === "power-series") {
+            const center = parseCenter(trimmedAuxiliary);
+            return center
+                ? `$$${sumLatex}$$\n$$\\text{center} = ${latexifyInline(center)}$$`
+                : `$$${sumLatex}$$`;
+        }
+        if (mode === "convergence" && trimmedAuxiliary) {
+            return `$$${sumLatex}$$\n$$\\text{test} = ${latexifyInline(trimmedAuxiliary)}$$`;
+        }
+        return `$$${sumLatex}$$`;
+    }
+
     if (mode === "sequences") {
         const tail = parseArrow(trimmedAuxiliary || "n -> inf", "n");
         const sequenceTerm = latexifyInline(stripSequenceAssignment(trimmedExpression));
