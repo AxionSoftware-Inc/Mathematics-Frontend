@@ -467,6 +467,16 @@ h6 {
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.dark .site-command-card {
+  border-color: color-mix(in srgb, white 10%, transparent);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), transparent 34%),
+    linear-gradient(180deg, rgba(12, 12, 12, 0.96), rgba(22, 22, 22, 0.9));
+  box-shadow:
+    0 30px 58px -38px rgba(0, 0, 0, 0.64),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
 .site-command-card-dark {
   border-color: rgba(255, 255, 255, 0.08);
   background:
@@ -576,10 +586,23 @@ h6 {
     background: color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
+.dark .site-surface-card {
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.03), transparent 36%),
+      linear-gradient(180deg, rgba(16, 16, 16, 0.94), rgba(24, 24, 24, 0.88));
+    border-color: color-mix(in srgb, white 10%, transparent);
+}
+
 .site-overlay-card {
     border-radius: calc(var(--radius-card) + 0.05rem);
     border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
     background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.dark .site-overlay-card {
+    background:
+      linear-gradient(180deg, rgba(18, 18, 18, 0.94), rgba(28, 28, 28, 0.88));
+    border-color: color-mix(in srgb, white 10%, transparent);
 }
 
 .site-inverse-panel {
@@ -613,6 +636,16 @@ h6 {
   box-shadow:
     0 24px 60px -42px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.dark .site-feature-panel {
+  border-color: color-mix(in srgb, white 10%, transparent);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), transparent 30%),
+    linear-gradient(180deg, rgba(14, 14, 14, 0.96), rgba(24, 24, 24, 0.9));
+  box-shadow:
+    0 30px 64px -42px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .site-feature-panel-dark {

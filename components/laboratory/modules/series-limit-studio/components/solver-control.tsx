@@ -2,6 +2,7 @@ import React from "react";
 
 import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
 
+import { buildSeriesLimitAuxPreview, buildSeriesLimitPreview, inferSeriesLimitMode } from "../series-limit-input";
 import type { SeriesLimitExperienceLevel, SeriesLimitMode, SeriesLimitSummary } from "../types";
 
 const modeCopy: Record<SeriesLimitMode, { label: string; helper: string; expressionPlaceholder: string; auxPlaceholder: string }> = {
@@ -70,15 +71,25 @@ export function SolverControl({
     activePresetLabel?: string;
     summary: SeriesLimitSummary;
 }) {
-    const copy = modeCopy[mode];
-    const dimensions = dimensionOptions[mode];
+    const inferredMode = React.useMemo(() => inferSeriesLimitMode(expression, auxiliaryExpression, mode), [auxiliaryExpression, expression, mode]);
+    const effectiveMode = inferredMode;
+    const copy = modeCopy[effectiveMode];
+    const dimensions = dimensionOptions[effectiveMode];
     const resolvedDimension = dimensions.includes(dimension) ? dimension : dimensions[0];
+    const previewContent = React.useMemo(() => buildSeriesLimitPreview(effectiveMode, expression, auxiliaryExpression), [auxiliaryExpression, effectiveMode, expression]);
+    const auxiliaryPreviewContent = React.useMemo(() => buildSeriesLimitAuxPreview(effectiveMode, auxiliaryExpression), [auxiliaryExpression, effectiveMode]);
 
     React.useEffect(() => {
         if (dimension !== resolvedDimension) {
             setDimension(resolvedDimension);
         }
     }, [dimension, resolvedDimension, setDimension]);
+
+    React.useEffect(() => {
+        if (mode !== inferredMode && expression.trim()) {
+            setMode(inferredMode);
+        }
+    }, [expression, inferredMode, mode, setMode]);
 
     return (
         <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
@@ -91,13 +102,18 @@ export function SolverControl({
                 <div className="rounded-2xl border border-border/60 bg-muted/30 px-3 py-2 text-right">
                     <div className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Preset</div>
                     <div className="mt-1 text-sm font-bold text-foreground">{activePresetLabel ?? "Custom"}</div>
+                    {mode !== inferredMode ? (
+                        <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent">
+                            detected {modeCopy[inferredMode].label}
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[0.8fr_1.1fr_0.8fr]">
                 <label className="space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Analysis Mode</span>
-                    <select value={mode} onChange={(event) => setMode(event.target.value as SeriesLimitMode)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent">
+                    <select value={effectiveMode} onChange={(event) => setMode(event.target.value as SeriesLimitMode)} className="h-11 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm font-semibold text-foreground outline-none transition focus:border-accent">
                         <option value="limits">Limits</option>
                         <option value="sequences">Sequences</option>
                         <option value="series">Series</option>
@@ -153,14 +169,15 @@ export function SolverControl({
                     <div className="rounded-3xl border border-border/60 bg-muted/20 p-4">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Rendered Preview</div>
                         <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 text-sm text-foreground">
-                            <MathValue value={expression} fallback="Expression pending." />
+                            <MathValue value={previewContent} fallback="Expression pending." />
                         </div>
                         {auxiliaryExpression ? (
                             <div className="mt-3 overflow-x-auto rounded-2xl border border-border/60 bg-background p-4 text-sm text-foreground">
-                                <MathValue value={auxiliaryExpression} fallback="Auxiliary context pending." />
+                                <MathValue value={auxiliaryPreviewContent} fallback="Auxiliary context pending." />
                             </div>
                         ) : null}
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <PreviewMetric label="Lane" value={modeCopy[effectiveMode].label} />
                             <PreviewMetric label="Family" value={summary.detectedFamily ?? "pending"} />
                             <PreviewMetric label="Candidate" value={summary.candidateResult ?? "pending"} />
                             <PreviewMetric label="Convergence" value={summary.convergenceSignal ?? summary.radiusSignal ?? "pending"} />

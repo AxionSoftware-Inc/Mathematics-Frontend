@@ -403,6 +403,86 @@ function MatrixLanePanel({
     );
 }
 
+function MatrixHeatmapPanel({
+    matrix,
+    title,
+    detail,
+}: {
+    matrix: number[][];
+    title: string;
+    detail: string;
+}) {
+    if (!matrix.length || !matrix[0]?.length) return null;
+
+    const values = matrix.flat();
+    const bound = Math.max(1e-9, ...values.map((value) => Math.abs(value)));
+    const rows = matrix.length;
+    const cols = Math.max(...matrix.map((row) => row.length));
+    const cellWidth = 100 / Math.max(cols, 1);
+    const cellHeight = 100 / Math.max(rows, 1);
+
+    return (
+        <div className="site-outline-card p-4 space-y-3">
+            <div className="site-eyebrow text-accent">{title}</div>
+            <svg viewBox="0 0 100 100" className="w-full rounded-2xl border border-border/40 bg-muted/10">
+                {matrix.map((row, rowIndex) =>
+                    row.map((value, colIndex) => {
+                        const normalized = (value + bound) / (2 * bound);
+                        const red = Math.round(42 + normalized * 190);
+                        const green = Math.round(90 + (1 - Math.abs(normalized - 0.5) * 2) * 80);
+                        const blue = Math.round(230 - normalized * 150);
+                        return (
+                            <g key={`${rowIndex}-${colIndex}`}>
+                                <rect
+                                    x={colIndex * cellWidth}
+                                    y={rowIndex * cellHeight}
+                                    width={cellWidth}
+                                    height={cellHeight}
+                                    fill={`rgba(${red}, ${green}, ${blue}, 0.82)`}
+                                />
+                                <text
+                                    x={colIndex * cellWidth + cellWidth / 2}
+                                    y={rowIndex * cellHeight + cellHeight / 2 + 1.4}
+                                    textAnchor="middle"
+                                    fontSize="4"
+                                    fontWeight="700"
+                                    fill={Math.abs(value) > bound * 0.45 ? "white" : "black"}
+                                >
+                                    {value.toFixed(2)}
+                                </text>
+                            </g>
+                        );
+                    }),
+                )}
+            </svg>
+            <div className="text-[11px] leading-5 text-muted-foreground">{detail}</div>
+        </div>
+    );
+}
+
+function MatrixEnergyPlot({
+    title,
+    values,
+}: {
+    title: string;
+    values: number[];
+}) {
+    const points = values.map((value, index) => ({ x: index + 1, y: value }));
+    return (
+        <CartesianPlot
+            title={title}
+            height={260}
+            series={[
+                {
+                    label: title,
+                    color: "var(--accent)",
+                    points,
+                },
+            ]}
+        />
+    );
+}
+
 function surfaceGridFromSamples(samples: Array<{ x: number; y: number; z: number }>) {
     const xValues = [...new Set(samples.map((sample) => Number(sample.x.toFixed(6))))].sort((a, b) => a - b);
     const yValues = [...new Set(samples.map((sample) => Number(sample.y.toFixed(6))))].sort((a, b) => a - b);
@@ -756,13 +836,14 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
     }
 
     if (isJacobian(summary)) {
+        const rowMagnitudes = summary.matrix.map((row) => Math.sqrt(row.reduce((acc, value) => acc + value ** 2, 0)));
         return (
             <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
                 <div className="mb-3 flex items-center justify-between px-2">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Visualizer Deck - Jacobian Lane</div>
                     {isResultStale && <StabilityBadge label="Stale" tone="warn" />}
                 </div>
-                <div className={staleClass}>
+                <div className={`space-y-5 ${staleClass}`}>
                     <MatrixLanePanel
                         title="Jacobian Structure"
                         detail="Jacobian uchun asosiy foydali chiqish matritsaning o'zi. Shu sabab visualizer endi matrixni qayta tiqmaydi; u Solve ichida alohida ko'rsatiladi."
@@ -773,6 +854,17 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                             { label: "F(p)", value: `[${summary.valueAtPoint.map((value) => value.toFixed(3)).join(", ")}]` },
                         ]}
                     />
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <MatrixHeatmapPanel
+                            matrix={summary.matrix}
+                            title="Sensitivity Heatmap"
+                            detail="Har bir katak local partial response kuchini ko‘rsatadi. Issiq ranglar kuchliroq o‘zgarishlarni bildiradi."
+                        />
+                        <MatrixEnergyPlot
+                            title="Row Sensitivity"
+                            values={rowMagnitudes}
+                        />
+                    </div>
                 </div>
             </div>
         );
@@ -785,6 +877,7 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                 : summary.eigenvalueSignature === "indefinite"
                   ? "warn"
                   : "rough";
+        const diagonalEntries = summary.matrix.map((row, index) => row[index] ?? 0);
 
         return (
             <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
@@ -803,6 +896,17 @@ export function VisualizerDeck({ state }: { state: VisualizerDeckState }) {
                             { label: "Signature", value: summary.eigenvalueSignature.replace(/_/g, " ") },
                         ]}
                     />
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <MatrixHeatmapPanel
+                            matrix={summary.matrix}
+                            title="Curvature Heatmap"
+                            detail="Diagonal elementlar asosiy curvature yo‘nalishlarini, off-diagonal kataklar esa mixed coupling ta’sirini ko‘rsatadi."
+                        />
+                        <MatrixEnergyPlot
+                            title="Diagonal Curvature"
+                            values={diagonalEntries}
+                        />
+                    </div>
                     <div className="site-outline-card border-indigo-500/20 bg-indigo-500/5 p-4">
                         <div className="mb-2 text-[9px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-300">Critical Point Classification</div>
                         <div className="text-sm font-bold">{summary.criticalPointType}</div>

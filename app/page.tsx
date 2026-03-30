@@ -320,7 +320,7 @@ export default function Home() {
                                             {surface.title}
                                         </h2>
                                     </div>
-                                    <div className={`rounded-[1.2rem] border p-3 ${index === 1 ? "border-white/10 bg-white/6 text-white" : "border-border/80 bg-white/60 text-foreground"}`}>
+                                    <div className={`rounded-[1.2rem] border p-3 ${index === 1 ? "site-inverse-panel text-white" : "site-surface-card text-foreground"}`}>
                                         <surface.icon className="h-6 w-6" />
                                     </div>
                                 </div>
@@ -333,7 +333,7 @@ export default function Home() {
                                             key={point}
                                             className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${
                                                 index === 1
-                                                    ? "border-white/10 bg-white/6 text-white/88"
+                                                    ? "site-inverse-panel site-inverse-text"
                                                     : "border-border/80 bg-background/65 text-foreground/78"
                                             }`}
                                         >

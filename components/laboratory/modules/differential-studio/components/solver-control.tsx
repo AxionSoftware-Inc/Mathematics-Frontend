@@ -414,10 +414,10 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                 </div>
             </div>
 
-            <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(300px,0.82fr)] 2xl:grid-cols-[minmax(0,1.32fr)_minmax(320px,0.68fr)]">
+            <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)] 2xl:grid-cols-[minmax(0,1.32fr)_minmax(340px,0.68fr)]">
                 <div className="space-y-4">
-                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_220px] 2xl:grid-cols-[minmax(0,1.35fr)_220px_170px]">
-                        <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 px-3 py-3">
+                    <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(0,1.35fr)_240px_190px]">
+                        <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 px-3 py-3 md:col-span-1 2xl:col-span-1">
                             <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                                 Analysis Mode
                             </div>
@@ -426,7 +426,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                                     data-testid="diff-mode-select"
                                     value={activeMode}
                                     onChange={(e) => handleModeChange(e.target.value as DifferentialExtendedMode)}
-                                    className={`${controlInputClassName} appearance-none pr-10 font-semibold`}
+                                    className={`${controlInputClassName} min-w-0 appearance-none pr-10 font-semibold md:min-w-[220px]`}
                                 >
                                     {modeOptions.map((option) => (
                                         <option key={option.id} value={option.id}>
@@ -446,7 +446,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3">
+                        <div className="rounded-2xl border border-border/60 bg-background/70 px-3 py-3 md:col-span-1 2xl:col-span-1">
                             <label className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                                 <Orbit className="h-3.5 w-3.5" />
                                 Mode Scope
@@ -456,7 +456,7 @@ export function SolverControl({ state, actions }: SolverControlProps) {
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-border/60 bg-background/70 px-2.5 py-3 xl:col-span-2 2xl:col-span-1">
+                        <div className="rounded-2xl border border-border/60 bg-background/70 px-2.5 py-3 md:col-span-2 2xl:col-span-1">
                             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Variables</div>
                             <div className="mt-2 flex min-h-[44px] items-center rounded-xl border border-border/50 bg-muted/10 px-2.5 text-sm font-medium text-foreground">
                                 {variableHint}
