@@ -17,12 +17,12 @@ export function LaboratorySolveDetailCard({
 }) {
     const tones = LaboratoryFormattingService.getStepToneClasses(tone);
     return (
-        <div className={`site-panel-strong space-y-3 p-5 transition-all hover:shadow-lg ${tones.card}`}>
+        <div className={`site-lab-card space-y-3 p-5 ${tones.card}`}>
             <div className="flex items-center justify-between gap-4">
                 <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${tones.badge}`}>
                     Step {id}
                 </div>
-                <div className="rounded-full border border-border/60 bg-background/50 px-2 py-1 text-[9px] font-bold uppercase tracking-widening text-muted-foreground/60">
+                <div className="site-status-pill px-2 py-1 text-[9px] tracking-widening text-muted-foreground/60">
                     Operation trace
                 </div>
             </div>

@@ -106,8 +106,8 @@ export default function WriteIndexPage() {
 
     return (
         <div className="site-shell min-h-screen">
-            <div className="sticky top-20 z-40 border-b border-border/60 bg-background/82 backdrop-blur-xl">
-                <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between px-4 md:px-6">
+            <div className="border-b border-border/60 bg-background">
+                <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-4 md:px-6 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-4">
                         <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-foreground text-background font-serif text-sm font-black shadow-md">
                             M
@@ -120,13 +120,35 @@ export default function WriteIndexPage() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => setIsWriteSelectorOpen(true)}
-                        className="site-button-primary cursor-pointer shadow-md"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Yangi hujjat
-                    </button>
+                    <div className="flex flex-1 flex-col gap-3 lg:max-w-3xl lg:flex-row lg:items-center lg:justify-end">
+                        <div className="relative min-w-0 flex-1">
+                            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="Maqola, abstract yoki tur bo&apos;yicha izlash..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="h-[48px] w-full rounded-full border border-border/70 bg-background px-11 pr-10 text-sm outline-none transition-colors focus:border-[var(--accent)]"
+                            />
+                            {searchQuery ? (
+                                <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    type="button"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            ) : null}
+                        </div>
+                        <button
+                            onClick={() => setIsWriteSelectorOpen(true)}
+                            className="site-button-primary h-[48px] shrink-0 cursor-pointer shadow-none"
+                            type="button"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Create
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -186,45 +208,20 @@ export default function WriteIndexPage() {
                 </aside>
 
                 <main className="min-w-0 flex-1">
-                    <div className="site-panel-strong p-5 md:p-6">
-                        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-                            <div className="flex-1">
-                                <div className="site-eyebrow">Search Archive</div>
-                                <div className="relative mt-4">
-                                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        type="text"
-                                        placeholder="Maqola, abstract yoki tur bo&apos;yicha izlash..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="h-[52px] w-full rounded-full border border-border bg-white/55 pl-11 pr-10 text-sm outline-none transition-colors focus:border-[var(--accent)] dark:bg-white/5"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            onClick={() => setSearchQuery("")}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            
-                            <div className="flex shrink-0 flex-wrap gap-2 lg:hidden">
-                                {filterOptions.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => setFilterStatus(item.id)}
-                                        className={`site-chip ${filterStatus === item.id ? "site-chip-active" : ""}`}
-                                    >
-                                        {item.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    <div className="flex shrink-0 flex-wrap gap-2 lg:hidden">
+                        {filterOptions.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => setFilterStatus(item.id)}
+                                className={`site-chip ${filterStatus === item.id ? "site-chip-active" : ""}`}
+                                type="button"
+                            >
+                                {item.label}
+                            </button>
+                        ))}
                     </div>
 
-                    <div className="mt-8 flex items-center justify-between gap-4">
+                    <div className="mt-6 flex items-center justify-between gap-4">
                         <div>
                             <div className="site-eyebrow">Document Shelf</div>
                             <h2 className="mt-2 text-2xl font-black tracking-tight">
@@ -273,9 +270,10 @@ export default function WriteIndexPage() {
                             {papers.map((paper) => (
                                 <div
                                     key={paper.id}
-                                    className="site-panel group relative flex h-full flex-col overflow-hidden p-5 transition-all hover:-translate-y-1 hover:shadow-xl"
+                                    className="site-panel group relative flex h-full flex-col overflow-hidden p-5 transition-colors"
+                                    style={{ contentVisibility: "auto", containIntrinsicSize: "280px" }}
                                 >
-                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(29,78,216,0.06),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(15,118,110,0.08),transparent_24%)] opacity-0 transition-opacity group-hover:opacity-100" />
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(29,78,216,0.04),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(15,118,110,0.05),transparent_22%)] opacity-0 transition-opacity group-hover:opacity-100" />
                                     <div className="relative flex flex-1 flex-col">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex flex-wrap items-center gap-2">

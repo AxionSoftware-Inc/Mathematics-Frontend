@@ -902,17 +902,17 @@ export function PaperEditorWorkspace({
                                 </div>
 
                                 <div className="min-w-0 overflow-x-auto">
-                                    <div className="flex min-w-max items-center gap-2 pl-1">
+                                    <div className="site-toolbar-shell flex min-w-max items-center gap-2 p-1.5 pl-1">
                                         <button
                                             type="button"
                                             onClick={() => setShowInspector((value) => !value)}
-                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-border/60 bg-background px-3 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                                            className="site-toolbar-pill h-9 px-3 text-[11px]"
                                         >
                                             {showInspector ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeftOpen className="h-3.5 w-3.5" />}
                                             <span>{showInspector ? "Sidebar" : "Panels"}</span>
                                         </button>
 
-                                        <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-1">
+                                        <div className="site-toolbar-segment">
                                             <button
                                                 type="button"
                                                 onClick={() => setViewMode("edit")}
@@ -940,7 +940,7 @@ export function PaperEditorWorkspace({
                                             </button>
                                         </div>
 
-                                        <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-1">
+                                        <div className="site-toolbar-segment">
                                             <button
                                                 type="button"
                                                 onClick={() => setPreviewSyncMode("live")}
@@ -958,7 +958,7 @@ export function PaperEditorWorkspace({
                                         </div>
 
                                         <details className="group relative">
-                                            <summary className="flex h-9 cursor-pointer list-none items-center justify-center rounded-full border border-border/60 bg-background px-3 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground [&::-webkit-details-marker]:hidden">
+                                            <summary className="site-toolbar-pill flex h-9 cursor-pointer list-none justify-center px-3 [&::-webkit-details-marker]:hidden">
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </summary>
                                             <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-border/60 bg-background p-2 shadow-lg">
@@ -1030,7 +1030,7 @@ export function PaperEditorWorkspace({
                 >
                     {showInspector && (
                     <aside
-                        className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden rounded-3xl border border-border/60 bg-background/60 p-3 shadow-sm backdrop-blur-md lg:h-full print:hidden"
+                        className="site-panel flex w-full min-h-0 shrink-0 flex-col overflow-hidden p-3 lg:h-full print:hidden"
                         style={canResizeSidebar ? { width: `${sidebarWidth}px` } : undefined}
                     >
                         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
@@ -1039,7 +1039,7 @@ export function PaperEditorWorkspace({
                                     <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
                                         Inspector
                                     </div>
-                                    <div className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                    <div className="site-status-pill px-2.5 py-1 text-[10px] tracking-[0.14em]">
                                         {normalizedSections.length}
                                     </div>
                                 </div>
@@ -1058,7 +1058,7 @@ export function PaperEditorWorkspace({
                                             className={`min-w-[5.5rem] flex-1 rounded-xl px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
                                                 inspectorSection === item.id
                                                     ? "bg-foreground text-background"
-                                                    : "border border-border/60 bg-background/60 text-muted-foreground hover:text-foreground"
+                                                    : "site-soft-panel text-muted-foreground hover:text-foreground"
                                             }`}
                                         >
                                             {item.label}
@@ -1427,13 +1427,13 @@ export function PaperEditorWorkspace({
                         style={splitLayoutEnabled ? { gridTemplateColumns: `${splitRatio}fr 8px ${100 - splitRatio}fr` } : undefined}
                     >
                         {(viewMode === "edit" || viewMode === "split") && (
-                            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.5rem] border border-border/50 bg-background shadow-sm print:hidden">
-                                <div className="border-b border-border/60 bg-muted/20 px-3 py-2 md:px-4">
+                            <section className="site-panel flex h-full min-h-0 flex-col overflow-hidden print:hidden">
+                                <div className="border-b border-border/60 bg-muted/15 px-3 py-3 md:px-4">
                                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                        <div className="rounded-full border border-border/60 bg-background px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                        <div className="site-status-pill px-3 py-1 text-[10px] tracking-[0.16em]">
                                             Section Editor
                                         </div>
-                                        <div className="rounded-full border border-border/60 bg-muted/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                                        <div className="site-status-pill px-3 py-1 text-[10px] tracking-[0.16em]">
                                             {activeSection.kind} / {activeSection.progress_state}
                                         </div>
                                     </div>
@@ -1544,13 +1544,14 @@ export function PaperEditorWorkspace({
                                     </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto border-b border-border/60 bg-muted/10 px-3 py-2 md:px-4">
+                                <div className="border-b border-border/60 bg-muted/10 px-3 py-2.5 md:px-4">
+                                    <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto">
                                     {blockPresets.map((preset) => (
                                         <button
                                             key={preset.label}
                                             type="button"
                                             onClick={() => insertSnippet(preset.snippet)}
-                                            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
+                                            className="site-toolbar-pill px-2.5 py-1.5 text-[10px] tracking-[0.14em]"
                                         >
                                             <preset.icon className="h-3 w-3" />
                                             {preset.label}
@@ -1559,7 +1560,7 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={insertLiveBridgeBlock}
-                                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
+                                        className="site-toolbar-pill px-2.5 py-1.5 text-[10px] tracking-[0.14em]"
                                     >
                                         <Sparkles className="h-3 w-3" />
                                         Live Lab Block
@@ -1567,13 +1568,14 @@ export function PaperEditorWorkspace({
                                     <button
                                         type="button"
                                         onClick={openLaboratoryImportPanel}
-                                        className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/25 hover:text-foreground"
+                                        className="site-toolbar-pill px-2.5 py-1.5 text-[10px] tracking-[0.14em]"
                                     >
                                         <DatabaseZap className="h-3 w-3" />
                                         Import Saved
                                     </button>
                                     <div className="ml-auto">
                                         <MathKeyboard onInsert={insertSnippet} />
+                                    </div>
                                     </div>
                                 </div>
 
@@ -1673,19 +1675,19 @@ export function PaperEditorWorkspace({
                     </div>
                 </div>
 
-                <div className={`border-t border-border/60 bg-muted/20 px-4 py-2.5 text-[11px] print:hidden ${viewMode === 'edit' ? 'hidden' : ''}`}>
+                <div className={`border-t border-border/60 bg-muted/15 px-4 py-2.5 text-[11px] print:hidden ${viewMode === 'edit' ? 'hidden' : ''}`}>
                     <div className="flex flex-nowrap items-center gap-2 overflow-x-auto text-muted-foreground">
-                        <span className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-accent">
+                        <span className="site-status-pill border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-accent">
                             File {normalizedSections.findIndex((section) => getWriterSectionKey(section) === getWriterSectionKey(activeSection)) + 1}/{normalizedSections.length}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-foreground">
+                        <span className="site-status-pill px-3 py-1 text-foreground">
                             File: {activeSection.title}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-muted-foreground">
+                        <span className="site-status-pill px-3 py-1">
                             {activeSection.kind}
                         </span>
                         <span
-                            className={`rounded-full border px-3 py-1 ${
+                            className={`site-status-pill px-3 py-1 ${
                                 activeSection.progress_state === "done"
                                     ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                     : activeSection.progress_state === "drafting"
@@ -1695,50 +1697,37 @@ export function PaperEditorWorkspace({
                         >
                             {activeSection.progress_state}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
+                        <span className="site-status-pill px-3 py-1">
                             {formData.document_kind}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
+                        <span className="site-status-pill px-3 py-1">
                             {words} so&apos;z
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
+                        <span className="site-status-pill px-3 py-1">
                             {readingTime} min
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
+                        <span className="site-status-pill px-3 py-1">
                             Plot {totalPlots}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
+                        <span className="site-status-pill px-3 py-1">
                             3D {plot3DBlocks}
                         </span>
-                        <span className={`rounded-full border px-3 py-1 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border/60 bg-background"}`}>
+                        <span className={`site-status-pill px-3 py-1 ${saveState === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : ""}`}>
                             {saveStatusLabel}
                         </span>
-                        <span className="rounded-full border border-border/60 bg-background px-3 py-1">
+                        <span className="site-status-pill px-3 py-1">
                             {previewSyncMode === "live" ? "Live preview" : "Manual preview"}
                         </span>
-                        {mode === "new" ? (
-                            <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-emerald-700 dark:text-emerald-300">
-                                Quick start
-                            </span>
-                        ) : null}
                         {previewSyncMode === "manual" ? (
-                            <span className={`rounded-full border px-3 py-1 ${previewIsStale ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+                            <span className={`site-status-pill px-3 py-1 ${previewIsStale ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
                                 {previewIsStale ? "Preview stale" : "Preview synced"}
                             </span>
                         ) : null}
                         {performanceModeRecommended ? (
-                            <span className="rounded-full border border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-accent">
+                            <span className="site-status-pill border-accent/20 bg-[var(--accent-soft)] px-3 py-1 text-accent">
                                 Performance mode
                             </span>
                         ) : null}
-                        <div className="ml-auto hidden items-center gap-2 lg:flex">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
-                                Powered by
-                            </span>
-                            <span className="font-playfair text-xs font-black tracking-tight">
-                                MathSphere AI
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>

@@ -18,8 +18,8 @@ export function LaboratorySolveLayout({
     sections?: LaboratorySolveLayoutSection[];
 }) {
     return (
-        <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="space-y-5">
+            <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
                 <div>{control}</div>
                 <div className="space-y-4">
                     {visual}
@@ -27,9 +27,9 @@ export function LaboratorySolveLayout({
                 </div>
             </div>
 
-            <div className="space-y-4 xl:columns-2 xl:gap-4 xl:space-y-0">
+            <div className="space-y-5 xl:columns-2 xl:gap-5 xl:space-y-0">
                 {sections.map((section) => (
-                    <div key={section.id} className="mb-4" style={{ breakInside: "avoid" }}>
+                    <div key={section.id} className="mb-5" style={{ breakInside: "avoid" }}>
                         {section.node}
                     </div>
                 ))}

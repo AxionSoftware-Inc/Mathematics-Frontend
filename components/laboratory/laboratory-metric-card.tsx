@@ -14,7 +14,7 @@ export function LaboratoryMetricCard({
 }) {
     const tones = LaboratoryFormattingService.getStepToneClasses(tone);
     return (
-        <div className={`rounded-3xl border px-5 py-4 shadow-sm transition-all hover:shadow-md ${tones.card}`}>
+        <div className={`site-lab-card px-5 py-4 ${tones.card}`}>
             <div className={`text-[9px] font-bold uppercase tracking-widest ${tones.badge}`}>
                 {eyebrow}
             </div>

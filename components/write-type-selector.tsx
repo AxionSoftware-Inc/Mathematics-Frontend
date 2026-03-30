@@ -76,9 +76,9 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-            <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px]" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/28" onClick={onClose} />
 
-            <div className="relative flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-background shadow-xl">
+            <div className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-background shadow-xl">
                 <div className="border-b border-border/60 bg-background/95 px-6 py-5 md:px-8 md:py-6">
                     <div className="flex items-start justify-between gap-4">
                         <div className="max-w-3xl">
@@ -102,22 +102,18 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                     </div>
                 </div>
 
-                <div className="grid min-h-0 flex-1 gap-0 xl:grid-cols-[1.02fr_0.98fr]">
-                    <div className="min-h-0 overflow-y-auto border-b border-border/60 bg-background p-6 md:p-8 xl:border-b-0 xl:border-r">
+                <div className="grid min-h-0 flex-1 gap-0 xl:grid-cols-[360px_minmax(0,1fr)]">
+                    <div className="min-h-0 overflow-y-auto border-b border-border/60 bg-background p-5 md:p-6 xl:border-b-0 xl:border-r">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <div className="site-eyebrow">Core Library</div>
-                                <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                                    Ortiqcha maxsus variantlar olib tashlandi. Har bir template real foydalanish holati
-                                    uchun tanlangan.
-                                </p>
                             </div>
                             <div className="rounded-2xl border border-border/60 bg-background/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
                                 {writerTemplates.length} templates
                             </div>
                         </div>
 
-                        <div className="mt-6 grid gap-3 md:grid-cols-2">
+                        <div className="mt-5 space-y-2.5">
                             {writerTemplates.map((template) => {
                                 const Icon = iconMap[template.icon];
                                 const selected = template.id === selectedTemplate.id;
@@ -127,37 +123,29 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                                         key={template.id}
                                         type="button"
                                         onClick={() => setSelectedTemplateId(template.id)}
-                                        className={`rounded-[1.35rem] border p-4 text-left transition-colors ${
+                                        className={`w-full rounded-[1.2rem] border px-4 py-3.5 text-left transition-colors ${
                                             selected
                                                 ? "border-[var(--accent)]/40 bg-[var(--accent-soft)]"
                                                 : "border-border/60 bg-background/70 hover:border-[var(--accent)]/20 hover:bg-background"
                                         }`}
                                     >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${template.accentClassName}`}>
-                                                <Icon className="h-5 w-5" />
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${template.accentClassName}`}>
+                                                    <Icon className="h-4.5 w-4.5" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="truncate text-sm font-bold tracking-tight">{template.title}</div>
+                                                    <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                                                        {templateCategoryLabel(template.category)}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <span className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                                                {templateCategoryLabel(template.category)}
-                                            </span>
-                                        </div>
-
-                                        <div className="mt-4">
-                                            <div className="text-base font-bold tracking-tight">{template.title}</div>
-                                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                                {template.shortDescription}
-                                            </p>
-                                        </div>
-
-                                        <div className="mt-4 flex flex-wrap gap-1.5">
-                                            {template.recommendedFor.slice(0, 2).map((tag) => (
-                                                <span
-                                                    key={tag}
-                                                    className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-                                                >
-                                                    {tag}
+                                            {selected ? (
+                                                <span className="rounded-full border border-[var(--accent)]/30 bg-background/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-foreground">
+                                                    Active
                                                 </span>
-                                            ))}
+                                            ) : null}
                                         </div>
                                     </button>
                                 );
@@ -165,7 +153,7 @@ export function WriteTypeSelector({ isOpen, onClose }: WriteTypeSelectorProps) {
                         </div>
                     </div>
 
-                    <aside className="min-h-0 overflow-y-auto bg-muted/20 p-6 md:p-8">
+                    <aside className="min-h-0 overflow-y-auto bg-muted/15 p-6 md:p-8">
                         <div className="site-panel-strong p-5 md:p-6">
                             <div className="flex items-start justify-between gap-4">
                                 <div className={`flex h-14 w-14 items-center justify-center rounded-[1.25rem] border ${selectedTemplate.accentClassName}`}>
