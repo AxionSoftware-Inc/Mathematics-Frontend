@@ -99,6 +99,77 @@ export function buildAveragedProfile(
         .map(([x, bucket]) => ({ x, y: bucket.sum / bucket.count }));
 }
 
+function normalizeBenchmarkExpression(expression: string) {
+    return expression
+        .replace(/\s+/g, "")
+        .replace(/ln\(/gi, "log(")
+        .replace(/\u2212/g, "-")
+        .toLowerCase();
+}
+
+function normalizeBenchmarkBound(value: string) {
+    return value
+        .trim()
+        .replace(/\s+/g, "")
+        .replace(/\u221e/g, "inf")
+        .replace(/oo/gi, "inf")
+        .replace(/infinity/gi, "inf")
+        .toLowerCase();
+}
+
+export function evaluateIntegralBenchmark(params: {
+    mode: IntegralMode;
+    expression: string;
+    lower: string;
+    upper: string;
+    analyticSolution: IntegralAnalyticSolveResponse | null;
+    summary: IntegralComputationSummary | null;
+}) {
+    if (params.mode !== "single") {
+        return null;
+    }
+
+    const normalizedExpression = normalizeBenchmarkExpression(
+        params.analyticSolution?.parser.expression_normalized || params.expression,
+    );
+    const normalizedLower = normalizeBenchmarkBound(params.analyticSolution?.parser.lower_normalized || params.lower);
+    const normalizedUpper = normalizeBenchmarkBound(params.analyticSolution?.parser.upper_normalized || params.upper);
+
+    const canonicalBenchmarks = [
+        { id: "poly_unit_interval", label: "Polynomial benchmark", expression: "x^2", lower: "0", upper: "1", expectedValue: 1 / 3, note: "Elementary polynomial integral on unit interval." },
+        { id: "improper_exponential_tail", label: "Improper exponential tail", expression: "exp(-x)", lower: "0", upper: "inf", expectedValue: 1, note: "Canonical convergent improper integral with symbolic limit." },
+        { id: "endpoint_singularity_root", label: "Endpoint singularity benchmark", expression: "1/sqrt(x)", lower: "0", upper: "1", expectedValue: 2, note: "Integrable endpoint singularity check." },
+        { id: "piecewise_abs_symmetric", label: "Piecewise symmetry benchmark", expression: "abs(x)", lower: "-1", upper: "1", expectedValue: 1, note: "Piecewise branch audit on symmetric interval." },
+    ];
+
+    const match = canonicalBenchmarks.find((item) =>
+        item.expression === normalizedExpression
+        && item.lower === normalizedLower
+        && item.upper === normalizedUpper,
+    );
+    if (!match) {
+        return null;
+    }
+
+    const actualNumeric = parseLooseNumericValue(params.analyticSolution?.exact.numeric_approximation)
+        ?? (params.summary ? (params.summary as SingleIntegralSummary).simpson : null);
+    const absoluteError = actualNumeric === null ? null : Math.abs(actualNumeric - match.expectedValue);
+    const status: "verified" | "review" = absoluteError !== null && absoluteError <= 1e-5 ? "verified" : "review";
+
+    return {
+        id: match.id,
+        label: match.label,
+        expectedValue: LaboratoryFormattingService.formatMetric(match.expectedValue, 8),
+        actualValue: actualNumeric === null ? "n/a" : LaboratoryFormattingService.formatMetric(actualNumeric, 8),
+        absoluteError,
+        status,
+        detail:
+            status === "verified"
+                ? `${match.note} Solver canonical benchmark bilan mos tushdi.`
+                : `${match.note} Natija benchmark bilan qo'lda tekshirilishi kerak.`,
+    };
+}
+
 export function buildExactSolutionMarkdown(solution: IntegralAnalyticSolveResponse | null) {
     if (!solution || solution.status !== "exact") {
         return "- Analitik yechim hali tayyor emas.";
@@ -129,6 +200,9 @@ export function buildExactSolutionMarkdown(solution: IntegralAnalyticSolveRespon
         solution.exact.contains_special_functions
             ? "- Yechim maxsus funksiyalar orqali yozilgan bo'lishi mumkin; bu ham analitik natija hisoblanadi."
             : "- Natija elementary yoki to'g'ridan-to'g'ri symbolic ko'rinishda qaytdi.",
+        solution.diagnostics?.research
+            ? `- Research readiness: **${solution.diagnostics.research.readiness_label}** | risk: **${solution.diagnostics.research.domain_risk_level}** | tier: **${solution.diagnostics.research.exactness_tier}**`
+            : "- Research audit metadata hali yo'q.",
     ].join("\n");
 }
 

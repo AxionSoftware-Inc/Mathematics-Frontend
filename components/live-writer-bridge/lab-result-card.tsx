@@ -25,13 +25,18 @@ export function LabResultCard({ block }: { block: WriterBridgeBlockData }) {
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                             <Link2 className="h-3.5 w-3.5" />
-                            Live Laboratory Result
+                            Saved Laboratory Result
                         </div>
+                        {block.profile ? (
+                            <div className="mt-2 inline-flex rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                                {block.profile}
+                            </div>
+                        ) : null}
                         <h3 className="mt-3 font-serif text-2xl font-black">{block.title}</h3>
                         <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{block.summary}</p>
                     </div>
                     <div className="rounded-full border border-border/70 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                        {block.status === "ready" ? "Synced" : "Waiting"}
+                        {block.savedResultRevision ? `Snapshot r${block.savedResultRevision}` : block.status === "ready" ? "Snapshot" : "Draft"}
                     </div>
                 </div>
             </div>
@@ -126,7 +131,7 @@ export function LabResultCard({ block }: { block: WriterBridgeBlockData }) {
                     ) : null}
 
                     <div className="rounded-[1.25rem] border border-border bg-background/60 px-4 py-3 text-xs font-semibold text-muted-foreground">
-                        Oxirgi yangilanish: {formatTimestamp(block.generatedAt)}
+                        Import qilingan holat: {formatTimestamp(block.generatedAt)}
                     </div>
                 </div>
             </div>

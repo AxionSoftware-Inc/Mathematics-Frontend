@@ -27,6 +27,9 @@ export type MatrixComputationSummary = {
     residualNorm?: string | null;
     decompositionSummary?: string | null;
     solverKind?: string | null;
+    stabilitySummary?: string | null;
+    leastSquaresSummary?: string | null;
+    factorAuditSummary?: string | null;
     svdSummary?: string | null;
     singularValueMagnitudes?: number[];
     iterativeSummary?: string | null;
@@ -80,6 +83,19 @@ export type MatrixAnalyticSolveResponse = {
         condition_number?: string | null;
         pivot_columns?: number[];
         diagonalizable?: boolean | null;
+        contract?: {
+            status: "ok" | "info" | "warn" | "error";
+            checks: Array<{
+                id: string;
+                label: string;
+                status: "ok" | "info" | "warn" | "error";
+                detail: string;
+            }>;
+            risk_level?: "low" | "medium" | "high";
+            readiness_label?: string;
+            hazard_count?: number;
+            review_notes?: string[];
+        };
     };
     summary: MatrixComputationSummary;
     exact: {
@@ -141,4 +157,7 @@ export type MatrixVisualizerSummary = Pick<
     | "cpFactorSummaries"
     | "diagonalizable"
     | "decompositionSummary"
+    | "stabilitySummary"
+    | "leastSquaresSummary"
+    | "factorAuditSummary"
 >;

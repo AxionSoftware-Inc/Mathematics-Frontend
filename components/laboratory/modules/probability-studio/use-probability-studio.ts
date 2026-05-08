@@ -6,6 +6,7 @@ import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { PROBABILITY_PRESETS } from "./constants";
 import { normalizeProbabilityDimension } from "./probability-dimension-options";
 import { ProbabilityMathService } from "./services/math-service";
+import { buildProbabilityContract, evaluateProbabilityBenchmark } from "./services/presentation-service";
 import { ProbabilitySolveService } from "./services/solve-service";
 import type {
     ProbabilityAnalysisResult,
@@ -98,6 +99,16 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
         [analyticSolution?.summary, result.summary],
     );
 
+    const contractSummary = React.useMemo(
+        () => buildProbabilityContract(mode, summary, analyticSolution),
+        [analyticSolution, mode, summary],
+    );
+
+    const benchmarkSummary = React.useMemo(
+        () => evaluateProbabilityBenchmark(mode, datasetExpression, parameterExpression, summary),
+        [datasetExpression, mode, parameterExpression, summary],
+    );
+
     const visualNotes = React.useMemo(() => {
         if (mode === "descriptive") {
             return ["Histogram / sample spread", `Mean ${summary.mean ?? "pending"}`, `Skew ${summary.skewness ?? "pending"}`];
@@ -129,9 +140,12 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             `Shape: ${summary.shape ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
             `Method: ${analyticSolution?.exact.method_label ?? "client-side fallback"}`,
+            `Readiness: ${contractSummary.readinessLabel}`,
+            `Contract: ${contractSummary.status}/${contractSummary.riskLevel}`,
             `Diagnostic: ${summary.testStatistic ?? summary.power ?? summary.residualSignal ?? summary.pcaSignal ?? summary.acfSignal ?? summary.bootstrapSignal ?? "pending"}`,
+            ...(benchmarkSummary ? [`Benchmark: ${benchmarkSummary.status} (${benchmarkSummary.label})`] : []),
         ],
-        [analyticSolution?.exact.method_label, mode, summary],
+        [analyticSolution?.exact.method_label, benchmarkSummary, contractSummary, mode, summary],
     );
 
     const reportNotes = React.useMemo(
@@ -140,10 +154,13 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             `Dimension: ${dimension}`,
             `Sample size: ${summary.sampleSize ?? "pending"}`,
             `Risk signal: ${summary.riskSignal ?? "pending"}`,
+            `Readiness: ${contractSummary.readinessLabel}`,
+            `Contract risk: ${contractSummary.riskLevel}`,
             `Final: ${analyticSolution?.exact.result_latex ?? result.finalFormula ?? "pending"}`,
             `Auxiliary diagnostic: ${summary.power ?? summary.residualSignal ?? summary.posteriorPredictive ?? summary.pcaSignal ?? summary.acfSignal ?? summary.bootstrapSignal ?? "pending"}`,
+            ...(benchmarkSummary ? [`Benchmark: ${benchmarkSummary.label} -> ${benchmarkSummary.status}`] : []),
         ],
-        [analyticSolution?.exact.result_latex, dimension, mode, result.finalFormula, summary],
+        [analyticSolution?.exact.result_latex, benchmarkSummary, contractSummary, dimension, mode, result.finalFormula, summary],
     );
 
     const applyPreset = React.useCallback((preset: ProbabilityPreset) => {
@@ -169,6 +186,8 @@ export function useProbabilityStudio(module: LaboratoryModuleMeta) {
             result,
             analyticSolution,
             summary,
+            contractSummary,
+            benchmarkSummary,
             solveErrorMessage,
             visualNotes,
             compareNotes,

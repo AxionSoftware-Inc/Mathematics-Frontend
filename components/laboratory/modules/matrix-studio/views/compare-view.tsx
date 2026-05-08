@@ -7,13 +7,13 @@ export function CompareView({ state }: { state: MatrixStudioState }) {
         { eyebrow: "Method", value: state.analyticSolution?.exact.method_label ?? "pending", detail: "Primary matrix lane", tone: "info" as const },
         { eyebrow: "Shape", value: state.summary.shape ?? "pending", detail: "Matrix structure", tone: "neutral" as const },
         { eyebrow: "Condition", value: state.summary.conditionNumber ?? "pending", detail: "Stability cue", tone: "warn" as const },
-        { eyebrow: "Solver", value: state.summary.solverKind ?? "pending", detail: "Active solve engine", tone: "success" as const },
+        { eyebrow: "Readiness", value: state.analyticSolution?.diagnostics.contract?.readiness_label ?? "pending", detail: "Solver contract", tone: "success" as const },
     ];
     const compareNotesSection = (
         <Panel title="Method Compare" items={state.compareNotes} />
     );
     const auditSection = (
-        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+        <div className="site-lab-card p-5">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Audit Snapshot</div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <AuditCard label="Method" value={state.analyticSolution?.exact.method_label ?? "pending"} />
@@ -22,8 +22,12 @@ export function CompareView({ state }: { state: MatrixStudioState }) {
                 <AuditCard label="Diagonalizable" value={state.summary.diagonalizable == null ? "pending" : state.summary.diagonalizable ? "yes" : "no"} />
                 <AuditCard label="Spectral radius" value={state.summary.spectralRadius ?? "pending"} />
                 <AuditCard label="Residual norm" value={state.summary.residualNorm ?? "pending"} />
+                <AuditCard label="Stability" value={state.summary.stabilitySummary ?? "pending"} />
+                <AuditCard label="Least squares" value={state.summary.leastSquaresSummary ?? "pending"} />
                 <AuditCard label="Solver kind" value={state.summary.solverKind ?? "pending"} />
                 <AuditCard label="Iterative" value={state.summary.iterativeSummary ?? "pending"} />
+                <AuditCard label="Contract" value={state.analyticSolution?.diagnostics.contract?.status ?? "pending"} />
+                <AuditCard label="Risk" value={state.analyticSolution?.diagnostics.contract?.risk_level ?? "pending"} />
             </div>
         </div>
     );
@@ -51,6 +55,8 @@ export function CompareView({ state }: { state: MatrixStudioState }) {
                 `Rank: ${state.summary.rank ?? "pending"}`,
                 `Pivot columns: ${state.summary.pivotColumns?.join(", ") ?? "pending"}`,
                 `Decomposition: ${state.summary.decompositionSummary ?? "pending"}`,
+                `Factor audit: ${state.summary.factorAuditSummary ?? "pending"}`,
+                ...(state.analyticSolution?.diagnostics.contract?.review_notes ?? []).map((note) => `Review: ${note}`),
             ]}
         />
     );
@@ -79,7 +85,7 @@ function AuditCard({ label, value }: { label: string; value: string }) {
 
 function Panel({ title, items }: { title: string; items: string[] }) {
     return (
-        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+        <div className="site-lab-card p-5">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">{title}</div>
             <div className="mt-4 space-y-3">
                 {items.map((item) => (

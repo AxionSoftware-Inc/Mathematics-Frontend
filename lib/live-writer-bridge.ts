@@ -42,11 +42,14 @@ export type WriterBridgeSyncMeta = {
     sourceLabel: string;
 };
 
+export type WriterBridgePublicationProfile = "summary" | "full" | "appendix" | "figures";
+
 export type WriterBridgeBlockData = {
     id: string;
     status: "waiting" | "ready";
     moduleSlug: string;
     kind: string;
+    profile?: WriterBridgePublicationProfile;
     title: string;
     summary: string;
     generatedAt: string;
@@ -65,6 +68,7 @@ export type WriterBridgeTarget = {
     paperId?: number;
     paperTitle?: string;
     title: string;
+    profile?: WriterBridgePublicationProfile;
     status: WriterBridgeBlockData["status"];
     generatedAt: string;
     revision?: number;
@@ -435,6 +439,7 @@ export function createWaitingWriterBridgeBlock(title = "Live Laboratory Block"):
         status: "waiting",
         moduleSlug: "live-writer-bridge",
         kind: "placeholder",
+        profile: "full",
         title,
         summary: "Laboratoriyadan live natija kutilyapti.",
         generatedAt: new Date().toISOString(),
@@ -569,6 +574,7 @@ export function blockToTarget(
     return {
         id: block.id,
         title: block.title,
+        profile: block.profile,
         status: block.status,
         generatedAt: block.generatedAt,
         revision: block.sync?.revision,

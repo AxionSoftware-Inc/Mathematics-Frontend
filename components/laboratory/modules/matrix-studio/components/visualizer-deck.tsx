@@ -265,7 +265,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
         <div className="space-y-4">
             {showTransform ? <TransformCanvas matrix={numeric} rhsRows={rhsRows} /> : null}
 
-            <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+            <div className="site-lab-card p-5">
                 <div className="flex items-center justify-between">
                     <div>
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Matrix Heatmap</div>
@@ -297,7 +297,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
 
             {mode === "tensor" ? (
                 <div className="space-y-4">
-                    <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                    <div className="site-lab-card p-5">
                         <div className="flex items-center justify-between">
                             <div>
                                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Tensor Slices</div>
@@ -331,7 +331,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                     </div>
 
                     <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                        <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                        <div className="site-lab-card p-5">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Slice Energy</div>
                             {sliceNorms.length ? (
                                 <div className="mt-4 space-y-3">
@@ -353,7 +353,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                             )}
                         </div>
 
-                        <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                        <div className="site-lab-card p-5">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Tensor Structural Audit</div>
                             <div className="mt-4 space-y-3">
                                 {[
@@ -378,7 +378,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                     </div>
 
                     <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-                        <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                        <div className="site-lab-card p-5">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Mode Spectra</div>
                             <div className="mt-4 space-y-3">
                                 {modeSpectra.length ? (
@@ -395,7 +395,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                             </div>
                         </div>
 
-                        <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                        <div className="site-lab-card p-5">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Contraction Lanes</div>
                             <div className="mt-4 space-y-3">
                                 {summary.contractionDetails?.length ? (
@@ -413,7 +413,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                    <div className="site-lab-card p-5">
                         <div className="flex items-center justify-between">
                             <div>
                                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Tensor Network View</div>
@@ -457,7 +457,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
             ) : null}
 
             <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                <div className="site-lab-card p-5">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Pivot Structure</div>
                     <div className="mt-3 flex flex-wrap gap-2">
                         {summary.pivotColumns?.length ? (
@@ -477,7 +477,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                     ) : null}
                 </div>
 
-                <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                <div className="site-lab-card p-5">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Sparse Profile</div>
                     {sparseRatio !== null ? (
                         <>
@@ -498,7 +498,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                <div className="site-lab-card p-5">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Sparsity Pattern</div>
                     <div className="mt-4 overflow-x-auto">
                         <div
@@ -521,7 +521,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                     </div>
                 </div>
 
-                <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                <div className="site-lab-card p-5">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Operation Trace</div>
@@ -561,7 +561,7 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                <div className="site-lab-card p-5">
                     <div className="flex items-center justify-between">
                         <div>
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Singular Spectrum</div>
@@ -589,17 +589,26 @@ export function VisualizerDeck({ mode, matrixRows, rhsRows, tensorSlices, summar
                     )}
                 </div>
 
-                <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-sm">
+                <div className="site-lab-card p-5">
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Residual / Stability</div>
                     <div className="mt-4 space-y-3">
                         <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
                             Residual norm: <span className="font-semibold">{summary.residualNorm ?? "Not reported"}</span>
                         </div>
                         <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
+                            Stability: <span className="font-semibold">{summary.stabilitySummary ?? "Not reported"}</span>
+                        </div>
+                        <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
+                            Least-squares: <span className="font-semibold">{summary.leastSquaresSummary ?? "Not reported"}</span>
+                        </div>
+                        <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
                             Spectral radius: <span className="font-semibold">{summary.spectralRadius ?? "Not reported"}</span>
                         </div>
                         <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
                             Solver lane: <span className="font-semibold">{summary.solverKind ?? "Direct"}</span>
+                        </div>
+                        <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-foreground">
+                            Factor audit: <span className="font-semibold">{summary.factorAuditSummary ?? "Not reported"}</span>
                         </div>
                     </div>
                 </div>

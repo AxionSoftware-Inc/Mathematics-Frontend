@@ -8,7 +8,11 @@ import {
     fetchSavedLaboratoryResults,
     type SavedLaboratoryResult,
 } from "@/lib/laboratory-results";
-import type { WriterImportPayload } from "@/lib/live-writer-bridge";
+import type { WriterImportPayload, WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
+import {
+    LAB_PUBLICATION_PROFILE_DESCRIPTIONS,
+    LAB_PUBLICATION_PROFILE_LABELS,
+} from "@/lib/laboratory-publication-profile";
 
 export function LaboratoryResultImportPanel({
     onImport,
@@ -20,6 +24,7 @@ export function LaboratoryResultImportPanel({
     const [search, setSearch] = React.useState("");
     const [moduleFilter, setModuleFilter] = React.useState("all");
     const [sortOrder, setSortOrder] = React.useState("-updated_at");
+    const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -112,6 +117,22 @@ export function LaboratoryResultImportPanel({
                     <option value="-title">Title Z-A</option>
                 </select>
             </div>
+            <div className="mt-3">
+                <select
+                    value={publicationProfile}
+                    onChange={(event) => setPublicationProfile(event.target.value as WriterBridgePublicationProfile)}
+                    className="h-11 w-full rounded-2xl border border-border/60 bg-background px-3 text-sm outline-none transition-colors focus:border-accent/30"
+                >
+                    {(Object.keys(LAB_PUBLICATION_PROFILE_LABELS) as WriterBridgePublicationProfile[]).map((profile) => (
+                        <option key={profile} value={profile}>
+                            {LAB_PUBLICATION_PROFILE_LABELS[profile]}
+                        </option>
+                    ))}
+                </select>
+                <div className="mt-2 text-xs leading-6 text-muted-foreground">
+                    {LAB_PUBLICATION_PROFILE_DESCRIPTIONS[publicationProfile]}
+                </div>
+            </div>
 
             <div className="mt-4 space-y-3">
                 {loading ? (
@@ -185,7 +206,7 @@ export function LaboratoryResultImportPanel({
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => onImport(createWriterImportPayloadFromSavedResult(selectedResult))}
+                                    onClick={() => onImport(createWriterImportPayloadFromSavedResult(selectedResult, publicationProfile))}
                                     className="site-btn-accent mt-4 w-full justify-center px-4"
                                 >
                                     Import into Current Section

@@ -7,8 +7,10 @@ import {
 
 import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
+import type { LaboratorySignal } from "@/components/laboratory/laboratory-signal-panel";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
+import type { WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 
 // Shared Services
 import { LaboratoryFormattingService } from "@/components/laboratory/services/formatting-service";
@@ -32,6 +34,7 @@ import {
     buildNumericalPromptMarkdown, 
     buildIntegralMarkdown, 
     buildIntegralLivePayload, 
+    evaluateIntegralBenchmark,
 } from "./integral-studio/utils";
 
 // Local Components
@@ -46,6 +49,9 @@ import { CompareView } from "./integral-studio/views/compare-view";
 import { ReportView } from "./integral-studio/views/report-view";
 import { SolveView } from "./integral-studio/views/solve-view";
 import { VisualizeView } from "./integral-studio/views/visualize-view";
+
+type StudioCardTone = "neutral" | "info" | "success" | "warn";
+type StudioCard = { eyebrow: string; value: string; detail: string; tone: StudioCardTone };
 
 export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta }) {
     const { state, actions } = useIntegralStudio(module);
@@ -102,6 +108,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         loadSavedExperiment,
     } = actions;
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
+    const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
 
     const solverWarning = Boolean(error || solveErrorMessage);
     const diagnosticsSnapshot = React.useMemo(() => {
@@ -115,11 +122,21 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             piecewiseRegions: diagnostics?.piecewise?.regions || [],
             piecewiseSource: diagnostics?.piecewise?.source || "none",
             convergenceReason: diagnostics?.convergence_reason || "standard_finite_interval",
+            research: diagnostics?.research || {
+                exactness_tier: "pending",
+                domain_risk_level: "medium",
+                readiness_label: "pending",
+                blocker_count: 0,
+                hazard_count: 0,
+                piecewise_active: false,
+                special_function_signal: false,
+                review_notes: [],
+            },
         };
     }, [analyticSolution?.diagnostics]);
 
-    const warningSignals = React.useMemo(() => {
-        const signals: any[] = [];
+    const warningSignals = React.useMemo<LaboratorySignal[]>(() => {
+        const signals: LaboratorySignal[] = [];
         if (solverWarning) {
             signals.push({ tone: "warn", label: "Solver Alert", text: error || solveErrorMessage });
         }
@@ -132,6 +149,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (diagnosticsSnapshot.hazardDetails.length) {
             signals.push({ tone: "warn", label: diagnosticsSnapshot.hazardDetails[0].label, text: diagnosticsSnapshot.hazardDetails[0].detail });
         }
+        if (diagnosticsSnapshot.research.domain_risk_level === "high") {
+            signals.push({ tone: "warn", label: "Research risk", text: diagnosticsSnapshot.research.review_notes[0] || "High-risk symbolic audit requires review." });
+        }
         if (diagnosticsSnapshot.piecewiseRegions.length) {
             signals.push({ tone: "info", label: "Piecewise", text: "Expression regionlarga bo'linadi, branch audit active." });
         }
@@ -140,7 +160,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             if (spread > 0.08) signals.push({ tone: "warn", label: "Stability", text: "Method spread yuqori, segment sonini oshirish kerak." });
         }
         return signals;
-    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.piecewiseRegions.length, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
+    }, [analyticSolution, diagnosticsSnapshot, error, mode, singleDiagnostics?.relativeSpread, solveErrorMessage, solverWarning, summary]);
 
     const visibleSignals = React.useMemo(
         () => [...inputValidationSignals, ...warningSignals],
@@ -191,6 +211,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 zResolution: normalizedZResolution,
                 summary: summary as IntegralComputationSummary,
             }),
+        publicationProfile,
         getDraftMeta: () => ({
             title: "Integral Analysis",
             abstract: "Exported from laboratory.",
@@ -333,19 +354,19 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         };
     }, [analyticSolution, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics, solvePhase, solverStatusText, summary, warningSignals.length]);
 
-    const workflowReadinessCards = React.useMemo(() => ([
-        { eyebrow: "Solve", value: solverStatusText, detail: analyticSolution?.status === "exact" ? "Exact solver javob berdi." : summary ? "Numerik result tayyor." : "Solve hali kutilyapti.", tone: (analyticSolution?.status === "exact" || summary ? "success" : solvePhase === "error" ? "warn" : "info") as any },
-        { eyebrow: "Validation", value: blockingValidationCount > 0 ? `${blockingValidationCount} blocker` : "Clean", detail: blockingValidationCount > 0 ? "Inputda to'g'rilanishi kerak bo'lgan maydonlar bor." : "Input oqimi hozir yaroqli.", tone: (blockingValidationCount > 0 ? "warn" : "success") as any },
-        { eyebrow: "Visuals", value: summary ? "Ready" : "Waiting", detail: summary ? "Grafik va sample data tayyor." : "Vizual qatlam solve natijasini kutmoqda.", tone: (summary ? "success" : "neutral") as any },
-        { eyebrow: "Export", value: summary && !solverWarning ? "Ready" : "Blocked", detail: summary && !solverWarning ? "Report va writer bridge ishlaydi." : "Toza natija chiqmaguncha export bloklangan.", tone: (summary && !solverWarning ? "success" : "warn") as any },
+    const workflowReadinessCards = React.useMemo<StudioCard[]>(() => ([
+        { eyebrow: "Solve", value: solverStatusText, detail: analyticSolution?.status === "exact" ? "Exact solver javob berdi." : summary ? "Numerik result tayyor." : "Solve hali kutilyapti.", tone: analyticSolution?.status === "exact" || summary ? "success" : solvePhase === "error" ? "warn" : "info" },
+        { eyebrow: "Validation", value: blockingValidationCount > 0 ? `${blockingValidationCount} blocker` : "Clean", detail: blockingValidationCount > 0 ? "Inputda to'g'rilanishi kerak bo'lgan maydonlar bor." : "Input oqimi hozir yaroqli.", tone: blockingValidationCount > 0 ? "warn" : "success" },
+        { eyebrow: "Visuals", value: summary ? "Ready" : "Waiting", detail: summary ? "Grafik va sample data tayyor." : "Vizual qatlam solve natijasini kutmoqda.", tone: summary ? "success" : "neutral" },
+        { eyebrow: "Export", value: summary && !solverWarning ? "Ready" : "Blocked", detail: summary && !solverWarning ? "Report va writer bridge ishlaydi." : "Toza natija chiqmaguncha export bloklangan.", tone: summary && !solverWarning ? "success" : "warn" },
     ]), [analyticSolution?.status, blockingValidationCount, solvePhase, solverStatusText, solverWarning, summary]);
 
-    const solveOverviewCards = React.useMemo(() => {
+    const solveOverviewCards = React.useMemo<StudioCard[]>(() => {
         const primaryValue = resultConsoleData.headline;
-        const cards = [
-            { eyebrow: "Result", value: primaryValue, detail: resultConsoleData.subline, tone: (resultConsoleData.source === "idle" ? "neutral" : resultConsoleData.source === "exact" ? "success" : "info") as any },
-            { eyebrow: "Source", value: resultConsoleData.sourceLabel, detail: resultConsoleData.nextAction, tone: (resultConsoleData.source === "exact" ? "success" : resultConsoleData.source === "numerical" ? "info" : "neutral") as any },
-            { eyebrow: "Confidence", value: resultConsoleData.confidenceLabel, detail: resultConsoleData.confidenceDetail, tone: (resultConsoleData.confidenceLabel === "High trust" || resultConsoleData.confidenceLabel === "Stable grid" ? "success" : resultConsoleData.confidenceLabel === "No confidence yet" ? "neutral" : "warn") as any },
+        const cards: StudioCard[] = [
+            { eyebrow: "Result", value: primaryValue, detail: resultConsoleData.subline, tone: resultConsoleData.source === "idle" ? "neutral" : resultConsoleData.source === "exact" ? "success" : "info" },
+            { eyebrow: "Source", value: resultConsoleData.sourceLabel, detail: resultConsoleData.nextAction, tone: resultConsoleData.source === "exact" ? "success" : resultConsoleData.source === "numerical" ? "info" : "neutral" },
+            { eyebrow: "Confidence", value: resultConsoleData.confidenceLabel, detail: resultConsoleData.confidenceDetail, tone: resultConsoleData.confidenceLabel === "High trust" || resultConsoleData.confidenceLabel === "Stable grid" ? "success" : resultConsoleData.confidenceLabel === "No confidence yet" ? "neutral" : "warn" },
         ];
 
         if (mode === "single" && summary) {
@@ -353,21 +374,21 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 eyebrow: "Spread",
                 value: LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6),
                 detail: singleDiagnostics?.stability || "Method spread",
-                tone: ((singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn") as any,
+                tone: (singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn",
             });
         } else if (mode === "double" && summary) {
             cards.push({
                 eyebrow: "Grid",
                 value: `${normalizedXResolution} x ${normalizedYResolution}`,
                 detail: `Peak ${LaboratoryFormattingService.formatMetric(doubleDiagnostics?.peak, 4)}`,
-                tone: "info" as any,
+                tone: "info",
             });
         } else if (mode === "triple" && summary) {
             cards.push({
                 eyebrow: "Voxel",
                 value: LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6),
                 detail: `${normalizedXResolution} x ${normalizedYResolution} x ${normalizedZResolution} grid`,
-                tone: "info" as any,
+                tone: "info",
             });
         }
 
@@ -466,12 +487,13 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         </div>
     ) : null;
 
-    const reportSupportCards = React.useMemo(() => ([
-        { eyebrow: "Source", value: resultConsoleData.sourceLabel, detail: "Report skeleton qaysi natija qatlamidan oziqlanayotganini ko'rsatadi.", tone: (resultConsoleData.source === "exact" ? "success" : resultConsoleData.source === "numerical" ? "info" : "warn") as any },
-        { eyebrow: "Annotations", value: `${annotations.length}`, detail: annotations.length ? "Current result uchun note'lar mavjud." : "Reportga qo'shish uchun hali note yozilmagan.", tone: (annotations.length ? "info" : "neutral") as any },
-        { eyebrow: "Scenarios", value: `${savedExperiments.length}`, detail: savedExperiments.length ? "Saved scenario'lar report comparison uchun tayyor." : "Scenario library hali bo'sh.", tone: (savedExperiments.length ? "info" : "neutral") as any },
-        { eyebrow: "Bridge", value: summary && !solverWarning ? "Ready" : "Blocked", detail: summary && !solverWarning ? "Copy, send va live push ishlatish mumkin." : "Writer bridge solve tozalanmaguncha bloklangan.", tone: (summary && !solverWarning ? "success" : "warn") as any },
-    ]), [annotations.length, resultConsoleData.source, resultConsoleData.sourceLabel, savedExperiments.length, solverWarning, summary]);
+    const reportSupportCards = React.useMemo<StudioCard[]>(() => ([
+        { eyebrow: "Source", value: resultConsoleData.sourceLabel, detail: "Report skeleton qaysi natija qatlamidan oziqlanayotganini ko'rsatadi.", tone: resultConsoleData.source === "exact" ? "success" : resultConsoleData.source === "numerical" ? "info" : "warn" },
+        { eyebrow: "Research", value: diagnosticsSnapshot.research.readiness_label, detail: `${diagnosticsSnapshot.research.exactness_tier} | risk ${diagnosticsSnapshot.research.domain_risk_level}`, tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : diagnosticsSnapshot.research.domain_risk_level === "medium" ? "info" : "warn" },
+        { eyebrow: "Annotations", value: `${annotations.length}`, detail: annotations.length ? "Current result uchun note'lar mavjud." : "Reportga qo'shish uchun hali note yozilmagan.", tone: annotations.length ? "info" : "neutral" },
+        { eyebrow: "Scenarios", value: `${savedExperiments.length}`, detail: savedExperiments.length ? "Saved scenario'lar report comparison uchun tayyor." : "Scenario library hali bo'sh.", tone: savedExperiments.length ? "info" : "neutral" },
+        { eyebrow: "Bridge", value: summary && !solverWarning ? "Ready" : "Blocked", detail: summary && !solverWarning ? "Copy, send va live push ishlatish mumkin." : "Writer bridge solve tozalanmaguncha bloklangan.", tone: summary && !solverWarning ? "success" : "warn" },
+    ]), [annotations.length, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.readiness_label, resultConsoleData.source, resultConsoleData.sourceLabel, savedExperiments.length, solverWarning, summary]);
 
     const assumptionsMarkdown = React.useMemo(() => {
         const assumptions: string[] = [];
@@ -511,9 +533,12 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         if (analyticSolution?.parser.notes.length) {
             assumptions.push(`- Parser normalization notes: ${analyticSolution.parser.notes.join(" ")}`);
         }
+        if (diagnosticsSnapshot.research.review_notes.length) {
+            diagnosticsSnapshot.research.review_notes.forEach((note) => assumptions.push(`- Research review: ${note}`));
+        }
 
         return assumptions.join("\n");
-    }, [analyticSolution?.parser.notes, diagnosticsSnapshot.domainAssumptions, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.piecewiseRegions, diagnosticsSnapshot.piecewiseSource, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution, diagnosticsSnapshot, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditMarkdown = React.useMemo(() => {
         if (mode === "single") {
@@ -534,6 +559,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                     : "- Reference methods: midpoint va trapezoid parallel ko'riladi.",
                 `- Method spread: **${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6)}**.`,
                 `- Stability label: **${singleDiagnostics?.stability || "Pending"}**.`,
+                `- Research readiness: **${diagnosticsSnapshot.research.readiness_label}** | exactness: **${diagnosticsSnapshot.research.exactness_tier}**.`,
                 diagnosticsSnapshot.domainBlockers.length
                     ? `- Domain blockers: **${diagnosticsSnapshot.domainBlockers.join(", ")}**.`
                     : "- Domain blockers aniqlanmadi.",
@@ -562,10 +588,10 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             `- Voxel volume: **${LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6)}**.`,
             diagnosticsSnapshot.domainBlockers.length ? `- Domain blockers: **${diagnosticsSnapshot.domainBlockers.join(", ")}**.` : "- Domain blockers aniqlanmadi.",
         ].join("\n");
-    }, [analyticSolution, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.piecewiseRegions.length, diagnosticsSnapshot.piecewiseSource, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.spread, singleDiagnostics?.stability, taxonomyLaneGuidance, tripleDiagnostics?.mean, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.piecewiseRegions.length, diagnosticsSnapshot.piecewiseSource, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.readiness_label, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.spread, singleDiagnostics?.stability, taxonomyLaneGuidance, tripleDiagnostics?.mean, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume]);
 
-    const assumptionCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
-        const cards: Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }> = [
+    const assumptionCards = React.useMemo<StudioCard[]>(() => {
+        const cards: StudioCard[] = [
             {
                 eyebrow: "Coordinates",
                 value: state.coordinates,
@@ -647,7 +673,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return cards.slice(0, 4);
-    }, [analyticSolution?.diagnostics?.convergence, analyticSolution?.diagnostics?.convergence_detail, analyticSolution?.diagnostics?.singularity, analyticSolution?.parser.notes, analyticSolution?.status, classification.kind, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.piecewiseRegions, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
+    }, [analyticSolution, classification.kind, diagnosticsSnapshot, lower, mode, state.coordinates, taxonomyLaneGuidance, upper, xMax, xMin, yMax, yMin, zMax, zMin]);
 
     const methodAuditCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const spreadTone: "success" | "warn" = (singleDiagnostics?.relativeSpread || 0) < 0.06 ? "success" : "warn";
@@ -670,6 +696,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                     eyebrow: "Cross-check",
                     value: taxonomyLaneGuidance ? "Lane requirements" : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Convergence lane" : "Midpoint + Trap",
                     detail:
+                        classification.kind === "contour_integral_candidate" && analyticSolution?.exact.residue_analysis
+                            ? `${analyticSolution.exact.residue_analysis.enclosed_poles.length} enclosed poles, theorem value ${analyticSolution.exact.residue_analysis.theorem_value_latex}.`
+                            :
                         taxonomyLaneGuidance
                             ? taxonomyLaneGuidance.body.split("\n")[1]?.replace(/^- /, "") || "Lane metadata tayyor."
                             : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
@@ -682,6 +711,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 {
                     eyebrow: taxonomyLaneGuidance ? "Status" : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity" ? "Status" : "Spread",
                     value:
+                        classification.kind === "contour_integral_candidate" && analyticSolution?.exact.residue_analysis
+                            ? analyticSolution.exact.residue_analysis.direct_value_match ? "residue-match" : "review"
+                            :
                         taxonomyLaneGuidance
                             ? "taxonomy-only"
                             : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
@@ -690,6 +722,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                                 : "watch"
                             : LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread || 0, 6),
                     detail:
+                        classification.kind === "contour_integral_candidate" && analyticSolution?.exact.residue_analysis
+                            ? `Contour ${analyticSolution.exact.residue_analysis.orientation}, center ${analyticSolution.exact.residue_analysis.center_latex}, radius ${analyticSolution.exact.residue_analysis.radius_latex}.`
+                            :
                         taxonomyLaneGuidance
                             ? "Solver implementation keyingi lane bosqichida ulanadi."
                             : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
@@ -698,11 +733,20 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                                 : (analyticSolution?.diagnostics?.convergence_detail || "Closed-form convergence hali tasdiqlanmagan.")
                             : singleDiagnostics?.stability || "Pending",
                     tone:
+                        classification.kind === "contour_integral_candidate" && analyticSolution?.exact.residue_analysis
+                            ? (analyticSolution.exact.residue_analysis.direct_value_match ? "success" : "warn")
+                            :
                         taxonomyLaneGuidance
                             ? "info"
                             : classification.kind === "improper_infinite_bounds" || classification.kind === "improper_endpoint_singularity"
                             ? (analyticSolution?.status === "exact" ? "success" : "warn")
                             : spreadTone,
+                },
+                {
+                    eyebrow: "Research",
+                    value: diagnosticsSnapshot.research.readiness_label,
+                    detail: `${diagnosticsSnapshot.research.exactness_tier} | risk ${diagnosticsSnapshot.research.domain_risk_level}`,
+                    tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : diagnosticsSnapshot.research.domain_risk_level === "medium" ? "info" : "warn",
                 },
             ];
         }
@@ -720,7 +764,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             { eyebrow: "Grid", value: `${normalizedXResolution} x ${normalizedYResolution} x ${normalizedZResolution}`, detail: `${tripleDiagnostics?.sampleCount || 0} accepted volume samples.`, tone: "neutral" as const },
             { eyebrow: "Voxel", value: LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6), detail: "Measured cell volume used by the estimate.", tone: "success" as const },
         ];
-    }, [analyticSolution, classification.kind, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.piecewiseRegions.length, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, taxonomyLaneGuidance, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
+    }, [analyticSolution, classification.kind, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.piecewiseRegions.length, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.readiness_label, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, taxonomyLaneGuidance, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
 
     const visualizeOverviewCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const staleTone: "warn" | "success" | "neutral" = isResultStale ? "warn" : summary ? "success" : "neutral";
@@ -951,6 +995,11 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         ];
     }, [analyticSolution?.status, doubleDiagnostics?.mean, doubleDiagnostics?.peak, mode, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, tripleDiagnostics?.peak, tripleDiagnostics?.voxelVolume, visibleSignals]);
 
+    const benchmarkSummary = React.useMemo(
+        () => evaluateIntegralBenchmark({ mode, expression, lower, upper, analyticSolution, summary }),
+        [analyticSolution, expression, lower, mode, summary, upper],
+    );
+
     const riskRegisterCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const cards: Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }> = [];
 
@@ -990,6 +1039,24 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             });
         }
 
+        if (diagnosticsSnapshot.research.readiness_label !== "pending") {
+            cards.push({
+                eyebrow: "Research audit",
+                value: diagnosticsSnapshot.research.readiness_label,
+                detail: diagnosticsSnapshot.research.review_notes[0] || `risk ${diagnosticsSnapshot.research.domain_risk_level}`,
+                tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : "warn",
+            });
+        }
+
+        if (benchmarkSummary?.status === "review") {
+            cards.push({
+                eyebrow: "Benchmark",
+                value: "Review",
+                detail: benchmarkSummary.detail,
+                tone: "warn",
+            });
+        }
+
         if (!cards.length) {
             cards.push({
                 eyebrow: "Risk register",
@@ -1000,27 +1067,38 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         }
 
         return cards.slice(0, 4);
-    }, [blockingValidationCount, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, warningSignals]);
+    }, [benchmarkSummary, blockingValidationCount, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, warningSignals]);
 
     const reportSkeletonMarkdown = React.useMemo(() => {
         if (!summary) return "- Solver natijasi tayyor bo'lgach report skeleton quriladi.";
         const base = `## Laboratory Export: Integral Studio\n\n- Function: \`${expression}\`\n`;
         const assumptionsSection = `\n\n### Assumptions & Domains\n${assumptionsMarkdown}`;
         const methodSection = `\n\n### Method Audit\n${methodAuditMarkdown}`;
+        const researchSection = `\n\n### Research Contract\n- Readiness: ${diagnosticsSnapshot.research.readiness_label}\n- Exactness tier: ${diagnosticsSnapshot.research.exactness_tier}\n- Domain risk: ${diagnosticsSnapshot.research.domain_risk_level}\n- Blockers: ${diagnosticsSnapshot.research.blocker_count}\n- Hazard warnings: ${diagnosticsSnapshot.research.hazard_count}\n- Review note: ${diagnosticsSnapshot.research.review_notes[0] || "none"}`;
+        const benchmarkSection = benchmarkSummary
+            ? `\n\n### Benchmark Confidence\n- Benchmark: ${benchmarkSummary.label}\n- Status: ${benchmarkSummary.status}\n- Expected: ${benchmarkSummary.expectedValue}\n- Actual: ${benchmarkSummary.actualValue}\n- Detail: ${benchmarkSummary.detail}`
+            : "";
         const trustSection = `\n\n### Trust\n- Solver state: ${solverStatusText}\n- Warning count: ${warningSignals.length}\n- Export state: ${summary && !solverWarning ? "Ready" : "Blocked"}`;
+        const resultValue = mode === "double"
+            ? (summary as DoubleIntegralSummary).value
+            : (summary as TripleIntegralSummary).value;
         if (mode === "single") {
             return base
                 + `- Result (Simpson): ${LaboratoryFormattingService.formatMetric((summary as SingleIntegralSummary).simpson, 6)}\n- Method spread: ${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread, 6)}`
                 + assumptionsSection
                 + methodSection
+                + researchSection
+                + benchmarkSection
                 + trustSection;
         }
         return base
-            + `- Result: ${LaboratoryFormattingService.formatMetric((summary as any).value, 8)}`
+            + `- Result: ${LaboratoryFormattingService.formatMetric(resultValue, 8)}`
             + assumptionsSection
             + methodSection
+            + researchSection
+            + benchmarkSection
             + trustSection;
-    }, [assumptionsMarkdown, expression, methodAuditMarkdown, mode, singleDiagnostics, solverStatusText, solverWarning, summary, warningSignals.length]);
+    }, [assumptionsMarkdown, benchmarkSummary, diagnosticsSnapshot.research.blocker_count, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.hazard_count, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, expression, methodAuditMarkdown, mode, singleDiagnostics, solverStatusText, solverWarning, summary, warningSignals.length]);
 
     const reportExecutiveCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         if (!summary) {
@@ -1045,9 +1123,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 },
                 {
                     eyebrow: "Trust",
-                    value: warningSignals.length ? "Review" : "Ready",
-                    detail: warningSignals.length ? "Warnings mavjud, reportga diagnostic note qo'shish kerak." : "Current packet export-ready.",
-                    tone: warningSignals.length ? "warn" : "success",
+                    value: diagnosticsSnapshot.research.readiness_label,
+                    detail: warningSignals.length ? "Warnings mavjud, reportga diagnostic note qo'shish kerak." : diagnosticsSnapshot.research.review_notes[0] || "Current packet export-ready.",
+                    tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : "warn",
                 },
                 {
                     eyebrow: "Coverage",
@@ -1071,9 +1149,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             },
             {
                 eyebrow: "Trust",
-                value: warningSignals.length ? "Review" : "Ready",
-                detail: warningSignals.length ? "Warnings mavjud, diagnostic section muhim." : "Current packet export-ready.",
-                tone: warningSignals.length ? "warn" : "success",
+                value: diagnosticsSnapshot.research.readiness_label,
+                detail: warningSignals.length ? "Warnings mavjud, diagnostic section muhim." : diagnosticsSnapshot.research.review_notes[0] || "Current packet export-ready.",
+                tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : "warn",
             },
             {
                 eyebrow: "Coverage",
@@ -1082,7 +1160,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 tone: "info",
             },
         ];
-    }, [analyticSolution?.status, assumptionCards.length, methodAuditCards.length, mode, summary, warningSignals.length]);
+    }, [analyticSolution?.status, assumptionCards.length, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, methodAuditCards.length, mode, summary, warningSignals.length]);
 
     const reportReadinessCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => ([
         {
@@ -1098,6 +1176,12 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             tone: methodAuditCards.length ? "success" : "neutral",
         },
         {
+            eyebrow: "Research",
+            value: diagnosticsSnapshot.research.exactness_tier,
+            detail: `risk ${diagnosticsSnapshot.research.domain_risk_level}, blockers ${diagnosticsSnapshot.research.blocker_count}`,
+            tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : "warn",
+        },
+        {
             eyebrow: "Notes",
             value: `${annotations.length}`,
             detail: annotations.length ? "Manual research notes mavjud." : "Reportga qo'shish uchun note yozilmagan.",
@@ -1109,7 +1193,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             detail: summary && !solverWarning ? "Copy, writer send, live push available." : "Export clean result kutmoqda.",
             tone: summary && !solverWarning ? "success" : "warn",
         },
-    ]), [annotations.length, assumptionCards.length, methodAuditCards.length, solverWarning, summary]);
+    ]), [annotations.length, assumptionCards.length, diagnosticsSnapshot.research.blocker_count, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, methodAuditCards.length, solverWarning, summary]);
     const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
         ready: Boolean(summary && !solverWarning),
         moduleSlug: module.slug,
@@ -1174,6 +1258,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
 
     const visualizerProps: React.ComponentProps<typeof VisualizerDeck> = {
         ...state,
+        analyticSolution,
         lower,
         upper,
         isResultStale,
@@ -1184,6 +1269,11 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         warningSignals,
         visibleWarnings: visibleSignals,
         parserNotes: analyticSolution?.parser.notes || [],
+        researchReadiness: diagnosticsSnapshot.research.readiness_label,
+        researchRisk: diagnosticsSnapshot.research.domain_risk_level,
+        exactnessTier: diagnosticsSnapshot.research.exactness_tier,
+        blockerCount: diagnosticsSnapshot.research.blocker_count,
+        benchmarkSummary,
     };
 
     const scenarioPanelProps: React.ComponentProps<typeof ScenarioPanel> = {
@@ -1323,6 +1413,8 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         selectedLiveTargetId={liveBridge.selectedLiveTargetId}
                         setSelectedLiveTargetId={liveBridge.setSelectedLiveTargetId}
                         pushLiveResult={pushLiveResult}
+                        publicationProfile={publicationProfile}
+                        setPublicationProfile={setPublicationProfile}
                     />
                 )}
             </div>

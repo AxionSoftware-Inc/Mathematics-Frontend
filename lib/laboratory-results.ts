@@ -3,8 +3,17 @@ import {
     LIVE_WRITER_EXPORT_VERSION,
     createWriterImportRequestId,
     type WriterBridgeBlockData,
+    type WriterBridgePublicationProfile,
     type WriterImportPayload,
 } from "@/lib/live-writer-bridge";
+import {
+    applyPublicationProfileToBlock,
+    applyPublicationProfileToMarkdown,
+} from "@/lib/laboratory-publication-profile";
+
+export const SAVED_LAB_RESULT_SCHEMA_VERSION = 1;
+
+type SavedLabComputationStatus = "exact" | "numeric" | "hybrid" | "approximate" | "failed" | "unknown";
 
 export type SavedLaboratoryResult = {
     id: string;
@@ -33,6 +42,106 @@ export type CreateSavedLaboratoryResultPayload = {
     structured_payload: WriterBridgeBlockData;
     metadata?: Record<string, unknown>;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeStringList(value: unknown) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function inferComputationStatus(block: WriterBridgeBlockData, metadata: Record<string, unknown>): SavedLabComputationStatus {
+    const explicit = metadata.computation_status ?? metadata.status ?? metadata.exactness_tier;
+    if (typeof explicit === "string") {
+        const normalized = explicit.toLowerCase();
+        if (["exact", "numeric", "hybrid", "approximate", "failed"].includes(normalized)) {
+            return normalized as SavedLabComputationStatus;
+        }
+    }
+    if (block.status !== "ready") {
+        return "failed";
+    }
+    if (block.plotSeries?.length || block.coefficients?.length || block.matrixTables?.length) {
+        return "hybrid";
+    }
+    return "unknown";
+}
+
+function buildCanonicalMetadata(payload: CreateSavedLaboratoryResultPayload) {
+    const sourceMetadata = isRecord(payload.metadata) ? payload.metadata : {};
+    const sourceComputation = isRecord(sourceMetadata.computation) ? sourceMetadata.computation : {};
+    const sourceProvenance = isRecord(sourceMetadata.provenance) ? sourceMetadata.provenance : {};
+    const inputSnapshot = isRecord(payload.input_snapshot) ? payload.input_snapshot : {};
+    const structuredPayload = payload.structured_payload;
+    const savedAt = new Date().toISOString();
+
+    return {
+        ...sourceMetadata,
+        schema_version:
+            typeof sourceMetadata.schema_version === "number"
+                ? sourceMetadata.schema_version
+                : SAVED_LAB_RESULT_SCHEMA_VERSION,
+        result_standard: "mathsphere.saved_lab_result",
+        original_input: isRecord(sourceMetadata.original_input) ? sourceMetadata.original_input : inputSnapshot,
+        provenance: {
+            app: "MathSphere Laboratory",
+            source_label:
+                typeof sourceMetadata.sourceLabel === "string"
+                    ? sourceMetadata.sourceLabel
+                    : typeof sourceProvenance.source_label === "string"
+                      ? sourceProvenance.source_label
+                      : payload.module_title,
+            module_slug: payload.module_slug,
+            module_title: payload.module_title,
+            mode: payload.mode,
+            generated_at: structuredPayload.generatedAt,
+            saved_at: savedAt,
+            ...sourceProvenance,
+        },
+        computation: {
+            status: inferComputationStatus(structuredPayload, sourceMetadata),
+            method:
+                typeof sourceComputation.method === "string"
+                    ? sourceComputation.method
+                    : typeof sourceMetadata.method === "string"
+                      ? sourceMetadata.method
+                      : structuredPayload.kind,
+            tolerance:
+                typeof sourceComputation.tolerance === "string" || typeof sourceComputation.tolerance === "number"
+                    ? sourceComputation.tolerance
+                    : null,
+            runtime_ms:
+                typeof sourceComputation.runtime_ms === "number"
+                    ? sourceComputation.runtime_ms
+                    : typeof sourceMetadata.runtime_ms === "number"
+                      ? sourceMetadata.runtime_ms
+                      : null,
+            engine:
+                typeof sourceComputation.engine === "string"
+                    ? sourceComputation.engine
+                    : typeof sourceMetadata.engine === "string"
+                      ? sourceMetadata.engine
+                      : "sympy/manual-js-hybrid",
+            warnings: normalizeStringList(sourceComputation.warnings ?? sourceMetadata.warnings),
+            errors: normalizeStringList(sourceComputation.errors ?? sourceMetadata.errors),
+            ...sourceComputation,
+        },
+    };
+}
+
+export function normalizeCreateSavedLaboratoryResultPayload(
+    payload: CreateSavedLaboratoryResultPayload,
+): CreateSavedLaboratoryResultPayload {
+    return {
+        ...payload,
+        input_snapshot: isRecord(payload.input_snapshot) ? payload.input_snapshot : {},
+        metadata: buildCanonicalMetadata(payload),
+    };
+}
 
 function normalizeSavedLaboratoryResult(payload: Record<string, unknown>): SavedLaboratoryResult | null {
     if (
@@ -94,9 +203,10 @@ async function parseApiError(response: Response) {
 }
 
 export async function createSavedLaboratoryResult(payload: CreateSavedLaboratoryResultPayload) {
+    const normalizedPayload = normalizeCreateSavedLaboratoryResultPayload(payload);
     const response = await fetchPublic("/api/laboratory/results/", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(normalizedPayload),
     });
 
     if (!response.ok) {
@@ -107,6 +217,26 @@ export async function createSavedLaboratoryResult(payload: CreateSavedLaboratory
     const normalized = normalizeSavedLaboratoryResult(data);
     if (!normalized) {
         throw new Error("Saved laboratory result response is malformed.");
+    }
+
+    return normalized;
+}
+
+export async function updateSavedLaboratoryResult(id: string, payload: CreateSavedLaboratoryResultPayload) {
+    const normalizedPayload = normalizeCreateSavedLaboratoryResultPayload(payload);
+    const response = await fetchPublic(`/api/laboratory/results/${encodeURIComponent(id)}/`, {
+        method: "PUT",
+        body: JSON.stringify(normalizedPayload),
+    });
+
+    if (!response.ok) {
+        throw new Error(await parseApiError(response));
+    }
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const normalized = normalizeSavedLaboratoryResult(data);
+    if (!normalized) {
+        throw new Error("Updated laboratory result response is malformed.");
     }
 
     return normalized;
@@ -164,8 +294,11 @@ export async function fetchSavedLaboratoryResult(id: string) {
     return normalized;
 }
 
-export function createWriterImportPayloadFromSavedResult(result: SavedLaboratoryResult): WriterImportPayload {
-    const block: WriterBridgeBlockData = {
+export function createWriterImportPayloadFromSavedResult(
+    result: SavedLaboratoryResult,
+    profile: WriterBridgePublicationProfile = "full",
+): WriterImportPayload {
+    const baseBlock: WriterBridgeBlockData = {
         ...result.structured_payload,
         id: createWriterImportRequestId(),
         sync: undefined,
@@ -178,10 +311,11 @@ export function createWriterImportPayloadFromSavedResult(result: SavedLaboratory
         kind: result.structured_payload.kind || result.mode || "report",
         status: "ready",
     };
+    const block = applyPublicationProfileToBlock(baseBlock, profile);
 
     return {
         version: LIVE_WRITER_EXPORT_VERSION,
-        markdown: result.report_markdown,
+        markdown: applyPublicationProfileToMarkdown(result.report_markdown, block, profile),
         block,
         title: result.title,
         abstract: result.summary || `Imported from ${result.module_title}.`,

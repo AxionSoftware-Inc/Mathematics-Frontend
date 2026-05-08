@@ -130,6 +130,18 @@ export type ProbabilityAnalyticSolveResponse = {
         family?: string | null;
         risk?: string | null;
         method?: string | null;
+        contract?: {
+            status: "ok" | "info" | "warn" | "error";
+            risk_level?: "low" | "medium" | "high";
+            readiness_label?: "publication_ready" | "research_review" | "working" | "blocked";
+            checks?: Array<{
+                id: string;
+                label: string;
+                status: "ok" | "info" | "warn" | "error";
+                detail: string;
+            }>;
+            review_notes?: string[];
+        };
     };
     summary: ProbabilitySummary;
     exact: {
@@ -139,6 +151,31 @@ export type ProbabilityAnalyticSolveResponse = {
         numeric_approximation?: string | null;
         steps: ProbabilityStep[];
     };
+};
+
+export type ProbabilityContractSummary = {
+    status: "ok" | "info" | "warn" | "error";
+    riskLevel: "low" | "medium" | "high";
+    readinessLabel: "publication_ready" | "research_review" | "working" | "blocked";
+    family: string;
+    method: string;
+    checks: Array<{
+        id: string;
+        label: string;
+        status: "ok" | "info" | "warn" | "error";
+        detail: string;
+    }>;
+    reviewNotes: string[];
+};
+
+export type ProbabilityBenchmarkSummary = {
+    id: string;
+    label: string;
+    expectedValue: string;
+    actualValue: string;
+    absoluteError: number | null;
+    status: "verified" | "review";
+    detail: string;
 };
 
 export type ProbabilityStudioState = {
@@ -154,6 +191,8 @@ export type ProbabilityStudioState = {
     result: ProbabilityAnalysisResult;
     analyticSolution: ProbabilityAnalyticSolveResponse | null;
     summary: ProbabilitySummary;
+    contractSummary: ProbabilityContractSummary;
+    benchmarkSummary: ProbabilityBenchmarkSummary | null;
     solveErrorMessage: string | null;
     visualNotes: string[];
     compareNotes: string[];

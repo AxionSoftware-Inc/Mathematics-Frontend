@@ -6,8 +6,8 @@ export function CompareView({ state }: { state: ProbabilityStudioState }) {
     const overviewCards = [
         { eyebrow: "Method", value: state.analyticSolution?.exact.method_label ?? "client-side fallback", detail: "Primary probability lane", tone: "info" as const },
         { eyebrow: "Risk", value: state.summary.riskSignal ?? "pending", detail: "Global risk register", tone: "warn" as const },
+        { eyebrow: "Readiness", value: state.contractSummary.readinessLabel, detail: "Probability contract", tone: "success" as const },
         { eyebrow: "Sample", value: state.summary.sampleSize ?? "pending", detail: "Dataset size", tone: "neutral" as const },
-        { eyebrow: "Mode", value: state.mode, detail: "Active analysis family", tone: "success" as const },
     ];
 
     return (
@@ -28,9 +28,11 @@ export function CompareView({ state }: { state: ProbabilityStudioState }) {
                             title="Risk Register"
                             items={[
                                 state.summary.riskSignal ?? "Risk signal pending",
+                                `Contract: ${state.contractSummary.status} / ${state.contractSummary.riskLevel}`,
                                 `Primary result: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}`,
                                 `Auxiliary: ${state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? "pending"}`,
                                 `Method: ${state.analyticSolution?.exact.method_label ?? "client-side fallback"}`,
+                                ...state.contractSummary.reviewNotes.map((note) => `Review: ${note}`),
                             ]}
                         />
                     ),
@@ -48,6 +50,7 @@ export function CompareView({ state }: { state: ProbabilityStudioState }) {
                                 `Variance / CI: ${state.summary.variance ?? state.summary.confidenceInterval ?? state.summary.credibleInterval ?? "pending"}`,
                                 `Statistic: ${state.summary.testStatistic ?? state.summary.bayesFactor ?? "pending"}`,
                                 `Forecast / predictive: ${state.summary.forecast ?? state.summary.posteriorPredictive ?? "pending"}`,
+                                ...(state.benchmarkSummary ? [`Benchmark: ${state.benchmarkSummary.label} -> ${state.benchmarkSummary.status}`] : []),
                             ]}
                         />
                     ),

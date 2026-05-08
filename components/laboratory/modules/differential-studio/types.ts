@@ -295,6 +295,24 @@ export type DifferentialAnalyticSolveResponse = {
             critical_point_type?: string;
             eigenvalue_signature?: string;
         };
+        contract?: {
+            status: "ok" | "info" | "warn" | "error";
+            checks: Array<{
+                id: string;
+                label: string;
+                status: "ok" | "info" | "warn" | "error";
+                detail: string;
+            }>;
+            completeness?: string;
+            discretization?: string;
+            family?: string;
+            family_hint?: string;
+            risk_level?: "low" | "medium" | "high";
+            readiness_label?: string;
+            blocker_count?: number;
+            hazard_count?: number;
+            review_notes?: string[];
+        };
     };
     parser: {
         expression_raw: string;
@@ -322,6 +340,16 @@ export type DifferentialAnalyticSolveResponse = {
             tone: "neutral" | "info" | "success" | "warn";
         }>;
     };
+};
+
+export type DifferentialBenchmarkSummary = {
+    id: string;
+    label: string;
+    expectedValue: string;
+    actualValue: string;
+    absoluteError: number | null;
+    status: "verified" | "review";
+    detail: string;
 };
 
 // ─── Annotations & experiments ────────────────────────────────────────────────

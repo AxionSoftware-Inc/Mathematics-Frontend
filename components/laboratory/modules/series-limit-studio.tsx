@@ -14,7 +14,7 @@ import { SolveView } from "@/components/laboratory/modules/series-limit-studio/v
 import { VisualizeView } from "@/components/laboratory/modules/series-limit-studio/views/visualize-view";
 import { CompareView } from "@/components/laboratory/modules/series-limit-studio/views/compare-view";
 import { ReportView } from "@/components/laboratory/modules/series-limit-studio/views/report-view";
-import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 import type { SeriesLimitStudioState } from "@/components/laboratory/modules/series-limit-studio/types";
 
 function buildSeriesLimitReportMarkdown(state: SeriesLimitStudioState) {
@@ -30,6 +30,10 @@ function buildSeriesLimitReportMarkdown(state: SeriesLimitStudioState) {
 - proof signal: ${state.summary.proofSignal ?? "pending"}
 - error bound: ${state.summary.errorBoundSignal ?? "pending"}
 - method: ${state.analyticSolution?.exact.method_label ?? "client preview"}
+- readiness: ${state.contractSummary.readinessLabel}
+- contract: ${state.contractSummary.status}
+- contract risk: ${state.contractSummary.riskLevel}
+- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}
 
 ## report notes
 ${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
@@ -64,6 +68,7 @@ function buildSeriesLimitLivePayload(state: SeriesLimitStudioState, targetId: st
 export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMeta }) {
     const { state, actions } = useSeriesLimitStudio(module);
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
+    const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildSeriesLimitReportMarkdown(state), [state]);
@@ -95,6 +100,7 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
         setExportState,
         buildMarkdown: () => reportMarkdown,
         buildBlock: (targetId) => buildSeriesLimitLivePayload(state, targetId),
+        publicationProfile,
         getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
         getDraftMeta: () => ({
             title: "Series / Limit Analysis",
@@ -125,12 +131,14 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
                         liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
+                        publicationProfile={publicationProfile}
+                        setPublicationProfile={setPublicationProfile}
                     />
                 );
             default:
                 return null;
         }
-    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
+    }, [actions, copyMarkdownExport, liveTargets, publicationProfile, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

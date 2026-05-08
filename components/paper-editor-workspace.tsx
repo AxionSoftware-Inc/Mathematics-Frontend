@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -32,22 +32,10 @@ import { ArticleRichContent } from "@/components/article-rich-content";
 import { MathKeyboard } from "@/components/math-keyboard";
 import { CitationManager } from "@/components/citation-manager";
 import { LaboratoryResultImportPanel } from "@/components/laboratory/laboratory-result-import-panel";
-import { WriterLiveTargetsPanel } from "@/components/live-writer-bridge/writer-live-targets-panel";
 import { WriterProjectPanel } from "@/components/writer-project-panel";
 import {
-    LIVE_WRITER_TARGET_TTL_MS,
-    createBroadcastChannel,
-    createLiveWriterPublishAck,
-    createWaitingWriterBridgeBlock,
-    createWriterId,
-    extractWriterBridgeTargets,
-    removeStoredWriterTargetSession,
-    replaceWriterBridgeBlock,
     serializeWriterBridgeBlock,
-    upsertStoredWriterTargetSession,
-    type LabPublishBroadcast,
     type WriterImportPayload,
-    type WriterTargetsRequest,
 } from "@/lib/live-writer-bridge";
 import {
     compileWriterProjectSections,
@@ -58,6 +46,11 @@ import {
     type WriterProjectSection,
 } from "@/lib/writer-project";
 import { writerTemplates, type WriterTemplate, type WriterTemplateIcon } from "@/lib/writer-templates";
+import {
+    createWriterImportPayloadFromSavedResult,
+    fetchSavedLaboratoryResult,
+    type SavedLaboratoryResult,
+} from "@/lib/laboratory-results";
 
 export type PaperFormData = {
     title: string;
@@ -82,6 +75,11 @@ type BlockPreset = {
 
 type PreviewSyncMode = "live" | "manual";
 type InspectorSection = "navigator" | "tools" | "metadata" | "templates" | "outline";
+type OutdatedLabImport = {
+    savedResultId: string;
+    currentRevision: number;
+    latest: SavedLaboratoryResult;
+};
 
 const CONTENT_SYNC_DELAY_MS = 160;
 const PREVIEW_SYNC_DELAY_MS = 260;
@@ -95,6 +93,7 @@ const MIN_SIDEBAR_WIDTH = 332;
 const MAX_SIDEBAR_WIDTH = 430;
 const SPLIT_VIEW_BREAKPOINT = 1360;
 const RESIZABLE_SIDEBAR_BREAKPOINT = 1480;
+const LAB_IMPORT_BLOCK_REGEX = /<!-- lab-result-import:([a-f0-9-]+):(\d+):start -->([\s\S]*?)<!-- lab-result-import:\1:end -->/gi;
 
 const blockPresets: BlockPreset[] = [
     {
@@ -178,6 +177,33 @@ function analyzeDocumentContent(content: string) {
     };
 }
 
+function buildSavedResultImportSnippet(payload: WriterImportPayload) {
+    const body = [payload.block ? serializeWriterBridgeBlock(payload.block) : "", payload.markdown]
+        .filter(Boolean)
+        .join("\n\n");
+
+    if (payload.block?.savedResultId && payload.block.savedResultRevision) {
+        return [
+            `<!-- lab-result-import:${payload.block.savedResultId}:${payload.block.savedResultRevision}:start -->`,
+            body,
+            `<!-- lab-result-import:${payload.block.savedResultId}:end -->`,
+        ].join("\n\n");
+    }
+
+    return body;
+}
+
+function extractSavedResultImports(content: string) {
+    const imports: Array<{ savedResultId: string; revision: number }> = [];
+    for (const match of content.matchAll(LAB_IMPORT_BLOCK_REGEX)) {
+        imports.push({
+            savedResultId: match[1],
+            revision: Number(match[2]),
+        });
+    }
+    return imports;
+}
+
 export function PaperEditorWorkspace({
     formData,
     onChange,
@@ -186,7 +212,6 @@ export function PaperEditorWorkspace({
     errorMessage,
     backHref = "/write",
     mode = "new",
-    documentId,
 }: {
     formData: PaperFormData;
     onChange: (next: PaperFormData) => void;
@@ -213,12 +238,9 @@ export function PaperEditorWorkspace({
     );
     const [inspectorSection, setInspectorSection] = useState<InspectorSection>("navigator");
     const [previewSyncMode, setPreviewSyncMode] = useState<PreviewSyncMode>("live");
-    const writerIdRef = useRef(createWriterId());
-    const channelRef = useRef<BroadcastChannel | null>(null);
     const latestFormDataRef = useRef(formData);
     const isInternalContentSyncRef = useRef(false);
     const hasAutoSwitchedForPerformanceRef = useRef(false);
-    const liveBridgeTargetsRef = useRef<ReturnType<typeof extractWriterBridgeTargets>>([]);
     const normalizedSections = useMemo(() => ensureWriterProjectSections(formData), [formData]);
     const [activeSectionId, setActiveSectionId] = useState(() => getWriterSectionKey(normalizedSections[0]));
     const activeSection =
@@ -236,6 +258,8 @@ export function PaperEditorWorkspace({
             : DEFAULT_SIDEBAR_WIDTH,
     );
     const [splitRatio, setSplitRatio] = useState(52);
+    const [outdatedLabImports, setOutdatedLabImports] = useState<OutdatedLabImport[]>([]);
+    const [dismissedLabImportKeys, setDismissedLabImportKeys] = useState<Set<string>>(() => new Set());
     const latestEditorContentRef = useRef(activeSection?.content ?? "");
     const lastCommittedContentRef = useRef(activeSection?.content ?? "");
 
@@ -262,8 +286,6 @@ export function PaperEditorWorkspace({
     const plot2DBlocks = documentAnalysis.plot2DBlocks;
     const plot3DBlocks = documentAnalysis.plot3DBlocks;
     const totalPlots = documentAnalysis.totalPlots;
-    const liveBridgeTargets = useMemo(() => extractWriterBridgeTargets(compiledProjectContent), [compiledProjectContent]);
-    const liveBridgeTargetsSignature = useMemo(() => JSON.stringify(liveBridgeTargets), [liveBridgeTargets]);
     const authorList = splitCommaValues(formData.authors);
     const keywordList = splitCommaValues(formData.keywords);
     const performanceModeRecommended =
@@ -292,6 +314,8 @@ export function PaperEditorWorkspace({
     const canResizeSidebar = viewportWidth >= RESIZABLE_SIDEBAR_BREAKPOINT;
     const splitViewAvailable = viewportWidth >= SPLIT_VIEW_BREAKPOINT;
     const splitLayoutEnabled = viewMode === "split" && splitViewAvailable;
+    const savedResultImports = useMemo(() => extractSavedResultImports(compiledProjectContent), [compiledProjectContent]);
+    const savedResultImportSignature = useMemo(() => JSON.stringify(savedResultImports), [savedResultImports]);
 
     const compileProjectContent = useCallback((sections: WriterProjectSection[]) => {
         return compileWriterProjectSections(sections, {
@@ -313,6 +337,50 @@ export function PaperEditorWorkspace({
     useEffect(() => {
         latestFormDataRef.current = formData;
     }, [formData]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function checkSavedResultRevisions() {
+            const uniqueImports = Array.from(
+                new Map(savedResultImports.map((item) => [item.savedResultId, item])).values(),
+            );
+
+            if (!uniqueImports.length) {
+                setOutdatedLabImports([]);
+                return;
+            }
+
+            const nextOutdated: OutdatedLabImport[] = [];
+            await Promise.all(
+                uniqueImports.map(async (item) => {
+                    try {
+                        const latest = await fetchSavedLaboratoryResult(item.savedResultId);
+                        const dismissKey = `${item.savedResultId}:${latest.revision}`;
+                        if (latest.revision > item.revision && !dismissedLabImportKeys.has(dismissKey)) {
+                            nextOutdated.push({
+                                savedResultId: item.savedResultId,
+                                currentRevision: item.revision,
+                                latest,
+                            });
+                        }
+                    } catch {
+                        // Revision checks are advisory; editing must not be blocked by network errors.
+                    }
+                }),
+            );
+
+            if (!cancelled) {
+                setOutdatedLabImports(nextOutdated);
+            }
+        }
+
+        void checkSavedResultRevisions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [dismissedLabImportKeys, savedResultImportSignature, savedResultImports]);
 
     useEffect(() => {
         if (typeof window === "undefined") {
@@ -379,10 +447,6 @@ export function PaperEditorWorkspace({
             setActiveSectionId(getWriterSectionKey(normalizedSections[0]));
         }
     }, [activeSectionId, normalizedSections]);
-
-    useEffect(() => {
-        liveBridgeTargetsRef.current = liveBridgeTargets;
-    }, [liveBridgeTargets, liveBridgeTargetsSignature]);
 
     useEffect(() => {
         const nextActiveContent = activeSection?.content ?? "";
@@ -647,6 +711,23 @@ export function PaperEditorWorkspace({
         setEditorContent(nextActiveSection.content);
     }
 
+    function handleUpdateActiveSection(patch: Partial<WriterProjectSection>) {
+        const nextSections = getSectionsWithCurrentDraft().map((section) =>
+            getWriterSectionKey(section) === getWriterSectionKey(activeSection)
+                ? { ...section, ...patch }
+                : section,
+        );
+
+        syncFullDocument(
+            {
+                ...latestFormDataRef.current,
+                sections: nextSections,
+                content: compileProjectContent(nextSections),
+            },
+            { syncPreview: false },
+        );
+    }
+
     function insertSnippet(snippet: string) {
         const textarea = textareaRef.current;
         const currentContent = latestEditorContentRef.current;
@@ -679,17 +760,40 @@ export function PaperEditorWorkspace({
         });
     }
 
-    function insertLiveBridgeBlock() {
-        const block = createWaitingWriterBridgeBlock("Taylor yoki laboratoriya natijasi");
-        const snippet = `\n${serializeWriterBridgeBlock(block)}\n`;
-        insertSnippet(snippet);
+    function handleImportSavedLaboratoryResult(payload: WriterImportPayload) {
+        insertSnippet(`\n${buildSavedResultImportSnippet(payload)}\n`);
     }
 
-    function handleImportSavedLaboratoryResult(payload: WriterImportPayload) {
-        const snippet = [payload.block ? serializeWriterBridgeBlock(payload.block) : "", payload.markdown]
-            .filter(Boolean)
-            .join("\n\n");
-        insertSnippet(`\n${snippet}\n`);
+    function handleUpdateSavedResultImport(item: OutdatedLabImport) {
+        const payload = createWriterImportPayloadFromSavedResult(item.latest, item.latest.structured_payload.profile || "summary");
+        const nextSnippet = buildSavedResultImportSnippet(payload);
+        const nextContent = latestEditorContentRef.current.replace(
+            new RegExp(
+                `<!-- lab-result-import:${item.savedResultId}:${item.currentRevision}:start -->[\\s\\S]*?<!-- lab-result-import:${item.savedResultId}:end -->`,
+                "i",
+            ),
+            nextSnippet,
+        );
+
+        latestEditorContentRef.current = nextContent;
+        setEditorContent(nextContent);
+        const nextSections = getSectionsWithCurrentDraft(nextContent);
+        syncFullDocument(
+            {
+                ...latestFormDataRef.current,
+                sections: nextSections,
+                content: compileProjectContent(nextSections),
+            },
+            { syncPreview: previewSyncMode === "live" },
+        );
+    }
+
+    function handleDismissSavedResultImport(item: OutdatedLabImport) {
+        setDismissedLabImportKeys((current) => {
+            const next = new Set(current);
+            next.add(`${item.savedResultId}:${item.latest.revision}`);
+            return next;
+        });
     }
 
     function openLaboratoryImportPanel() {
@@ -753,101 +857,6 @@ export function PaperEditorWorkspace({
             keywords: template.keywords,
         });
     }
-
-    useEffect(() => {
-        const channel = createBroadcastChannel();
-        if (!channel) {
-            return;
-        }
-
-        channelRef.current = channel;
-
-        const handleMessage = (event: MessageEvent<LabPublishBroadcast>) => {
-            const message = event.data;
-            if (!message || message.type !== "lab-publish" || message.writerId !== writerIdRef.current) {
-                return;
-            }
-
-            const acknowledgedAt = new Date().toISOString();
-            const nextBlock = {
-                ...message.payload,
-                sync: {
-                    revision: message.revision,
-                    pushedAt: message.publishedAt,
-                    acknowledgedAt,
-                    sourceLabel: message.sourceLabel,
-                },
-            };
-
-            startTransition(() => {
-                const nextData = {
-                    ...latestFormDataRef.current,
-                    content: replaceWriterBridgeBlock(latestEditorContentRef.current, nextBlock),
-                };
-                syncFullDocument(nextData);
-            });
-
-            channel.postMessage(
-                createLiveWriterPublishAck({
-                    message,
-                    acknowledgedAt,
-                    documentTitle: latestFormDataRef.current.title || "Nomsiz maqola",
-                    blockTitle: nextBlock.title,
-                }),
-            );
-        };
-
-        channel.addEventListener("message", handleMessage as EventListener);
-
-        return () => {
-            channel.removeEventListener("message", handleMessage as EventListener);
-            channel.close();
-            channelRef.current = null;
-        };
-    }, [syncFullDocument]);
-
-    useEffect(() => {
-        const channel = channelRef.current;
-        if (!channel) {
-            return;
-        }
-        const writerId = writerIdRef.current;
-
-        const broadcastTargets = () => {
-            const payload = {
-                type: "writer-targets",
-                writerId,
-                documentTitle: latestFormDataRef.current.title || "Nomsiz maqola",
-                documentId,
-                targets: liveBridgeTargetsRef.current,
-            } as const;
-
-            channel.postMessage(payload);
-            upsertStoredWriterTargetSession({
-                writerId: payload.writerId,
-                documentTitle: payload.documentTitle,
-                documentId: payload.documentId,
-                lastSeen: Date.now(),
-                targets: payload.targets,
-            });
-        };
-
-        const handleRequest = (event: MessageEvent<WriterTargetsRequest>) => {
-            if (event.data?.type === "writer-targets-request") {
-                broadcastTargets();
-            }
-        };
-
-        channel.addEventListener("message", handleRequest as EventListener);
-        broadcastTargets();
-        const intervalId = window.setInterval(broadcastTargets, Math.floor(LIVE_WRITER_TARGET_TTL_MS / 4));
-
-        return () => {
-            channel.removeEventListener("message", handleRequest as EventListener);
-            window.clearInterval(intervalId);
-            removeStoredWriterTargetSession(writerId);
-        };
-    }, [documentId]);
 
     const statusTone =
         formData.status === "published"
@@ -1071,21 +1080,92 @@ export function PaperEditorWorkspace({
                                 <WriterProjectPanel
                                     sections={normalizedSections}
                                     activeSectionId={getWriterSectionKey(activeSection)}
+                                    activeSection={activeSection}
                                     documentKind={formData.document_kind}
                                     onSelectSection={handleSelectSection}
+                                    onUpdateActiveSection={handleUpdateActiveSection}
                                     onAddSection={handleAddSection}
                                     onDuplicateSection={handleDuplicateSection}
                                     onMoveSection={handleMoveSection}
                                     onRemoveSection={handleRemoveSection}
-                                    onInsertLabBlock={insertLiveBridgeBlock}
-                                    onOpenMetadata={() => setInspectorSection("metadata")}
-                                    onOpenTemplates={() => setInspectorSection("templates")}
                                 />
                             )}
 
                             {inspectorSection === "tools" && (
                                 <>
+                                <div className="site-panel p-4">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                                Editor tools
+                                            </div>
+                                            <div className="mt-1 text-lg font-black">Insert blocks</div>
+                                        </div>
+                                        <PencilLine className="h-5 w-5 text-accent" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {blockPresets.map((preset) => (
+                                            <button
+                                                key={preset.label}
+                                                type="button"
+                                                onClick={() => insertSnippet(preset.snippet)}
+                                                className="site-toolbar-pill justify-start px-3 py-2 text-[10px] tracking-[0.12em]"
+                                            >
+                                                <preset.icon className="h-3 w-3" />
+                                                {preset.label}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={openLaboratoryImportPanel}
+                                            className="site-toolbar-pill justify-start px-3 py-2 text-[10px] tracking-[0.12em]"
+                                        >
+                                            <DatabaseZap className="h-3 w-3" />
+                                            Import
+                                        </button>
+                                    </div>
+                                    <div className="mt-3">
+                                        <MathKeyboard onInsert={insertSnippet} />
+                                    </div>
+                                </div>
                                 <LaboratoryResultImportPanel onImport={handleImportSavedLaboratoryResult} />
+                                {outdatedLabImports.length ? (
+                                    <div className="site-panel border-amber-400/30 bg-amber-500/10 p-4">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-amber-700 dark:text-amber-300">
+                                            Saved result updates
+                                        </div>
+                                        <div className="mt-1 text-lg font-black">Lab natijasi yangilangan</div>
+                                        <div className="mt-2 text-sm leading-6 text-muted-foreground">
+                                            Dokument snapshot sifatida saqlangan. Yangi revisionni faqat o&apos;zingiz tasdiqlasangiz almashtiraman.
+                                        </div>
+                                        <div className="mt-4 space-y-3">
+                                            {outdatedLabImports.map((item) => (
+                                                <div key={`${item.savedResultId}-${item.latest.revision}`} className="rounded-2xl border border-border/60 bg-background/75 p-3">
+                                                    <div className="text-sm font-bold">{item.latest.title}</div>
+                                                    <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                                                        Dokumentda r{item.currentRevision}, labda r{item.latest.revision}. {item.latest.summary}
+                                                    </div>
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUpdateSavedResultImport(item)}
+                                                            className="rounded-2xl bg-foreground px-3 py-2 text-xs font-bold text-background transition hover:opacity-90"
+                                                        >
+                                                            Update from lab
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDismissSavedResultImport(item)}
+                                                            className="rounded-2xl border border-border/60 bg-background px-3 py-2 text-xs font-bold text-muted-foreground transition hover:border-foreground hover:text-foreground"
+                                                        >
+                                                            Keep snapshot
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
                                 <CitationManager onInsert={handleInsertCitation} />
                             <div className="site-panel mt-4 p-4">
                                 <div className="mb-4 flex items-center justify-between">
@@ -1147,8 +1227,6 @@ export function PaperEditorWorkspace({
                                     </button>
                                 </div>
                             </div>
-                            <WriterLiveTargetsPanel targets={liveBridgeTargets} onInsertTarget={insertLiveBridgeBlock} />
-
                             <div className="site-panel p-4">
                                 <div className="mb-4 flex items-center justify-between">
                                     <div>
@@ -1428,154 +1506,17 @@ export function PaperEditorWorkspace({
                     >
                         {(viewMode === "edit" || viewMode === "split") && (
                             <section className="site-panel flex h-full min-h-0 flex-col overflow-hidden print:hidden">
-                                <div className="border-b border-border/60 bg-muted/15 px-3 py-3 md:px-4">
-                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                        <div className="site-status-pill px-3 py-1 text-[10px] tracking-[0.16em]">
-                                            Section Editor
+                                <div className="border-b border-border/60 bg-muted/15 px-3 py-2.5 md:px-4">
+                                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <div className="site-status-pill inline-flex px-3 py-1 text-[10px] tracking-[0.16em]">
+                                                Section Editor
+                                            </div>
+                                            <div className="mt-1 truncate text-sm font-bold">{activeSection.title}</div>
                                         </div>
                                         <div className="site-status-pill px-3 py-1 text-[10px] tracking-[0.16em]">
                                             {activeSection.kind} / {activeSection.progress_state}
                                         </div>
-                                    </div>
-                                    <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_168px_auto]">
-                                        <input
-                                            value={activeSection.title}
-                                            onChange={(event) => {
-                                                const nextSections = getSectionsWithCurrentDraft().map((section) =>
-                                                    getWriterSectionKey(section) === getWriterSectionKey(activeSection)
-                                                        ? { ...section, title: event.target.value }
-                                                        : section,
-                                                );
-                                                syncFullDocument(
-                                                    {
-                                                        ...latestFormDataRef.current,
-                                                        sections: nextSections,
-                                                        content: compileProjectContent(nextSections),
-                                                    },
-                                                    { syncPreview: false },
-                                                );
-                                            }}
-                                            className="w-full rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
-                                            placeholder="Hozirgi file nomi"
-                                        />
-                                        <select
-                                            value={activeSection.kind}
-                                            onChange={(event) => {
-                                                const nextSections = getSectionsWithCurrentDraft().map((section) =>
-                                                    getWriterSectionKey(section) === getWriterSectionKey(activeSection)
-                                                        ? { ...section, kind: event.target.value as WriterProjectSection["kind"] }
-                                                        : section,
-                                                );
-                                                syncFullDocument(
-                                                    {
-                                                        ...latestFormDataRef.current,
-                                                        sections: nextSections,
-                                                        content: compileProjectContent(nextSections),
-                                                    },
-                                                    { syncPreview: false },
-                                                );
-                                            }}
-                                            className="rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
-                                        >
-                                            <option value="frontmatter">Frontmatter</option>
-                                            <option value="chapter">Chapter</option>
-                                            <option value="section">Section</option>
-                                            <option value="appendix">Appendix</option>
-                                            <option value="references">References</option>
-                                        </select>
-                                        <div className="grid gap-2 sm:grid-cols-[148px_auto]">
-                                            <select
-                                                value={activeSection.progress_state}
-                                                onChange={(event) => {
-                                                    const nextSections = getSectionsWithCurrentDraft().map((section) =>
-                                                        getWriterSectionKey(section) === getWriterSectionKey(activeSection)
-                                                            ? {
-                                                                  ...section,
-                                                                  progress_state: event.target.value as WriterProjectSection["progress_state"],
-                                                              }
-                                                            : section,
-                                                    );
-                                                    syncFullDocument(
-                                                        {
-                                                            ...latestFormDataRef.current,
-                                                            sections: nextSections,
-                                                            content: compileProjectContent(nextSections),
-                                                        },
-                                                        { syncPreview: false },
-                                                    );
-                                                }}
-                                                className="rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
-                                            >
-                                                <option value="todo">Todo</option>
-                                                <option value="drafting">Drafting</option>
-                                                <option value="done">Done</option>
-                                            </select>
-                                            <div className="flex flex-wrap gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={handleAddSection}
-                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
-                                            >
-                                                New
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleDuplicateSection}
-                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
-                                            >
-                                                Clone
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={insertLiveBridgeBlock}
-                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
-                                            >
-                                                Lab
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={openLaboratoryImportPanel}
-                                                className="rounded-2xl border border-border/60 bg-background px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-accent/30 hover:text-foreground"
-                                            >
-                                                Import
-                                            </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="border-b border-border/60 bg-muted/10 px-3 py-2.5 md:px-4">
-                                    <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto">
-                                    {blockPresets.map((preset) => (
-                                        <button
-                                            key={preset.label}
-                                            type="button"
-                                            onClick={() => insertSnippet(preset.snippet)}
-                                            className="site-toolbar-pill px-2.5 py-1.5 text-[10px] tracking-[0.14em]"
-                                        >
-                                            <preset.icon className="h-3 w-3" />
-                                            {preset.label}
-                                        </button>
-                                    ))}
-                                    <button
-                                        type="button"
-                                        onClick={insertLiveBridgeBlock}
-                                        className="site-toolbar-pill px-2.5 py-1.5 text-[10px] tracking-[0.14em]"
-                                    >
-                                        <Sparkles className="h-3 w-3" />
-                                        Live Lab Block
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={openLaboratoryImportPanel}
-                                        className="site-toolbar-pill px-2.5 py-1.5 text-[10px] tracking-[0.14em]"
-                                    >
-                                        <DatabaseZap className="h-3 w-3" />
-                                        Import Saved
-                                    </button>
-                                    <div className="ml-auto">
-                                        <MathKeyboard onInsert={insertSnippet} />
-                                    </div>
                                     </div>
                                 </div>
 

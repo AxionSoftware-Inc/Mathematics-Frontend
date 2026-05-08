@@ -1,5 +1,6 @@
 import { LaboratoryReportLayout } from "@/components/laboratory/laboratory-report-layout";
 import { AnnotationPanel } from "../components/annotation-panel";
+import type { WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 import type { SeriesLimitStudioState } from "../types";
 
 type LiveTarget = {
@@ -19,6 +20,8 @@ export function ReportView({
     liveTargets,
     selectedLiveTargetId,
     setSelectedLiveTargetId,
+    publicationProfile,
+    setPublicationProfile,
 }: {
     state: SeriesLimitStudioState;
     copyMarkdownExport: () => void;
@@ -31,6 +34,8 @@ export function ReportView({
     liveTargets: LiveTarget[];
     selectedLiveTargetId: string | null;
     setSelectedLiveTargetId: (id: string) => void;
+    publicationProfile: WriterBridgePublicationProfile;
+    setPublicationProfile: (profile: WriterBridgePublicationProfile) => void;
 }) {
     const reportBody = `# Series / Limit Research Report
 
@@ -69,7 +74,12 @@ export function ReportView({
 ## Diagnostics
 - expansion: ${state.summary.expansionSignal ?? "pending"}
 - risk: ${state.summary.riskSignal ?? "pending"}
-- method: ${state.analyticSolution?.exact.method_label ?? "client-side preview"}`;
+- method: ${state.analyticSolution?.exact.method_label ?? "client-side preview"}
+- readiness: ${state.contractSummary.readinessLabel}
+- contract: ${state.contractSummary.status}
+- contract risk: ${state.contractSummary.riskLevel}
+- benchmark: ${state.benchmarkSummary ? `${state.benchmarkSummary.label} -> ${state.benchmarkSummary.status}` : "n/a"}
+- review notes: ${state.contractSummary.reviewNotes.join(" | ") || "none"}`;
 
     const abstractText =
         state.mode === "limits"
@@ -80,6 +90,7 @@ export function ReportView({
         { eyebrow: "Mode", value: state.mode, detail: "Active series / limit lane", tone: "neutral" as const },
         { eyebrow: "Family", value: state.summary.detectedFamily ?? "pending", detail: "Detected research family", tone: "info" as const },
         { eyebrow: "Result", value: state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending", detail: "Primary report result", tone: "success" as const },
+        { eyebrow: "Readiness", value: state.contractSummary.readinessLabel, detail: "Series / limit contract", tone: "info" as const },
     ];
 
     const supportCards = [
@@ -87,6 +98,7 @@ export function ReportView({
         { eyebrow: "Error Bound", value: state.summary.errorBoundSignal ?? "pending", detail: "Tail / approximation control", tone: "warn" as const },
         { eyebrow: "Endpoint", value: state.summary.endpointSignal ?? "pending", detail: "Boundary audit state", tone: "neutral" as const },
         { eyebrow: "Method", value: state.analyticSolution?.exact.method_label ?? "client preview", detail: "Primary symbolic lane", tone: "success" as const },
+        { eyebrow: "Contract Risk", value: state.contractSummary.riskLevel, detail: state.contractSummary.status, tone: "warn" as const },
     ];
 
     const readinessCards = [
@@ -94,6 +106,7 @@ export function ReportView({
         { eyebrow: "Annotations", value: String(state.annotationPanelProps.state.annotations.length), detail: "Saved research notes", tone: "neutral" as const },
         { eyebrow: "Live", value: liveTargets.length ? "Ready" : "Waiting", detail: liveTargets.length ? "Writer target available" : "Open Writer to publish live", tone: liveTargets.length ? "success" as const : "warn" as const },
         { eyebrow: "State", value: state.solveErrorMessage ? "Review" : "Ready", detail: state.solveErrorMessage ?? "Report packet can be exported", tone: state.solveErrorMessage ? "warn" as const : "success" as const },
+        { eyebrow: "Benchmark", value: state.benchmarkSummary?.status ?? "n/a", detail: state.benchmarkSummary?.label ?? "No canonical benchmark matched", tone: "neutral" as const },
     ];
 
     return (
@@ -102,6 +115,8 @@ export function ReportView({
             supportCards={supportCards}
             readinessCards={readinessCards}
             reportMarkdown={reportBody}
+            publicationProfile={publicationProfile}
+            setPublicationProfile={setPublicationProfile}
             copyMarkdownExport={copyMarkdownExport}
             saveResult={saveResult}
             saveState={saveState}

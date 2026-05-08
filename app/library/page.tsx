@@ -1,11 +1,10 @@
-/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Download, Library, Search, Sparkles, Star } from "lucide-react";
+import { ArrowRight, BookOpen, Download, Library, Search, Star } from "lucide-react";
 
-import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
+import { SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchPublic, getMediaUrl } from "@/lib/api";
 
 type Book = {
@@ -61,124 +60,14 @@ export default function LibraryPage() {
         return matchesCategory && (!normalizedQuery || haystack.includes(normalizedQuery));
     });
 
-    const digitalBooks = books.filter((book) => book.pdf_file).length;
-    const authors = new Set(books.map((book) => book.author).filter(Boolean));
     const featuredBooks = [...books]
         .sort((left, right) => Number(right.download_count || 0) - Number(left.download_count || 0))
         .slice(0, 3);
     const spotlightBook = featuredBooks[0];
     const supportFeaturedBooks = featuredBooks.slice(1);
-    const shelfPreview = featuredBooks.length ? featuredBooks : books.slice(0, 3);
 
     return (
         <div className="site-shell">
-            <SiteSection className="pb-8 pt-12 md:pt-16">
-                <SiteContainer>
-                    <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
-                        <div className="space-y-6">
-                            <HeroBadge>
-                                <Sparkles className="h-4 w-4" />
-                                Professional Knowledge Archive
-                            </HeroBadge>
-                            <div className="space-y-4">
-                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.55rem]">
-                                    Library endi
-                                    <span className="site-kicker"> katalogdan ko‘ra yaxshiroq, </span>
-                                    tartibli ilmiy shelf va discovery yuzasi sifatida ishlaydi.
-                                </h1>
-                                <p className="site-lead max-w-2xl">
-                                    Cover, metadata va discovery oqimi qayta yig‘ildi. Har bir nashr media sahna,
-                                    editorial meta va detailga olib o‘tuvchi aniq kartaga ega.
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                                <Link href="/journal" className="site-button-primary">
-                                    Ilmiy jurnalga o'tish
-                                    <ArrowRight className="h-4 w-4" />
-                                </Link>
-                                <Link href="/academy" className="site-button-secondary">
-                                    O'quv oqimini ko'rish
-                                </Link>
-                            </div>
-                        </div>
-
-                        <div className="site-panel-strong p-5 md:p-7 xl:p-8">
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{books.length}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Kitoblar soni</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{digitalBooks}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Digital formatlar</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{authors.size}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Mualliflar</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{filteredBooks.length}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Natijalar</div>
-                                </div>
-                            </div>
-
-                            <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-                                <div className="site-media-frame min-h-[260px] p-5">
-                                    <div className="site-eyebrow">Shelf Preview</div>
-                                    <div className="mt-5 flex h-[190px] items-end justify-center gap-3 overflow-hidden sm:gap-4">
-                                        {shelfPreview.length ? (
-                                            shelfPreview.map((book, index) => (
-                                                <div
-                                                    key={book.id}
-                                                    className={`site-cover-stage relative w-[92px] shrink-0 p-2 sm:w-[104px] ${
-                                                        index === 1 ? "translate-y-6 rotate-[-4deg]" : index === 2 ? "translate-y-2 rotate-[5deg]" : "rotate-[3deg]"
-                                                    }`}
-                                                >
-                                                    <div className="site-cover-inner relative aspect-[3/4]">
-                                                        {book.cover_image ? (
-                                                            <img
-                                                                src={getMediaUrl(book.cover_image)}
-                                                                alt={book.title}
-                                                                className="h-full w-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(29,78,216,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(15,118,110,0.18),transparent_40%)]">
-                                                                <Library className="h-9 w-9 text-[var(--accent)]/45" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center rounded-[1.4rem] border border-dashed border-border text-sm font-semibold text-muted-foreground">
-                                                Kolleksiya shakllanmoqda
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-4">
-                                    <div className="site-outline-card p-5">
-                                        <div className="site-eyebrow">Visual Rule</div>
-                                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Cover to‘g‘ridan-to‘g‘ri karta foniga yopishtirilmaydi. U alohida frame
-                                            ichida, aniq proporsiya va toza kontrast bilan ko‘rsatiladi.
-                                        </p>
-                                    </div>
-                                    <div className="site-outline-card p-5">
-                                        <div className="site-eyebrow">Discovery Flow</div>
-                                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Search, category va featured shelf bitta oqimga keltirildi. Foydalanuvchi
-                                            ko'radi, taqqoslaydi va detail sahifaga tez o'tadi.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </SiteContainer>
-            </SiteSection>
-
             {spotlightBook ? (
                 <SiteSection className="py-6">
                     <SiteContainer>

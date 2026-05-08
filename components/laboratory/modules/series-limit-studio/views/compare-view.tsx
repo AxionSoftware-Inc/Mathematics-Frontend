@@ -29,7 +29,7 @@ export function CompareView({ state }: { state: SeriesLimitStudioState }) {
         { eyebrow: "Method", value: state.analyticSolution?.exact.method_label ?? "pending", detail: "Primary compare lane", tone: "info" as const },
         { eyebrow: "Risk", value: state.summary.riskSignal ?? "pending", detail: "Global convergence risk", tone: "warn" as const },
         { eyebrow: "Result", value: state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending", detail: "Current best result", tone: "success" as const },
-        { eyebrow: "Family", value: state.summary.detectedFamily ?? "pending", detail: "Detected structure", tone: "neutral" as const },
+        { eyebrow: "Readiness", value: state.contractSummary.readinessLabel, detail: "Solver contract", tone: "neutral" as const },
     ];
 
     return (
@@ -45,9 +45,11 @@ export function CompareView({ state }: { state: SeriesLimitStudioState }) {
                             title="Risk Register"
                             items={compactItems([
                                 `Risk: ${state.summary.riskSignal ?? "pending"}`,
+                                `Contract: ${state.contractSummary.status} / ${state.contractSummary.riskLevel}`,
                                 `Dominant term: ${state.summary.dominantTerm ?? "pending"}`,
                                 `Interval / asymptotic: ${state.summary.intervalSignal ?? state.summary.asymptoticSignal ?? "pending"}`,
                                 `Tail / partial sum: ${state.summary.partialSumSignal ?? state.summary.boundedness ?? "pending"}`,
+                                ...state.contractSummary.reviewNotes.map((note) => `Review: ${note}`),
                             ])}
                         />
                     ),
@@ -66,6 +68,7 @@ export function CompareView({ state }: { state: SeriesLimitStudioState }) {
                                 `Convergence: ${state.summary.convergenceSignal ?? state.summary.radiusSignal ?? "pending"}`,
                                 `Monotonicity: ${state.summary.monotonicity ?? "pending"}`,
                                 `Boundedness: ${state.summary.boundedness ?? "pending"}`,
+                                ...(state.benchmarkSummary ? [`Benchmark: ${state.benchmarkSummary.label} -> ${state.benchmarkSummary.status}`] : []),
                             ])}
                         />
                     ),

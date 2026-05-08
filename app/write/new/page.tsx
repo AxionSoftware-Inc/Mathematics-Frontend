@@ -124,7 +124,7 @@ function NewPaperPageContent() {
     }
 
     return (
-        <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col overflow-hidden">
+        <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden">
             <PaperEditorWorkspace
                 formData={formData}
                 onChange={setFormData}
@@ -140,7 +140,7 @@ function NewPaperPageContent() {
 
 function NewPaperPageFallback() {
     return (
-        <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col items-center justify-center overflow-hidden bg-background text-muted-foreground">
+        <div className="flex h-dvh min-h-0 w-full flex-col items-center justify-center overflow-hidden bg-background text-muted-foreground">
             <p>Writer yuklanmoqda...</p>
         </div>
     );

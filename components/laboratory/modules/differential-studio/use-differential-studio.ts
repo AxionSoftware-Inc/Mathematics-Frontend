@@ -18,6 +18,7 @@ import { DifferentialMathService } from "./services/math-service";
 import { DifferentialSolveService } from "./services/solve-service";
 import {
     buildDifferentialCompareOverviewCards,
+    evaluateDifferentialBenchmark,
     buildDifferentialMethodTableRows,
     buildDifferentialPrimaryResultText,
     buildDifferentialReportExecutiveCards,
@@ -296,14 +297,19 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
         [analyticSolution, mode],
     );
 
+    const benchmarkSummary = React.useMemo(
+        () => evaluateDifferentialBenchmark(mode, expression, point, variable, summary),
+        [expression, mode, point, summary, variable],
+    );
+
     const trustScore = React.useMemo(
-        () => buildDifferentialTrustScore(analyticSolution, error, solveErrorMessage, summary, mode),
-        [analyticSolution, error, mode, solveErrorMessage, summary],
+        () => buildDifferentialTrustScore(analyticSolution, error, solveErrorMessage, summary, mode, benchmarkSummary),
+        [analyticSolution, benchmarkSummary, error, mode, solveErrorMessage, summary],
     );
 
     const trustHazards = React.useMemo(
-        () => buildDifferentialTrustHazards(analyticSolution, error, solveErrorMessage, mode),
-        [analyticSolution, error, mode, solveErrorMessage],
+        () => buildDifferentialTrustHazards(analyticSolution, error, solveErrorMessage, mode, benchmarkSummary),
+        [analyticSolution, benchmarkSummary, error, mode, solveErrorMessage],
     );
 
     const primaryResultText = React.useMemo(
@@ -312,13 +318,13 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
     );
 
     const reportExecutiveCards = React.useMemo(
-        () => buildDifferentialReportExecutiveCards(summary, analyticSolution, mode, trustScore),
-        [analyticSolution, mode, summary, trustScore],
+        () => buildDifferentialReportExecutiveCards(summary, analyticSolution, mode, trustScore, benchmarkSummary),
+        [analyticSolution, benchmarkSummary, mode, summary, trustScore],
     );
 
     const reportSupportCards = React.useMemo(
-        () => buildDifferentialReportSupportCards(summary, analyticSolution, mode),
-        [analyticSolution, mode, summary],
+        () => buildDifferentialReportSupportCards(summary, analyticSolution, mode, benchmarkSummary),
+        [analyticSolution, benchmarkSummary, mode, summary],
     );
 
     const methodTableRows = React.useMemo(
@@ -394,8 +400,11 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
             convergence: trustHazards.length ? "warning" as const : "convergent" as const,
             hazards: trustHazards,
             parserNotes: analyticSolution?.parser?.notes ?? [],
+            researchReadiness: analyticSolution?.diagnostics?.contract?.readiness_label ?? (analyticSolution?.diagnostics?.contract?.status === "ok" && !trustHazards.length ? "publication_ready" : analyticSolution?.diagnostics?.contract?.status === "warn" ? "research_review" : "working"),
+            contractStatus: analyticSolution?.diagnostics?.contract?.status ?? "info",
+            benchmarkSummary,
         },
-    }), [analyticSolution, trustHazards, trustScore]);
+    }), [analyticSolution, benchmarkSummary, trustHazards, trustScore]);
 
     const scenarioPanelProps = React.useMemo(() => ({
         state: {
@@ -450,6 +459,7 @@ export function useDifferentialStudio(module: LaboratoryModuleMeta) {
             riskRegisterCards,
             reportExecutiveCards,
             reportSupportCards,
+            benchmarkSummary,
             trustPanelProps,
             scenarioPanelProps,
             annotationPanelProps,

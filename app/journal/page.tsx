@@ -3,9 +3,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Clock3, FileText, Newspaper, Search, Sparkles, User2 } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock3, FileText, Newspaper, Search, User2 } from "lucide-react";
 
-import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
+import { SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchPublic, getMediaUrl } from "@/lib/api";
 import { WriteTypeSelector } from "@/components/write-type-selector";
 
@@ -87,80 +87,9 @@ export default function JournalPage() {
     const supportArticles = featuredArticles.slice(1, 3);
     const showcaseArticles = featuredArticles.slice(3);
     const archiveArticles = filteredArticles.slice(featuredArticles.length);
-    const authors = new Set(articles.map((article) => article.author).filter(Boolean));
 
     return (
         <div className="site-shell">
-            <SiteSection className="pb-10 pt-12 md:pt-16">
-                <SiteContainer>
-                    <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-                        <div className="space-y-6">
-                            <HeroBadge>
-                                <Sparkles className="h-4 w-4" />
-                                Scientific Publishing Layer
-                            </HeroBadge>
-                            <div className="space-y-4">
-                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.5rem]">
-                                    Journal endi
-                                    <span className="site-kicker"> aniq editorial vitringa </span>
-                                    ega va asosiy nashrlarni bir qarashda ko‘rsatadi.
-                                </h1>
-                                <p className="site-lead max-w-2xl">
-                                    Asosiy maqolalar editorial vitrina ichida ajratiladi, qolganlari esa pastdagi arxiv
-                                    oqimida mantiqiy ravishda davom etadi. Bu sahifani katalog emas, nashr yuzasi sifatida o‘qitadi.
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                                <button
-                                    onClick={() => setIsWriteSelectorOpen(true)}
-                                    className="site-button-primary cursor-pointer"
-                                >
-                                    Maqola yozishni boshlash
-                                    <ArrowRight className="h-4 w-4" />
-                                </button>
-
-                                <Link href="/library" className="site-button-secondary">
-                                    Kutubxona bilan bog'lash
-                                </Link>
-                            </div>
-                        </div>
-
-                        <div className="site-panel-strong p-6 md:p-8">
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{articles.length}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Nashrlar</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{authors.size}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Mualliflar</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">
-                                        {Math.round(
-                                            articles.reduce((sum, article) => sum + Number(article.read_time_minutes || 0), 0),
-                                        )}
-                                        m
-                                    </div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Umumiy o'qish vaqti</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{filteredArticles.length}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Filter natijalari</div>
-                                </div>
-                            </div>
-                            <div className="mt-6 site-outline-card p-6">
-                                <div className="site-eyebrow">Publishing Experience</div>
-                                <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                    Topish, preview va detailga o‘tish endi bir xil editorial ritmda ishlaydi.
-                                    Asosiy nashrlar yuqorida jamlanadi, qolgan oqim esa pastda uzilmasdan davom etadi.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </SiteContainer>
-            </SiteSection>
-
             <SiteSection className="py-8">
                 <SiteContainer>
                     <div className="site-filter-shell flex flex-col gap-5 p-5 md:p-6">

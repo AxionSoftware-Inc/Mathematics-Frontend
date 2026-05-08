@@ -97,7 +97,7 @@ export default function EditPaperPage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col items-center justify-center overflow-hidden bg-background text-muted-foreground">
+            <div className="flex h-dvh min-h-0 w-full flex-col items-center justify-center overflow-hidden bg-background text-muted-foreground">
                 <Loader2 className="mb-4 h-8 w-8 animate-spin" />
                 <p>Muhit tayyorlanmoqda...</p>
             </div>
@@ -105,7 +105,7 @@ export default function EditPaperPage() {
     }
 
     return (
-        <div className="flex h-[calc(100dvh-5rem)] min-h-0 w-full flex-col overflow-hidden">
+        <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden">
             <PaperEditorWorkspace
                 formData={formData}
                 onChange={setFormData}

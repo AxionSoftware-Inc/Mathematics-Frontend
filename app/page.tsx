@@ -3,12 +3,9 @@ import {
     ArrowRight,
     BookOpenText,
     CirclePlay,
-    Compass,
     FlaskConical,
-    Orbit,
     Sigma,
     Sparkles,
-    SquareChartGantt,
 } from "lucide-react";
 
 import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
@@ -42,37 +39,7 @@ const flagshipSurfaces = [
     },
 ];
 
-const highlights = [
-    {
-        title: "Ilmiy ish uchun qurilgan",
-        text: "Landing oddiy kurs loyihasidek emas, ishonch uyg'otadigan produkt darajasida ko'rinishi kerak.",
-        icon: Compass,
-    },
-    {
-        title: "Minimal, ammo boy detal",
-        text: "Oq-qora palitra, toza tipografiya va qat'iy ritm premium taassurot beradi.",
-        icon: Sparkles,
-    },
-    {
-        title: "Bir-biriga ulangan modullar",
-        text: "Laboratoriyada olingan natija writer ichida qayta ishlanadigan aktivga aylanadi.",
-        icon: Orbit,
-    },
-    {
-        title: "Brend ohangi aniq",
-        text: "Har bir blok kompaniya qimmat mahsulot yaratganini his qildirishi kerak.",
-        icon: SquareChartGantt,
-    },
-];
-
 const workflows = [
-    {
-        label: "Matn tizimi",
-        title: "Maqola va kitob yozish jarayoni uchun qatlamli arxitektura.",
-        text: "Bo'limlar, preview, izohlar va formulalar bir xil vizual tartibda ishlaydi. Kontent o'sgani sari interfeys buzilmaydi.",
-        chips: ["Bo'limlar", "Preview", "Formulalar", "Nashr ruhi"],
-        kind: "writer" as const,
-    },
     {
         label: "Hisoblash tizimi",
         title: "Matematik natijani faqat chiqarish emas, isbotlash va ko'rsatish muhiti.",
@@ -349,29 +316,6 @@ export default function Home() {
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </SiteContainer>
-            </SiteSection>
-
-            <SiteSection className="pt-4">
-                <SiteContainer>
-                    <div className="grid gap-10 xl:grid-cols-[0.84fr_1.16fr]">
-                        <SectionHeading
-                            eyebrow="Premium signal"
-                            title="Birinchi taassurotning o'zi mahsulot saviyasini aytib turishi kerak."
-                            description="Qimmat sayt hissi effektlar ko'pligidan emas, ritm, tipografiya, bo'sh joy va qat'iy detal nazoratidan paydo bo'ladi."
-                        />
-                        <div className="grid gap-4 md:grid-cols-2">
-                            {highlights.map((item) => (
-                                <div key={item.title} className="site-panel p-6 md:p-7">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-[1.1rem] bg-foreground text-background">
-                                        <item.icon className="h-5 w-5" />
-                                    </div>
-                                    <h3 className="mt-5 font-serif text-2xl font-black tracking-tight text-foreground">{item.title}</h3>
-                                    <p className="mt-3 text-sm leading-7 text-foreground/62">{item.text}</p>
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </SiteContainer>
             </SiteSection>

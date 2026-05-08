@@ -2,6 +2,10 @@
 
 import React from "react";
 import { fetchPublic } from "@/lib/api";
+import {
+    applyPublicationProfileToBlock,
+    applyPublicationProfileToMarkdown,
+} from "@/lib/laboratory-publication-profile";
 
 import { type LiveWriterTargetOption } from "@/components/live-writer-bridge/use-live-writer-targets";
 import {
@@ -9,6 +13,7 @@ import {
     findLiveWriterTargetBySelection,
     queueWriterImport,
     type WriterBridgeBlockData,
+    type WriterBridgePublicationProfile,
 } from "@/lib/live-writer-bridge";
 
 type WriterBridgeExportState = "idle" | "copied" | "sent";
@@ -23,6 +28,7 @@ type UseLaboratoryWriterBridgeOptions = {
     setGuideMode?: React.Dispatch<React.SetStateAction<WriterBridgeGuideMode>>;
     buildMarkdown: () => string;
     buildBlock: (targetId: string) => WriterBridgeBlockData;
+    publicationProfile: WriterBridgePublicationProfile;
     getSavedResultMeta?: () => { id?: string | null; revision?: number | null } | null;
     getDraftMeta?: (block: WriterBridgeBlockData) => {
         title?: string;
@@ -41,6 +47,7 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
         setGuideMode,
         buildMarkdown,
         buildBlock,
+        publicationProfile,
         getSavedResultMeta,
         getDraftMeta,
     } = options;
@@ -54,17 +61,19 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
             return;
         }
 
-        await navigator.clipboard.writeText(buildMarkdown());
+        const block = applyPublicationProfileToBlock(buildBlock(`${sourceLabel.toLowerCase().replace(/\s+/g, "-")}-copy`), publicationProfile);
+        await navigator.clipboard.writeText(applyPublicationProfileToMarkdown(buildMarkdown(), block, publicationProfile));
         setExportState("copied");
         closeGuide();
-    }, [buildMarkdown, closeGuide, ready, setExportState]);
+    }, [buildBlock, buildMarkdown, closeGuide, publicationProfile, ready, setExportState, sourceLabel]);
 
     const sendToWriter = React.useCallback(() => {
         if (!ready) {
             return;
         }
 
-        const block = buildBlock(`${sourceLabel.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`);
+        const baseBlock = buildBlock(`${sourceLabel.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`);
+        const block = applyPublicationProfileToBlock(baseBlock, publicationProfile);
         const savedMeta = getSavedResultMeta?.();
         if (savedMeta?.id) {
             block.savedResultId = savedMeta.id;
@@ -73,7 +82,7 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
         const draftMeta = getDraftMeta?.(block);
         const requestId = queueWriterImport({
             version: 1,
-            markdown: buildMarkdown(),
+            markdown: applyPublicationProfileToMarkdown(buildMarkdown(), block, publicationProfile),
             block,
             title: draftMeta?.title ?? block.title,
             abstract: draftMeta?.abstract,
@@ -83,7 +92,7 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
         setExportState("sent");
         closeGuide();
         window.location.assign(createLaboratoryWriterDraftHref(requestId));
-    }, [buildBlock, buildMarkdown, closeGuide, getDraftMeta, ready, setExportState, sourceLabel]);
+    }, [buildBlock, buildMarkdown, closeGuide, getDraftMeta, publicationProfile, ready, setExportState, sourceLabel]);
 
     const pushLiveResult = React.useCallback(() => {
         const run = async () => {
@@ -96,7 +105,7 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
                 return;
             }
 
-            const block = buildBlock(target.id);
+            const block = applyPublicationProfileToBlock(buildBlock(target.id), publicationProfile);
             const savedMeta = getSavedResultMeta?.();
             block.savedResultId = savedMeta?.id ?? block.savedResultId ?? target.savedResultId;
             block.savedResultRevision = savedMeta?.revision ?? block.savedResultRevision ?? target.savedResultRevision;
@@ -119,7 +128,7 @@ export function useLaboratoryWriterBridge(options: UseLaboratoryWriterBridgeOpti
         void run().catch((error) => {
             console.error("Failed to push live laboratory result", error);
         });
-    }, [buildBlock, closeGuide, getSavedResultMeta, liveTargets, ready, selectedLiveTargetId, sourceLabel]);
+    }, [buildBlock, closeGuide, getSavedResultMeta, liveTargets, publicationProfile, ready, selectedLiveTargetId, sourceLabel]);
 
     return {
         copyMarkdownExport,

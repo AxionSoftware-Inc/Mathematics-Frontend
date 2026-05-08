@@ -105,7 +105,7 @@ export function SolveView({
 
     const displayedSteps = hasAnalytic ? state.analyticSolution?.exact.steps ?? [] : showNumericalDetails ? fallbackSteps : [];
     const finalResultSection = (
-        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+        <div className="site-lab-card p-5">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Final Result Synthesis</div>
             {state.analyticSolution?.exact.result_latex ? (
                 <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-5">
@@ -145,6 +145,8 @@ export function SolveView({
                         <MetricCard label="Rank" value={state.summary.rank ?? "pending"} />
                         <MetricCard label="Solver" value={state.summary.solverKind ?? "pending"} />
                         <MetricCard label="Residual Norm" value={state.summary.residualNorm ?? "pending"} />
+                        <MetricCard label="Least Squares" value={state.summary.leastSquaresSummary ?? "pending"} />
+                        <MetricCard label="Stability" value={state.summary.stabilitySummary ?? "pending"} />
                         <MetricCard label="Condition" value={state.summary.conditionNumber ?? "pending"} />
                         <MetricCard label="Pivots" value={state.summary.pivotColumns?.length ? state.summary.pivotColumns.join(", ") : "pending"} />
                         <MetricCard label="Iterative" value={state.summary.iterativeSummary ?? "pending"} />
@@ -156,6 +158,7 @@ export function SolveView({
                         <MetricCard label="Spectrum" value={state.summary.eigenSummary ?? "pending"} />
                         <MetricCard label="Spectral Radius" value={state.summary.spectralRadius ?? "pending"} />
                         <MetricCard label="SVD" value={state.summary.svdSummary ?? "pending"} />
+                        <MetricCard label="Factor Audit" value={state.summary.factorAuditSummary ?? "pending"} />
                         <MetricCard label="Diagonalizable" value={state.summary.diagonalizable == null ? "pending" : state.summary.diagonalizable ? "yes" : "no"} />
                         <MetricCard label="Factorizations" value={state.summary.decompositionSummary ?? "pending"} />
                     </>
@@ -181,7 +184,7 @@ export function SolveView({
         </div>
     );
     const methodTraceSection = (
-        <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+        <div className="site-lab-card p-5">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Method Trace</div>
             <div className="mt-4 space-y-3">
                 {displayedSteps.map((step, index) => (
@@ -231,7 +234,7 @@ export function SolveView({
             }
             derivation={
                 <div className="space-y-4">
-                    <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                    <div className="site-lab-card p-5">
                         <LaboratoryMathPanel
                             eyebrow={hasAnalytic ? "Analytic Derivation" : "Numerical Fallback"}
                             title={hasAnalytic ? "Closed-form reading" : "Analytic form unavailable"}
@@ -249,7 +252,7 @@ export function SolveView({
                         ) : null}
                     </div>
 
-                    <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                    <div className="site-lab-card p-5">
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Visualization Notes</div>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             {state.visualNotes.map((note) => (
@@ -274,7 +277,7 @@ export function SolveView({
                     ? {
                           id: "analytic-forms",
                           node: (
-                              <div className="rounded-3xl border border-border/50 bg-background p-5 shadow-sm">
+                              <div className="site-lab-card p-5">
                                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Analytic Forms</div>
                                   <div className="mt-4 grid gap-4 lg:grid-cols-3">
                                       <FormulaCard label="Parsed Input" value={state.analyticSolution.parser.expression_latex || state.analyticSolution.parser.expression_raw} />

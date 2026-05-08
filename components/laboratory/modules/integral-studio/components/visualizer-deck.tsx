@@ -1,8 +1,9 @@
 import React from "react";
 import { CartesianPlot } from "@/components/laboratory/cartesian-plot";
-import { ScientificPlot } from "@/components/laboratory/scientific-plot";
+import { ScientificPlot, buildScatter3DTrajectoryData } from "@/components/laboratory/scientific-plot";
 import { 
     IntegralMode, 
+    IntegralAnalyticSolveResponse,
     IntegralComputationSummary, 
     SingleIntegralSummary,
     DoubleIntegralSummary,
@@ -12,19 +13,77 @@ import { LaboratoryFormattingService } from "@/components/laboratory/services/fo
 
 const { formatMetric } = LaboratoryFormattingService;
 
+type GeometryCurvePreview = {
+    kind: string;
+    lane: string;
+    plotKind: string;
+    title: string;
+    details: string[];
+    samples: Array<{ x: number; y: number; z?: number }>;
+    dimension?: "2d" | "3d";
+};
+
+type GeometrySurfacePreview = {
+    kind: string;
+    lane: string;
+    plotKind: string;
+    title: string;
+    details: string[];
+    samples: Array<{ x: number; y: number; z: number }>;
+};
+
+type PreviewVisualization =
+    | GeometryCurvePreview
+    | GeometrySurfacePreview
+    | {
+        kind: string;
+        samples: Array<{ x: number; y: number }>;
+    }
+    | {
+        kind: string;
+        gridLabel: string;
+        summary: DoubleIntegralSummary | TripleIntegralSummary;
+    }
+    | null;
+
+type SingleDiagnosticsLike = {
+    relativeSpread?: number;
+    stability?: string;
+} | null;
+
+type DoubleDiagnosticsLike = {
+    gridCells?: number;
+    peak?: number;
+    mean?: number;
+} | null;
+
+type TripleDiagnosticsLike = {
+    gridCells?: number;
+    peak?: number;
+    voxelVolume?: number;
+} | null;
+
+type DoubleProfilesLike = {
+    xProfile: Array<{ x: number; y: number }>;
+    yProfile: Array<{ x: number; y: number }>;
+} | null;
+
+type TripleProfileLike = Array<{ x: number; y: number }> | null;
+
 interface VisualizerDeckProps {
     mode: IntegralMode;
     summary: IntegralComputationSummary | null;
-    previewVisualization: any;
+    previewVisualization: PreviewVisualization;
+    analyticSolution?: IntegralAnalyticSolveResponse | null;
     expression: string;
     normalizedXResolution: number;
     normalizedYResolution: number;
     normalizedZResolution: number;
-    singleDiagnostics: any;
-    doubleDiagnostics: any;
-    tripleDiagnostics: any;
-    doubleProfiles: any;
-    tripleProfile: any;
+    singleDiagnostics: SingleDiagnosticsLike;
+    doubleDiagnostics: DoubleDiagnosticsLike;
+    tripleDiagnostics: TripleDiagnosticsLike;
+    doubleProfiles: DoubleProfilesLike;
+    tripleProfile: TripleProfileLike;
     lower: string;
     upper: string;
     isResultStale?: boolean;
@@ -34,6 +93,7 @@ export function VisualizerDeck({
     mode,
     summary,
     previewVisualization,
+    analyticSolution,
     expression,
     normalizedXResolution,
     normalizedYResolution,
@@ -47,9 +107,16 @@ export function VisualizerDeck({
     upper,
     isResultStale = false,
 }: VisualizerDeckProps) {
+    const previewSamples = previewVisualization && "samples" in previewVisualization ? previewVisualization.samples : [];
+    const previewDetails = previewVisualization && "details" in previewVisualization ? previewVisualization.details : [];
+    const previewLane = previewVisualization && "lane" in previewVisualization ? previewVisualization.lane : "";
+    const previewTitle = previewVisualization && "title" in previewVisualization ? previewVisualization.title : "";
+    const previewPlotKind = previewVisualization && "plotKind" in previewVisualization ? previewVisualization.plotKind : "";
+    const previewSummary = previewVisualization && "summary" in previewVisualization ? previewVisualization.summary : null;
+    const previewGridLabel = previewVisualization && "gridLabel" in previewVisualization ? previewVisualization.gridLabel : "Lightweight";
     const singleSeriesPoints =
         mode === "single" && (isResultStale || !summary) && previewVisualization?.kind === "single"
-            ? previewVisualization.samples
+            ? previewSamples
             : mode === "single" && summary
               ? (summary as SingleIntegralSummary).samples
               : [];
@@ -60,25 +127,78 @@ export function VisualizerDeck({
             return null;
         }
 
-        if (previewVisualization.plotKind === "surface") {
+        if (previewPlotKind === "curve3d") {
+            return (
+                <ScientificPlot
+                    type="scatter3d"
+                    data={buildScatter3DTrajectoryData(previewSamples, { label: "Parametric path" }) as Array<Record<string, unknown>>}
+                    title={previewTitle}
+                    insights={["3D parametric path", "trajectory, head/tail, and projections"]}
+                />
+            );
+        }
+
+        if (previewPlotKind === "surface") {
             return (
                 <ScientificPlot
                     type="surface"
-                    data={previewVisualization.samples as Array<Record<string, unknown>>}
-                    title={previewVisualization.title}
+                    data={previewSamples as Array<Record<string, unknown>>}
+                    title={previewTitle}
                     insights={["parametric patch preview", "lightweight geometry surface"]}
+                />
+            );
+        }
+
+        if (previewPlotKind === "complex-plane") {
+            const poleTraces = analyticSolution?.exact.residue_analysis?.enclosed_poles.length
+                ? [
+                    {
+                        type: "scatter",
+                        mode: "markers+text",
+                        x: analyticSolution.exact.residue_analysis.enclosed_poles.map((pole) => pole.pole.real),
+                        y: analyticSolution.exact.residue_analysis.enclosed_poles.map((pole) => pole.pole.imag),
+                        text: analyticSolution.exact.residue_analysis.enclosed_poles.map((pole) => pole.residue_latex),
+                        textposition: "top center",
+                        marker: { size: 11, color: "#ef4444" },
+                        name: "Enclosed poles",
+                        hovertemplate: "Re=%{x:.4f}<br>Im=%{y:.4f}<br>Residue=%{text}<extra></extra>",
+                    },
+                ]
+                : [];
+            return (
+                <ScientificPlot
+                    type="scatter2d"
+                    data={[
+                        {
+                            type: "scatter",
+                            mode: "lines",
+                            x: previewSamples.map((point: { x: number; y: number }) => point.x),
+                            y: previewSamples.map((point: { x: number; y: number }) => point.y),
+                            line: { width: 3, color: "#2563eb" },
+                            name: "Contour path",
+                            hovertemplate: "Re=%{x:.4f}<br>Im=%{y:.4f}<extra></extra>",
+                        },
+                        ...poleTraces,
+                    ] as Array<Record<string, unknown>>}
+                    title={previewTitle}
+                    insights={[
+                        "complex-plane contour trace",
+                        analyticSolution?.exact.residue_analysis
+                            ? `${analyticSolution.exact.residue_analysis.enclosed_poles.length} enclosed pole markers`
+                            : "path orientation audit",
+                    ]}
                 />
             );
         }
 
         return (
             <CartesianPlot
-                title={previewVisualization.title}
+                title={previewTitle}
                 series={[
                     {
-                        label: previewVisualization.lane === "contour" ? "Contour path" : "Parametric path",
+                        label: previewLane === "contour" ? "Contour path" : "Parametric path",
                         color: "var(--accent)",
-                        points: previewVisualization.samples,
+                        points: previewSamples,
                     },
                 ]}
             />
@@ -112,9 +232,9 @@ export function VisualizerDeck({
                                         {renderGeometryPreview()}
                                         <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
                                             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Geometry Preview</div>
-                                            <div className="mt-2 text-lg font-black text-foreground">{previewVisualization.title}</div>
+                                            <div className="mt-2 text-lg font-black text-foreground">{previewTitle}</div>
                                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                                {previewVisualization.details.map((detail: string) => (
+                                                {previewDetails.map((detail: string) => (
                                                     <div key={detail} className="rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-sm font-medium text-foreground">
                                                         {detail}
                                                     </div>
@@ -157,7 +277,7 @@ export function VisualizerDeck({
                                     <>
                                         <div className="site-outline-card border-sky-500/20 bg-sky-500/10 p-4">
                                             <div className="text-[9px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">Geometry lane</div>
-                                            <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.lane}</div>
+                                            <div className="mt-2 text-sm font-bold text-foreground">{previewLane}</div>
                                         </div>
                                         <div className="site-outline-card p-4">
                                             <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Preview state</div>
@@ -232,9 +352,9 @@ export function VisualizerDeck({
                                         {renderGeometryPreview()}
                                         <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
                                             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-accent">Geometry Preview</div>
-                                            <div className="mt-2 text-lg font-black text-foreground">{previewVisualization.title}</div>
+                                            <div className="mt-2 text-lg font-black text-foreground">{previewTitle}</div>
                                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                                {previewVisualization.details.map((detail: string) => (
+                                                {previewDetails.map((detail: string) => (
                                                     <div key={detail} className="rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-sm font-medium text-foreground">
                                                         {detail}
                                                     </div>
@@ -246,21 +366,21 @@ export function VisualizerDeck({
                                     <CartesianPlot 
                                         title="Function preview" 
                                         highlightInterval={{ start: Number(lower), end: Number(upper) }}
-                                        series={[{ label: "f(x)", color: "var(--accent)", points: previewVisualization.samples }]} 
+                                        series={[{ label: "f(x)", color: "var(--accent)", points: previewSamples }]} 
                                     />
                                 ) : previewVisualization.kind === "double" ? (
                                     <ScientificPlot
                                         type="surface"
-                                        data={previewVisualization.summary.samples as Array<Record<string, unknown>>}
+                                        data={previewSummary?.samples as Array<Record<string, unknown>>}
                                         title={`Preview: f(x,y) = ${expression}`}
-                                        insights={[`${previewVisualization.gridLabel} preview grid`, "surface preview"]}
+                                        insights={[`${previewGridLabel} preview grid`, "surface preview"]}
                                     />
                                 ) : (
                                     <ScientificPlot
                                         type="volume"
-                                        data={previewVisualization.summary.samples as Array<Record<string, unknown>>}
+                                        data={previewSummary?.samples as Array<Record<string, unknown>>}
                                         title={`Preview: f(x,y,z) = ${expression}`}
-                                        insights={[`${previewVisualization.gridLabel} preview grid`, "volume preview"]}
+                                        insights={[`${previewGridLabel} preview grid`, "volume preview"]}
                                     />
                                 )}
                             </div>
@@ -271,7 +391,7 @@ export function VisualizerDeck({
                                 </div>
                                 <div className="site-outline-card bg-background p-4 shadow-sm">
                                     <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Mode</div>
-                                    <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.kind === "geometry" ? `${previewVisualization.lane} lane` : mode === "single" ? "Function trace" : mode === "double" ? "Surface preview" : "Volume preview"}</div>
+                                    <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.kind === "geometry" ? `${previewLane} lane` : mode === "single" ? "Function trace" : mode === "double" ? "Surface preview" : "Volume preview"}</div>
                                 </div>
                                 <div className="site-outline-card bg-background p-4 shadow-sm">
                                     <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Next step</div>

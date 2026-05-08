@@ -8,10 +8,7 @@ import {
     Copy,
     FilePlus2,
     FolderTree,
-    ScanText,
-    Sparkles,
     Trash2,
-    Wand2,
     type LucideIcon,
 } from "lucide-react";
 
@@ -92,27 +89,25 @@ function ActionIcon({
 export function WriterProjectPanel({
     sections,
     activeSectionId,
+    activeSection,
     documentKind,
     onSelectSection,
+    onUpdateActiveSection,
     onAddSection,
     onDuplicateSection,
     onMoveSection,
     onRemoveSection,
-    onInsertLabBlock,
-    onOpenMetadata,
-    onOpenTemplates,
 }: {
     sections: WriterProjectSection[];
     activeSectionId: string;
+    activeSection: WriterProjectSection;
     documentKind: string;
     onSelectSection: (sectionId: string) => void;
+    onUpdateActiveSection: (patch: Partial<WriterProjectSection>) => void;
     onAddSection: () => void;
     onDuplicateSection: () => void;
     onMoveSection: (sectionId: string, direction: "up" | "down") => void;
     onRemoveSection: (sectionId: string) => void;
-    onInsertLabBlock: () => void;
-    onOpenMetadata: () => void;
-    onOpenTemplates: () => void;
 }) {
     return (
         <div className="overflow-hidden rounded-[1.6rem] border border-border/60 bg-background/85 p-3 shadow-sm">
@@ -134,12 +129,49 @@ export function WriterProjectPanel({
                     </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-5 gap-1.5">
+                <div className="mt-3 grid grid-cols-2 gap-1.5">
                     <ActionIcon icon={FilePlus2} label="Yangi file yaratish" onClick={onAddSection} />
                     <ActionIcon icon={Copy} label="Hozirgi file nusxasini yaratish" onClick={onDuplicateSection} />
-                    <ActionIcon icon={Sparkles} label="Aktiv file ichiga laboratoriya blokini qo'shish" onClick={onInsertLabBlock} />
-                    <ActionIcon icon={Wand2} label="Template tanlash oynasini ochish" onClick={onOpenTemplates} />
-                    <ActionIcon icon={ScanText} label="Metadata va branding oynasini ochish" onClick={onOpenMetadata} />
+                </div>
+            </div>
+
+            <div className="mt-3 rounded-[1.2rem] border border-border/50 bg-muted/10 p-3">
+                <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                    Active file
+                </div>
+                <div className="space-y-2.5">
+                    <input
+                        value={activeSection.title}
+                        onChange={(event) => onUpdateActiveSection({ title: event.target.value })}
+                        className="w-full rounded-2xl border border-border/60 bg-background px-3.5 py-2 text-sm font-semibold outline-none transition-colors focus:border-accent/40"
+                        placeholder="File nomi"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                        <select
+                            value={activeSection.kind}
+                            onChange={(event) => onUpdateActiveSection({ kind: event.target.value as WriterProjectSection["kind"] })}
+                            className="min-w-0 rounded-2xl border border-border/60 bg-background px-3 py-2 text-xs font-semibold outline-none transition-colors focus:border-accent/40"
+                        >
+                            <option value="frontmatter">Frontmatter</option>
+                            <option value="chapter">Chapter</option>
+                            <option value="section">Section</option>
+                            <option value="appendix">Appendix</option>
+                            <option value="references">References</option>
+                        </select>
+                        <select
+                            value={activeSection.progress_state}
+                            onChange={(event) =>
+                                onUpdateActiveSection({
+                                    progress_state: event.target.value as WriterProjectSection["progress_state"],
+                                })
+                            }
+                            className="min-w-0 rounded-2xl border border-border/60 bg-background px-3 py-2 text-xs font-semibold outline-none transition-colors focus:border-accent/40"
+                        >
+                            <option value="todo">Todo</option>
+                            <option value="drafting">Drafting</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 

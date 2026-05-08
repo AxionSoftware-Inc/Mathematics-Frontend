@@ -221,6 +221,40 @@ export class LaboratoryMathService {
         return points;
     }
 
+    static buildParametricCurve3DPreview(
+        pathExpressions: string[],
+        parameter: string,
+        start: number,
+        end: number,
+        sampleCount = 120,
+    ): Array<{ x: number; y: number; z: number }> {
+        ensureIncreasingBounds(start, end, "Parametric interval");
+        const xExpression = createCompiledExpression(pathExpressions[0] || "0").executor;
+        const yExpression = createCompiledExpression(pathExpressions[1] || "0").executor;
+        const zExpression = createCompiledExpression(pathExpressions[2] || "0").executor;
+        const points: Array<{ x: number; y: number; z: number }> = [];
+        const total = Math.max(2, sampleCount);
+
+        for (let index = 0; index < total; index += 1) {
+            const ratio = index / (total - 1);
+            const t = start + (end - start) * ratio;
+            const scope = { [parameter]: t, t };
+            const x = evaluateCompiledExpression(xExpression, scope);
+            const y = evaluateCompiledExpression(yExpression, scope);
+            const z = evaluateCompiledExpression(zExpression, scope);
+            if (x === null || y === null || z === null) {
+                continue;
+            }
+            points.push({ x, y, z });
+        }
+
+        if (!points.length) {
+            throw new Error("3D parametric preview uchun yaroqli nuqta topilmadi.");
+        }
+
+        return points;
+    }
+
     static buildParametricSurfacePreview(
         patchExpressions: string[],
         uStart: number,

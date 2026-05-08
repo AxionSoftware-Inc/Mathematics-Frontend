@@ -740,19 +740,28 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
                     return {
                         kind: "geometry",
                         lane: "line",
-                        plotKind: "curve",
+                        plotKind: draft.dimension === "3d" ? "curve3d" : "curve",
+                        dimension: draft.dimension,
                         title: draft.dimension === "3d" ? "Parametric line path" : "Planar line path",
                         details: [
                             `parameter ${draft.parameter} in [${draft.intervalStart}, ${draft.intervalEnd}]`,
                             draft.variant === "vector" ? "vector circulation lane" : "scalar arc-length lane",
                         ],
-                        samples: LaboratoryMathService.buildParametricCurvePreview(
-                            draft.path,
-                            draft.parameter,
-                            parseBoundValue(draft.intervalStart),
-                            parseBoundValue(draft.intervalEnd),
-                            140,
-                        ),
+                        samples: draft.dimension === "3d"
+                            ? LaboratoryMathService.buildParametricCurve3DPreview(
+                                draft.path,
+                                draft.parameter,
+                                parseBoundValue(draft.intervalStart),
+                                parseBoundValue(draft.intervalEnd),
+                                140,
+                            )
+                            : LaboratoryMathService.buildParametricCurvePreview(
+                                draft.path,
+                                draft.parameter,
+                                parseBoundValue(draft.intervalStart),
+                                parseBoundValue(draft.intervalEnd),
+                                140,
+                            ),
                     };
                 }
                 if (draft.kind === "surface") {
@@ -779,7 +788,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
                 return {
                     kind: "geometry",
                     lane: "contour",
-                    plotKind: "curve",
+                    plotKind: "complex-plane",
                     title: "Contour path preview",
                     details: [
                         `parameter ${draft.parameter} in [${draft.intervalStart}, ${draft.intervalEnd}]`,

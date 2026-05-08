@@ -158,6 +158,16 @@ export type IntegralAnalyticSolveResponse = {
             split_count: number;
             regions: IntegralPiecewiseRegion[];
         };
+        research: {
+            exactness_tier: string;
+            domain_risk_level: "low" | "medium" | "high";
+            readiness_label: string;
+            blocker_count: number;
+            hazard_count: number;
+            piecewise_active: boolean;
+            special_function_signal: boolean;
+            review_notes: string[];
+        };
     };
     parser: {
         expression_raw: string;
@@ -179,6 +189,19 @@ export type IntegralAnalyticSolveResponse = {
         evaluated_latex: string | null;
         numeric_approximation: string | null;
         contains_special_functions: boolean;
+        residue_analysis?: {
+            orientation: string;
+            center_latex: string;
+            radius_latex: string;
+            enclosed_poles: Array<{
+                pole_latex: string;
+                pole: { real: number; imag: number };
+                residue_latex: string;
+            }>;
+            theorem_value_latex: string;
+            direct_value_match: boolean;
+            path_samples: Array<{ x: number; y: number }>;
+        } | null;
         steps: Array<{
             title: string;
             summary: string;
@@ -186,4 +209,14 @@ export type IntegralAnalyticSolveResponse = {
             tone: "neutral" | "info" | "success" | "warn";
         }>;
     };
+};
+
+export type IntegralBenchmarkSummary = {
+    id: string;
+    label: string;
+    expectedValue: string;
+    actualValue: string;
+    absoluteError: number | null;
+    status: "verified" | "review";
+    detail: string;
 };

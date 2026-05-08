@@ -6,7 +6,7 @@ import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-w
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 import { useDifferentialStudio } from "./differential-studio/use-differential-studio";
 import { DIFFERENTIAL_PRESETS, DIFFERENTIAL_WORKFLOW_TEMPLATES } from "./differential-studio/constants";
-import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 
 // Local Components
 import { StudioHeaderBar } from "./differential-studio/components/studio-header-bar";
@@ -38,12 +38,18 @@ function buildDifferentialReportMarkdown(state: ReturnType<typeof useDifferentia
 - continuity: ${state.analyticSolution?.diagnostics?.continuity ?? "pending"}
 - differentiability: ${state.analyticSolution?.diagnostics?.differentiability ?? "pending"}
 - trust score: ${state.reportExecutiveCards?.[2]?.value ?? "pending"}
+- contract: ${state.analyticSolution?.diagnostics?.contract?.status ?? "n/a"}
+- readiness: ${state.analyticSolution?.diagnostics?.contract?.readiness_label ?? "n/a"}
+- risk level: ${state.analyticSolution?.diagnostics?.contract?.risk_level ?? "n/a"}
+- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}
 
 ## core signals
 - classification: ${state.classification.label}
 - result: ${describeDifferentialResult(state.summary) ?? state.analyticSolution?.exact.numeric_approximation ?? "pending"}
 - taxonomy: ${state.analyticSolution?.diagnostics?.taxonomy?.family ?? "pending"}
-- blockers: ${(state.analyticSolution?.diagnostics?.domain_analysis?.blockers ?? []).join(" | ") || "none"}`;
+- blockers: ${(state.analyticSolution?.diagnostics?.domain_analysis?.blockers ?? []).join(" | ") || "none"}
+- review notes: ${(state.analyticSolution?.diagnostics?.contract?.review_notes ?? []).join(" | ") || "none"}
+- benchmark detail: ${state.benchmarkSummary?.detail ?? "none"}`;
 }
 
 function describeDifferentialResult(summary: DifferentialComputationSummary | null) {
@@ -157,6 +163,7 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
     const [activeTemplateId, setActiveTemplateId] = React.useState<string | null>(null);
     const [activePresetLabel, setActivePresetLabel] = React.useState<string | undefined>(DIFFERENTIAL_PRESETS[0]?.label);
+    const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildDifferentialReportMarkdown(state), [state]);
@@ -192,6 +199,7 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
         setExportState,
         buildMarkdown: () => reportMarkdown,
         buildBlock: (targetId) => buildDifferentialLivePayload(state, targetId),
+        publicationProfile,
         getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
         getDraftMeta: () => ({
             title: "Differential Analysis",
@@ -266,12 +274,14 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
                         liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
+                        publicationProfile={publicationProfile}
+                        setPublicationProfile={setPublicationProfile}
                     />
                 );
             default:
                 return null;
         }
-    }, [activeTab, actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, visibleSignals, lastSavedResult?.title]);
+    }, [activeTab, actions, copyMarkdownExport, liveTargets, publicationProfile, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, visibleSignals, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

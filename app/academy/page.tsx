@@ -1,11 +1,10 @@
-/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock3, GraduationCap, Search, Sparkles, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3, GraduationCap, Search, Users } from "lucide-react";
 
-import { HeroBadge, SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
+import { SectionHeading, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchPublic, getMediaUrl } from "@/lib/api";
 
 type Course = {
@@ -57,110 +56,9 @@ export default function AcademyPage() {
         return matchesLevel && (!normalizedQuery || haystack.includes(normalizedQuery));
     });
 
-    const totalHours = courses.reduce((sum, course) => sum + Number(course.duration_hours || 0), 0);
-    const instructors = new Set(courses.map((course) => course.instructor).filter(Boolean));
-    const pathwayCourses = filteredCourses.slice(0, 3);
 
     return (
         <div className="site-shell">
-            <SiteSection className="pb-8 pt-12 md:pt-16">
-                <SiteContainer>
-                    <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
-                        <div className="space-y-6">
-                            <HeroBadge>
-                                <Sparkles className="h-4 w-4" />
-                                Structured Mathematical Learning
-                            </HeroBadge>
-                            <div className="space-y-4">
-                                <h1 className="site-display text-4xl md:text-6xl xl:text-[4.5rem]">
-                                    Academy endi
-                                    <span className="site-kicker"> tartibli o‘quv katalogi </span>
-                                    va aniq product hierarchiyasi bilan ishlaydi.
-                                </h1>
-                                <p className="site-lead max-w-2xl">
-                                    Kurs katalogi, instructor signallari va level bo‘yicha filtrlash endi bitta izchil
-                                    tizimda o‘qiladi. Har karta bir xil ritm, media sahna va metadata qatlamiga ega.
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                                <Link href="/write" className="site-button-primary">
-                                    Writer Workspace
-                                    <ArrowRight className="h-4 w-4" />
-                                </Link>
-                                <Link href="/library" className="site-button-secondary">
-                                    Kutubxona bilan bog'lash
-                                </Link>
-                            </div>
-                        </div>
-
-                        <div className="site-panel-strong p-5 md:p-7 xl:p-8">
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{courses.length}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Faol kurslar</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{instructors.size}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Instruktorlar</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{Math.round(totalHours || 0)}h</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Yig'ma davomiylik</div>
-                                </div>
-                                <div className="site-metric-card p-5">
-                                    <div className="site-display text-3xl">{filteredCourses.length}</div>
-                                    <div className="mt-2 text-sm font-semibold text-muted-foreground">Topilgan kurslar</div>
-                                </div>
-                            </div>
-
-                            <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-                                <div className="site-media-frame p-5">
-                                    <div className="site-eyebrow">Learning Ladder</div>
-                                    <div className="mt-5 space-y-3">
-                                        {pathwayCourses.length ? (
-                                            pathwayCourses.map((course, index) => (
-                                                <div key={course.id} className="site-outline-card flex items-center justify-between gap-4 p-4">
-                                                    <div className="min-w-0">
-                                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                                                            Step {index + 1}
-                                                        </div>
-                                                        <div className="mt-2 line-clamp-1 text-sm font-semibold">{course.title}</div>
-                                                    </div>
-                                                    <div className="shrink-0 rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
-                                                        {course.level_type || "Beginner"}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="rounded-[1.4rem] border border-dashed border-border px-4 py-10 text-center text-sm font-semibold text-muted-foreground">
-                                                Kurslar yuklanmoqda
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-4">
-                                    <div className="site-outline-card p-5">
-                                        <div className="site-eyebrow">Visual Rule</div>
-                                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Har bir kursda cover media alohida sahnada, qolgan ma’lumot esa sokin va
-                                            aniq tipografik qatlamda beriladi.
-                                        </p>
-                                    </div>
-                                    <div className="site-outline-card p-5">
-                                        <div className="site-eyebrow">Decision Speed</div>
-                                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                                            Instructor, davomiylik, level va asosiy taglar bir qarashda ko‘rinadi.
-                                            Foydalanuvchi qayerdan boshlash kerakligini tez anglaydi.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </SiteContainer>
-            </SiteSection>
-
             <SiteSection className="py-8">
                 <SiteContainer>
                     <div className="site-filter-shell flex flex-col gap-5 p-5 md:p-6">

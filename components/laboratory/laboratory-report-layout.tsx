@@ -2,6 +2,11 @@ import React from "react";
 
 import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
 import { LaboratoryMetricCard } from "@/components/laboratory/laboratory-metric-card";
+import {
+    LAB_PUBLICATION_PROFILE_DESCRIPTIONS,
+    LAB_PUBLICATION_PROFILE_LABELS,
+} from "@/lib/laboratory-publication-profile";
+import type { WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 
 type ReportMetricCard = React.ComponentProps<typeof LaboratoryMetricCard>;
 
@@ -15,6 +20,8 @@ export function LaboratoryReportLayout({
     supportCards,
     readinessCards,
     reportMarkdown,
+    publicationProfile,
+    setPublicationProfile,
     copyMarkdownExport,
     saveResult,
     saveState = "idle",
@@ -33,6 +40,8 @@ export function LaboratoryReportLayout({
     supportCards: ReportMetricCard[];
     readinessCards: ReportMetricCard[];
     reportMarkdown: string;
+    publicationProfile: WriterBridgePublicationProfile;
+    setPublicationProfile: (profile: WriterBridgePublicationProfile) => void;
     copyMarkdownExport: () => void;
     saveResult?: () => void | Promise<unknown>;
     saveState?: "idle" | "saving" | "saved" | "error";
@@ -61,6 +70,27 @@ export function LaboratoryReportLayout({
                 <div className="space-y-8">
                     <div className="site-panel space-y-4 p-5">
                         <div className="site-eyebrow text-amber-600">Export Packet</div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            {(Object.keys(LAB_PUBLICATION_PROFILE_LABELS) as WriterBridgePublicationProfile[]).map((profile) => (
+                                <button
+                                    key={profile}
+                                    type="button"
+                                    onClick={() => setPublicationProfile(profile)}
+                                    className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
+                                        publicationProfile === profile
+                                            ? "border-accent/35 bg-[var(--accent-soft)]"
+                                            : "border-border/60 bg-background hover:border-accent/20"
+                                    }`}
+                                >
+                                    <div className="text-xs font-black uppercase tracking-[0.16em] text-foreground">
+                                        {LAB_PUBLICATION_PROFILE_LABELS[profile]}
+                                    </div>
+                                    <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                                        {LAB_PUBLICATION_PROFILE_DESCRIPTIONS[profile]}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                             {supportCards.map((card) => (
                                 <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}-${card.detail}`} {...card} />
@@ -89,6 +119,9 @@ export function LaboratoryReportLayout({
                         <button onClick={sendToWriter} className="site-btn-accent px-6">
                             Send to Writer
                         </button>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                        Active publication profile: <span className="font-semibold text-foreground">{LAB_PUBLICATION_PROFILE_LABELS[publicationProfile]}</span>.
                     </div>
                     {saveState === "saved" && lastSavedResultTitle ? (
                         <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">

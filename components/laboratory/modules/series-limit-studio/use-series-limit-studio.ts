@@ -5,6 +5,7 @@ import * as React from "react";
 import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { SERIES_LIMIT_PRESETS } from "./constants";
 import { SeriesLimitMathService } from "./services/math-service";
+import { buildSeriesLimitContract, evaluateSeriesLimitBenchmark } from "./services/presentation-service";
 import { SeriesLimitSolveService } from "./services/solve-service";
 import type {
     SeriesLimitAnnotation,
@@ -109,6 +110,16 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         [analyticSolution?.summary, rawResult.summary],
     );
 
+    const contractSummary = React.useMemo(
+        () => buildSeriesLimitContract(mode, summary, analyticSolution),
+        [analyticSolution, mode, summary],
+    );
+
+    const benchmarkSummary = React.useMemo(
+        () => evaluateSeriesLimitBenchmark(mode, expression, auxiliaryExpression, summary),
+        [auxiliaryExpression, expression, mode, summary],
+    );
+
     const visualNotes = React.useMemo(() => {
         if (mode === "limits") {
             return [
@@ -156,8 +167,10 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Error bound: ${summary.errorBoundSignal ?? "pending"}`,
             `Special family: ${summary.specialFamilySignal ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
+            `Readiness: ${contractSummary.readinessLabel}`,
+            ...(benchmarkSummary ? [`Benchmark: ${benchmarkSummary.status} (${benchmarkSummary.label})`] : []),
         ],
-        [analyticSolution?.exact.method_label, mode, summary],
+        [analyticSolution?.exact.method_label, benchmarkSummary, contractSummary.readinessLabel, mode, summary],
     );
 
     const reportNotes = React.useMemo(
@@ -172,8 +185,10 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             `Special family: ${summary.specialFamilySignal ?? "pending"}`,
             `Expansion: ${summary.expansionSignal ?? "pending"}`,
             `Risk: ${summary.riskSignal ?? "pending"}`,
+            `Readiness: ${contractSummary.readinessLabel}`,
+            ...(benchmarkSummary ? [`Benchmark: ${benchmarkSummary.label} -> ${benchmarkSummary.status}`] : []),
         ],
-        [analyticSolution?.exact.result_latex, dimension, mode, rawResult.finalFormula, summary],
+        [analyticSolution?.exact.result_latex, benchmarkSummary, contractSummary.readinessLabel, dimension, mode, rawResult.finalFormula, summary],
     );
 
     const trustScore = React.useMemo(() => {
@@ -182,8 +197,10 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         if (summary.riskSignal?.includes("proof")) score -= 12;
         if (summary.endpointSignal?.includes("unresolved")) score -= 14;
         if (summary.convergenceSignal?.includes("inconclusive")) score -= 18;
+        if (contractSummary.riskLevel === "medium") score -= 6;
+        if (benchmarkSummary?.status === "review") score -= 8;
         return Math.max(0, Math.min(100, score));
-    }, [analyticSolution?.status, solveErrorMessage, summary.convergenceSignal, summary.endpointSignal, summary.riskSignal]);
+    }, [analyticSolution?.status, benchmarkSummary, contractSummary.riskLevel, solveErrorMessage, summary.convergenceSignal, summary.endpointSignal, summary.riskSignal]);
 
     const trustHazards = React.useMemo(() => {
         const hazards: string[] = [];
@@ -191,8 +208,10 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
         if (summary.riskSignal) hazards.push(summary.riskSignal);
         if (summary.endpointSignal?.includes("unresolved")) hazards.push(`Endpoint audit unresolved: ${summary.endpointSignal}`);
         if (summary.proofSignal?.includes("incomplete")) hazards.push(summary.proofSignal);
+        hazards.push(...contractSummary.reviewNotes);
+        if (benchmarkSummary?.status === "review") hazards.push(`Benchmark review required: ${benchmarkSummary.detail}`);
         return [...new Set(hazards.filter(Boolean))];
-    }, [solveErrorMessage, summary.endpointSignal, summary.proofSignal, summary.riskSignal]);
+    }, [benchmarkSummary, contractSummary.reviewNotes, solveErrorMessage, summary.endpointSignal, summary.proofSignal, summary.riskSignal]);
 
     const primaryResultText = React.useMemo(
         () => analyticSolution?.exact.result_latex ?? rawResult.finalFormula ?? summary.candidateResult ?? null,
@@ -269,6 +288,8 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
             result,
             analyticSolution,
             summary,
+            contractSummary,
+            benchmarkSummary,
             solveErrorMessage,
             visualNotes,
             compareNotes,
@@ -289,6 +310,8 @@ export function useSeriesLimitStudio(module: LaboratoryModuleMeta) {
                         auxiliaryExpression || "auxiliary missing",
                         summary.testFamily ?? "test family pending",
                     ],
+                    readinessLabel: contractSummary.readinessLabel,
+                    benchmarkLabel: benchmarkSummary ? `${benchmarkSummary.label} · ${benchmarkSummary.status}` : null,
                 },
             },
             scenarioPanelProps: {

@@ -14,7 +14,7 @@ import { SolveView } from "@/components/laboratory/modules/probability-studio/vi
 import { VisualizeView } from "@/components/laboratory/modules/probability-studio/views/visualize-view";
 import { CompareView } from "@/components/laboratory/modules/probability-studio/views/compare-view";
 import { ReportView } from "@/components/laboratory/modules/probability-studio/views/report-view";
-import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 import type { ProbabilityStudioState } from "@/components/laboratory/modules/probability-studio/types";
 
 function buildProbabilityReportMarkdown(state: ProbabilityStudioState) {
@@ -27,6 +27,10 @@ function buildProbabilityReportMarkdown(state: ProbabilityStudioState) {
 - auxiliary: ${state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? "pending"}
 - method: ${state.analyticSolution?.exact.method_label ?? "client fallback"}
 - risk: ${state.summary.riskSignal ?? "pending"}
+- readiness: ${state.contractSummary.readinessLabel}
+- contract: ${state.contractSummary.status}
+- contract risk: ${state.contractSummary.riskLevel}
+- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}
 
 ## report notes
 ${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
@@ -62,6 +66,7 @@ function buildProbabilityLivePayload(state: ProbabilityStudioState, targetId: st
 export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMeta }) {
     const { state, actions } = useProbabilityStudio(module);
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
+    const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildProbabilityReportMarkdown(state), [state]);
@@ -93,6 +98,7 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
         setExportState,
         buildMarkdown: () => reportMarkdown,
         buildBlock: (targetId) => buildProbabilityLivePayload(state, targetId),
+        publicationProfile,
         getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
         getDraftMeta: () => ({
             title: "Probability Analysis",
@@ -123,12 +129,14 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
                         liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
+                        publicationProfile={publicationProfile}
+                        setPublicationProfile={setPublicationProfile}
                     />
                 );
             default:
                 return null;
         }
-    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
+    }, [actions, copyMarkdownExport, liveTargets, publicationProfile, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

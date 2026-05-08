@@ -14,7 +14,7 @@ import { SolveView } from "@/components/laboratory/modules/matrix-studio/views/s
 import { VisualizeView } from "@/components/laboratory/modules/matrix-studio/views/visualize-view";
 import { CompareView } from "@/components/laboratory/modules/matrix-studio/views/compare-view";
 import { ReportView } from "@/components/laboratory/modules/matrix-studio/views/report-view";
-import { type WriterBridgeBlockData } from "@/lib/live-writer-bridge";
+import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 import type { MatrixStudioState } from "@/components/laboratory/modules/matrix-studio/types";
 
 function buildMatrixReportMarkdown(state: MatrixStudioState) {
@@ -74,6 +74,7 @@ function buildMatrixLivePayload(state: MatrixStudioState, targetId: string): Wri
 export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta }) {
     const { state, actions } = useMatrixStudio(module);
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
+    const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
     const [, setExportState] = React.useState<"idle" | "copied" | "sent">("idle");
     const { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId } = useLiveWriterTargets();
     const reportMarkdown = React.useMemo(() => buildMatrixReportMarkdown(state), [state]);
@@ -108,6 +109,7 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
         setExportState,
         buildMarkdown: () => reportMarkdown,
         buildBlock: (targetId) => buildMatrixLivePayload(state, targetId),
+        publicationProfile,
         getSavedResultMeta: () => ({ id: lastSavedResult?.id ?? null, revision: lastSavedResult?.revision ?? null }),
         getDraftMeta: () => ({
             title: "Matrix Analysis",
@@ -138,12 +140,14 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
                         liveTargets={liveTargets.map((target) => ({ id: `${target.paperId}::${target.id}`, title: `${target.paperTitle} · ${target.title}` }))}
                         selectedLiveTargetId={selectedLiveTargetId || null}
                         setSelectedLiveTargetId={setSelectedLiveTargetId}
+                        publicationProfile={publicationProfile}
+                        setPublicationProfile={setPublicationProfile}
                     />
                 );
             default:
                 return null;
         }
-    }, [actions, copyMarkdownExport, liveTargets, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
+    }, [actions, copyMarkdownExport, liveTargets, publicationProfile, pushLiveResult, saveError, saveResult, saveState, selectedLiveTargetId, sendToWriter, setSelectedLiveTargetId, state, lastSavedResult?.title]);
 
     return (
         <div className="flex grow flex-col overflow-hidden rounded-3xl border border-border/40 bg-background/50">

@@ -1,6 +1,7 @@
 import React from "react";
 
 import { LaboratoryReportLayout } from "@/components/laboratory/laboratory-report-layout";
+import type { WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 
 import { AnnotationPanel } from "../components/annotation-panel";
 import { StudioMetricCard } from "../presentation-types";
@@ -26,6 +27,8 @@ type ReportViewProps = {
     selectedLiveTargetId: string | null;
     setSelectedLiveTargetId: (id: string) => void;
     pushLiveResult: () => void;
+    publicationProfile: WriterBridgePublicationProfile;
+    setPublicationProfile: (profile: WriterBridgePublicationProfile) => void;
 };
 
 export function ReportView({
@@ -44,6 +47,8 @@ export function ReportView({
     selectedLiveTargetId,
     setSelectedLiveTargetId,
     pushLiveResult,
+    publicationProfile,
+    setPublicationProfile,
 }: ReportViewProps) {
     return (
         <LaboratoryReportLayout
@@ -51,6 +56,8 @@ export function ReportView({
             supportCards={reportSupportCards}
             readinessCards={reportReadinessCards}
             reportMarkdown={reportSkeletonMarkdown}
+            publicationProfile={publicationProfile}
+            setPublicationProfile={setPublicationProfile}
             copyMarkdownExport={copyMarkdownExport}
             saveResult={saveResult}
             saveState={saveState}

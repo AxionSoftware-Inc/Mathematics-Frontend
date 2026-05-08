@@ -1,6 +1,7 @@
 import type {
     DerivativeSummary,
     DifferentialAnalyticSolveResponse,
+    DifferentialBenchmarkSummary,
     DifferentialComputationSummary,
     DifferentialExtendedMode,
     DifferentialMetricCard,
@@ -13,6 +14,14 @@ import type {
     PlotPoint,
     SDESummary,
 } from "../types";
+
+function normalizeMathText(value: string) {
+    return value.replace(/\s+/g, "").replace(/ln\(/gi, "log(").toLowerCase();
+}
+
+function normalizePointText(value: string) {
+    return value.replace(/\s+/g, "");
+}
 
 function isGradient(summary: unknown): summary is GradientSummary {
     return (summary as GradientSummary)?.type === "gradient";
@@ -235,12 +244,144 @@ export function buildDifferentialRiskRegisterCards(
     return cards;
 }
 
+export function evaluateDifferentialBenchmark(
+    mode: DifferentialExtendedMode,
+    expression: string,
+    point: string,
+    variable: string,
+    summary: DifferentialComputationSummary | null,
+): DifferentialBenchmarkSummary | null {
+    const normalizedExpression = normalizeMathText(expression);
+    const normalizedPoint = normalizePointText(point);
+    const normalizedVariable = normalizePointText(variable);
+
+    if (mode === "derivative" && summary?.type === "derivative" && normalizedExpression === "x^3" && normalizedPoint === "2") {
+        const actual = summary.derivativeAtPoint;
+        const expected = 12;
+        const absoluteError = Math.abs(actual - expected);
+        return {
+            id: "derivative-cubic-at-two",
+            label: "Cubic derivative benchmark",
+            expectedValue: expected.toFixed(6),
+            actualValue: actual.toFixed(6),
+            absoluteError,
+            status: absoluteError <= 1e-8 ? "verified" : "review",
+            detail: "d/dx x^3 at x=2 should equal 12.",
+        };
+    }
+
+    if (mode === "jacobian" && summary?.type === "jacobian" && normalizedExpression === "(x^2+y,x-y^2)" && normalizedPoint === "1,2") {
+        const expected = [[2, 1], [1, -4]];
+        const actual = summary.matrix;
+        const flatExpected = expected.flat();
+        const flatActual = actual.flat();
+        const absoluteError = Math.max(...flatExpected.map((value, index) => Math.abs((flatActual[index] ?? 0) - value)));
+        return {
+            id: "jacobian-polynomial-system",
+            label: "Jacobian benchmark",
+            expectedValue: "[[2,1],[1,-4]]",
+            actualValue: `[[${actual[0]?.join(",") ?? ""}],[${actual[1]?.join(",") ?? ""}]]`,
+            absoluteError,
+            status: absoluteError <= 1e-8 ? "verified" : "review",
+            detail: "J(x^2+y, x-y^2) at (1,2) should match the canonical 2x2 matrix.",
+        };
+    }
+
+    if (mode === "hessian" && summary?.type === "hessian" && normalizedExpression === "x^2+y^2" && normalizedPoint === "0,0" && normalizedVariable === "x,y") {
+        const expectedTrace = 4;
+        const absoluteError = Math.abs(summary.trace - expectedTrace);
+        return {
+            id: "hessian-quadratic-origin",
+            label: "Hessian quadratic benchmark",
+            expectedValue: "trace=4, positive_definite",
+            actualValue: `trace=${summary.trace.toFixed(6)}, ${summary.eigenvalueSignature}`,
+            absoluteError,
+            status: absoluteError <= 1e-8 && summary.eigenvalueSignature === "positive_definite" ? "verified" : "review",
+            detail: "Hessian of x^2+y^2 at the origin should be positive definite with trace 4.",
+        };
+    }
+
+    if (mode === "partial" && summary?.type === "gradient" && normalizedExpression === "x^2+y^2" && normalizedPoint === "1,2" && normalizedVariable === "x,y") {
+        const expected = Math.sqrt(20);
+        const absoluteError = Math.abs(summary.magnitude - expected);
+        return {
+            id: "gradient-quadratic",
+            label: "Gradient magnitude benchmark",
+            expectedValue: expected.toFixed(6),
+            actualValue: summary.magnitude.toFixed(6),
+            absoluteError,
+            status: absoluteError <= 1e-8 ? "verified" : "review",
+            detail: "For f=x^2+y^2 at (1,2), |grad f| should equal sqrt(20).",
+        };
+    }
+
+    if (mode === "ode" && summary?.type === "ode" && normalizedExpression === "y'=y;y(0)=1") {
+        const expected = Math.exp(6);
+        const absoluteError = Math.abs(summary.valueAtPoint - expected);
+        return {
+            id: "ode-exp-growth",
+            label: "ODE exponential-growth benchmark",
+            expectedValue: expected.toFixed(6),
+            actualValue: summary.valueAtPoint.toFixed(6),
+            absoluteError,
+            status: absoluteError <= 0.5 ? "verified" : "review",
+            detail: "For y' = y with y(0)=1, the default trajectory should end near e^6.",
+        };
+    }
+
+    if (mode === "pde" && summary?.type === "pde" && normalizedExpression === "u_t=u_x;u(x,0)=sin(x)") {
+        const amplitude = Math.max(...summary.finalProfile.map((item) => Math.abs(item.y)));
+        const absoluteError = Math.abs(amplitude - 1);
+        return {
+            id: "pde-transport-sine",
+            label: "Transport-profile benchmark",
+            expectedValue: "max amplitude 1.000000",
+            actualValue: `max amplitude ${amplitude.toFixed(6)}`,
+            absoluteError,
+            status: absoluteError <= 0.08 ? "verified" : "review",
+            detail: "Transport of sin(x) should preserve profile amplitude across the time horizon.",
+        };
+    }
+
+    if (mode === "pde" && summary?.type === "pde" && normalizedExpression === "u_t=u_xx;u(x,0)=sin(x)") {
+        const amplitude = Math.max(...summary.finalProfile.map((item) => Math.abs(item.y)));
+        const expected = Math.exp(-1.2);
+        const absoluteError = Math.abs(amplitude - expected);
+        return {
+            id: "pde-heat-sine",
+            label: "Heat-profile benchmark",
+            expectedValue: expected.toFixed(6),
+            actualValue: amplitude.toFixed(6),
+            absoluteError,
+            status: absoluteError <= 0.08 ? "verified" : "review",
+            detail: "Heat evolution of sin(x) should decay approximately like exp(-t) over the final profile.",
+        };
+    }
+
+    if (mode === "sde" && summary?.type === "sde" && normalizedExpression === "dx=0.4*x*dt+0.2*x*dw;x(0)=1;t:[0,1];n=64") {
+        const expected = Math.exp(0.4);
+        const absoluteError = Math.abs(summary.terminalMean - expected);
+        return {
+            id: "sde-geometric-brownian",
+            label: "SDE geometric-Brownian benchmark",
+            expectedValue: expected.toFixed(6),
+            actualValue: summary.terminalMean.toFixed(6),
+            absoluteError,
+            status: absoluteError <= 0.35 ? "verified" : "review",
+            detail: "For dX = 0.4X dt + 0.2X dW, ensemble mean should stay near exp(0.4).",
+        };
+    }
+
+    return null;
+}
+
 export function buildDifferentialTrustScore(
     analyticSolution: DifferentialAnalyticSolveResponse | null,
     error: string,
     solveErrorMessage: string,
     summary: DifferentialComputationSummary | null,
     mode: DifferentialExtendedMode,
+    benchmarkSummary: DifferentialBenchmarkSummary | null,
 ): number {
     let score = analyticSolution?.status === "exact" ? 92 : 74;
     if (error || solveErrorMessage) score -= 30;
@@ -249,6 +390,13 @@ export function buildDifferentialTrustScore(
     if (analyticSolution?.diagnostics?.differentiability === "partial") score -= 8;
     if (!summary && !(mode === "ode" || mode === "pde" || mode === "sde")) score -= 12;
     if (mode === "sde") score -= 8;
+    if (analyticSolution?.diagnostics?.contract?.status === "warn") score -= 8;
+    if (analyticSolution?.diagnostics?.contract?.status === "error") score -= 18;
+    if (analyticSolution?.diagnostics?.contract?.risk_level === "medium") score -= 4;
+    if (analyticSolution?.diagnostics?.contract?.risk_level === "high") score -= 10;
+    score -= Math.min(analyticSolution?.diagnostics?.contract?.hazard_count ?? 0, 3) * 2;
+    if (benchmarkSummary?.status === "verified") score += 4;
+    if (benchmarkSummary?.status === "review") score -= 8;
     return Math.max(0, Math.min(100, score));
 }
 
@@ -257,6 +405,7 @@ export function buildDifferentialTrustHazards(
     error: string,
     solveErrorMessage: string,
     mode: DifferentialExtendedMode,
+    benchmarkSummary: DifferentialBenchmarkSummary | null,
 ): string[] {
     const hazards: string[] = [];
     if (analyticSolution?.diagnostics?.singularity_points?.length) {
@@ -273,6 +422,18 @@ export function buildDifferentialTrustHazards(
     }
     if (mode === "sde") {
         hazards.push("Stochastic lane dispersion should be read together with ensemble variance bands.");
+    }
+    if (analyticSolution?.diagnostics?.contract?.status === "warn" || analyticSolution?.diagnostics?.contract?.status === "error") {
+        hazards.push(`Solver contract: ${analyticSolution.diagnostics.contract.status}.`);
+    }
+    if (analyticSolution?.diagnostics?.contract?.risk_level === "high") {
+        hazards.push("Solver risk level is high for the active differential lane.");
+    }
+    if (analyticSolution?.diagnostics?.contract?.review_notes?.length) {
+        hazards.push(...analyticSolution.diagnostics.contract.review_notes.slice(0, 2));
+    }
+    if (benchmarkSummary?.status === "review") {
+        hazards.push(`Benchmark review required: ${benchmarkSummary.detail}`);
     }
     return hazards;
 }
@@ -295,6 +456,7 @@ export function buildDifferentialReportExecutiveCards(
     analyticSolution: DifferentialAnalyticSolveResponse | null,
     mode: DifferentialExtendedMode,
     trustScore: number,
+    benchmarkSummary: DifferentialBenchmarkSummary | null,
 ): DifferentialMetricCard[] {
     let mainResult = "0.00";
     if (!summary && analyticSolution?.status === "exact") {
@@ -315,10 +477,12 @@ export function buildDifferentialReportExecutiveCards(
         }
     }
 
+    const benchmarkTone: "success" | "warn" = benchmarkSummary?.status === "verified" ? "success" : "warn";
     return [
         { eyebrow: "Mode", value: mode.toUpperCase(), detail: "Derivative resolution", tone: "neutral" },
         { eyebrow: "Result", value: mainResult, detail: "Final computation", tone: "success" },
         { eyebrow: "Trust Score", value: String(trustScore), detail: "Methodological safety", tone: trustScore >= 85 ? "success" : trustScore >= 65 ? "info" : "warn" },
+        ...(benchmarkSummary ? [{ eyebrow: "Benchmark", value: benchmarkSummary.status, detail: benchmarkSummary.label, tone: benchmarkTone }] : []),
     ];
 }
 
@@ -326,17 +490,33 @@ export function buildDifferentialReportSupportCards(
     summary: DifferentialComputationSummary | null,
     analyticSolution: DifferentialAnalyticSolveResponse | null,
     mode: DifferentialExtendedMode,
+    benchmarkSummary: DifferentialBenchmarkSummary | null,
 ): DifferentialMetricCard[] {
     const points = summary && "samples" in summary ? summary.samples.length : 0;
+    const benchmarkTone: "success" | "warn" = benchmarkSummary?.status === "verified" ? "success" : "warn";
     return [
         { eyebrow: "Points", value: String(points), detail: mode === "ode" || mode === "pde" || mode === "sde" ? "Visualizer samples live in lane renderer" : "Trace density", tone: "neutral" },
         { eyebrow: "Format", value: "Markdown", detail: "Export readiness", tone: "info" },
         {
             eyebrow: "Diagnostics",
-            value: isODE(summary) ? summary.stabilityLabel : isPDE(summary) ? `${summary.family}:${summary.stabilityRatio.toFixed(3)}` : isSDE(summary) ? `${summary.pathCount} paths` : analyticSolution?.diagnostics?.matrix?.critical_point_type ?? analyticSolution?.diagnostics?.differentiability ?? "ready",
+            value: analyticSolution?.diagnostics?.contract?.readiness_label ?? (isODE(summary) ? summary.stabilityLabel : isPDE(summary) ? `${summary.family}:${summary.stabilityRatio.toFixed(3)}` : isSDE(summary) ? `${summary.pathCount} paths` : analyticSolution?.diagnostics?.matrix?.critical_point_type ?? analyticSolution?.diagnostics?.differentiability ?? "ready"),
             detail: "Research note payload",
             tone: "neutral",
         },
+        {
+            eyebrow: "Contract",
+            value: analyticSolution?.diagnostics?.contract?.status ?? "n/a",
+            detail: analyticSolution?.diagnostics?.contract?.risk_level
+                ? `${analyticSolution.diagnostics.contract.completeness ?? "n/a"} · risk ${analyticSolution.diagnostics.contract.risk_level}`
+                : analyticSolution?.diagnostics?.contract?.completeness ?? "Lane validation contract",
+            tone: analyticSolution?.diagnostics?.contract?.status === "error" ? "warn" : "neutral",
+        },
+        ...(benchmarkSummary ? [{
+            eyebrow: "Benchmark",
+            value: benchmarkSummary.status,
+            detail: benchmarkSummary.detail,
+            tone: benchmarkTone,
+        }] : []),
     ];
 }
 

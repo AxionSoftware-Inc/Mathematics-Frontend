@@ -18,6 +18,8 @@ export function TrustPanel({
         convergence: "convergent" | "warning" | "unknown";
         hazards: string[];
         parserNotes?: string[];
+        readinessLabel?: string;
+        benchmarkLabel?: string | null;
     };
 }) {
     const tone: TrustTone = state.trustScore >= 85 ? "success" : state.trustScore >= 60 ? "info" : "warn";
@@ -28,7 +30,7 @@ export function TrustPanel({
                 <div>
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-accent">Trust Panel</div>
                     <div className="mt-2 text-sm leading-7 text-muted-foreground">
-                        Symbolic lane, local preview va convergence diagnostics birga o‘qiladi.
+                        Symbolic lane, local preview va convergence diagnostics birga o&apos;qiladi.
                     </div>
                 </div>
                 <div className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${toneClass(tone)}`}>
@@ -41,6 +43,8 @@ export function TrustPanel({
                 <Metric label="Convergence" value={state.convergence} />
                 <Metric label="Numerical Support" value={state.numericalSupport ? "Available" : "Missing"} />
                 <Metric label="Hazards" value={String(state.hazards.length)} />
+                {state.readinessLabel ? <Metric label="Readiness" value={state.readinessLabel} /> : null}
+                {state.benchmarkLabel ? <Metric label="Benchmark" value={state.benchmarkLabel} /> : null}
             </div>
 
             <div className="space-y-3">
@@ -50,7 +54,7 @@ export function TrustPanel({
                     </div>
                 )) : (
                     <div className="rounded-2xl border border-dashed border-border/60 bg-background/45 px-4 py-5 text-sm leading-7 text-muted-foreground">
-                        Hozircha keskin hazard ko‘rinmadi. Series / limit lane barqaror.
+                        Hozircha keskin hazard ko&apos;rinmadi. Series / limit lane barqaror.
                     </div>
                 )}
             </div>

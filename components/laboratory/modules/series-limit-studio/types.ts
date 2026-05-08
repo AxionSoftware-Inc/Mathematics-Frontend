@@ -96,6 +96,30 @@ export type SeriesLimitAnalyticSolveResponse = {
     };
 };
 
+export type SeriesLimitContractSummary = {
+    status: "ok" | "warn";
+    riskLevel: "low" | "medium" | "high";
+    readinessLabel: "publication_ready" | "research_review" | "working";
+    family: string;
+    method: string;
+    checks: Array<{
+        id: string;
+        label: string;
+        status: "ok" | "info" | "warn" | "error";
+        detail: string;
+    }>;
+    reviewNotes: string[];
+};
+
+export type SeriesLimitBenchmarkSummary = {
+    id: string;
+    label: string;
+    expectedValue: string;
+    actualValue: string;
+    status: "verified" | "review";
+    detail: string;
+};
+
 export type SeriesLimitStudioState = {
     experienceLevel: SeriesLimitExperienceLevel;
     activeTab: SeriesLimitWorkspaceTab;
@@ -109,6 +133,8 @@ export type SeriesLimitStudioState = {
     result: SeriesLimitAnalysisResult;
     analyticSolution: SeriesLimitAnalyticSolveResponse | null;
     summary: SeriesLimitSummary;
+    contractSummary: SeriesLimitContractSummary;
+    benchmarkSummary: SeriesLimitBenchmarkSummary | null;
     solveErrorMessage: string | null;
     visualNotes: string[];
     compareNotes: string[];
@@ -121,6 +147,8 @@ export type SeriesLimitStudioState = {
             convergence: "convergent" | "warning" | "unknown";
             hazards: string[];
             parserNotes?: string[];
+            readinessLabel?: string;
+            benchmarkLabel?: string | null;
         };
     };
     scenarioPanelProps: {

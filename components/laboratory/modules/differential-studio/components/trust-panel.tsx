@@ -1,4 +1,5 @@
 import React from "react";
+import type { DifferentialBenchmarkSummary } from "../types";
 
 type TrustTone = "success" | "info" | "warn";
 
@@ -9,6 +10,9 @@ interface TrustPanelState {
     convergence: "convergent" | "warning" | "unknown";
     hazards: string[];
     parserNotes?: string[];
+    researchReadiness?: string;
+    contractStatus?: "ok" | "info" | "warn" | "error";
+    benchmarkSummary?: DifferentialBenchmarkSummary | null;
 }
 
 function toneClass(tone: TrustTone) {
@@ -18,7 +22,17 @@ function toneClass(tone: TrustTone) {
 }
 
 export function TrustPanel({ state }: { state: TrustPanelState }) {
-    const { trustScore, analyticStatus, numericalSupport, convergence, hazards, parserNotes = [] } = state;
+    const {
+        trustScore,
+        analyticStatus,
+        numericalSupport,
+        convergence,
+        hazards,
+        parserNotes = [],
+        researchReadiness = "review",
+        contractStatus = "info",
+        benchmarkSummary = null,
+    } = state;
     const tone: TrustTone = trustScore >= 85 ? "success" : trustScore >= 60 ? "info" : "warn";
 
     return (
@@ -35,7 +49,7 @@ export function TrustPanel({ state }: { state: TrustPanelState }) {
                 </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Analytic lane</div>
                     <div className="mt-2 text-sm font-bold text-foreground">{analyticStatus}</div>
@@ -52,7 +66,28 @@ export function TrustPanel({ state }: { state: TrustPanelState }) {
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Hazards</div>
                     <div className="mt-2 text-sm font-bold text-foreground">{hazards.length}</div>
                 </div>
+                <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Research readiness</div>
+                    <div className="mt-2 text-sm font-bold text-foreground">{researchReadiness}</div>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Contract</div>
+                    <div className="mt-2 text-sm font-bold text-foreground">{contractStatus}</div>
+                </div>
             </div>
+
+            {benchmarkSummary ? (
+                <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Benchmark confidence</div>
+                    <div className="mt-2 text-sm font-bold text-foreground">
+                        {benchmarkSummary.label} · {benchmarkSummary.status}
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-muted-foreground">
+                        Expected {benchmarkSummary.expectedValue}, actual {benchmarkSummary.actualValue}.
+                        {benchmarkSummary.absoluteError !== null ? ` Error ${benchmarkSummary.absoluteError.toExponential(2)}.` : ""}
+                    </div>
+                </div>
+            ) : null}
 
             <div className="space-y-3">
                 {hazards.length ? hazards.map((hazard) => (

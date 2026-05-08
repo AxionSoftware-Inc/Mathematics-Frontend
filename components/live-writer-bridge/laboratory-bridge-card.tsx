@@ -70,6 +70,19 @@ export function LaboratoryBridgeCard({
 
     const actionCards = [
         {
+            mode: "send" as const,
+            title: "Yangi Writer draft ochish",
+            description: "Natijani tayyor hisobot sifatida yangi draftga joylaydi.",
+            status: exportState === "sent" ? "Draft opened" : "New draft",
+            icon: Send,
+            tone:
+                exportState === "sent"
+                    ? "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                    : "border-border bg-background/70 text-foreground",
+            actionLabel: pendingAction === "send" ? "Ochilmoqda..." : "Writerga yuborish",
+            onAction: onSend,
+        },
+        {
             mode: "copy" as const,
             title: "Markdown nusxa olish",
             description: "Natijani clipboard'ga tayyor markdown formatida ko'chiradi.",
@@ -82,19 +95,6 @@ export function LaboratoryBridgeCard({
             actionLabel: pendingAction === "copy" ? "Ko'chirilmoqda..." : "Nusxa olish",
             onAction: onCopy,
         },
-        {
-            mode: "send" as const,
-            title: "Yangi draftga yuborish",
-            description: "Laboratoriya natijasidan yangi writer draft ochadi.",
-            status: exportState === "sent" ? "Draft opened" : "New draft",
-            icon: Send,
-            tone:
-                exportState === "sent"
-                    ? "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300"
-                    : "border-border bg-background/70 text-foreground",
-            actionLabel: pendingAction === "send" ? "Ochilmoqda..." : "Draft ochish",
-            onAction: onSend,
-        },
     ];
 
     return (
@@ -102,9 +102,9 @@ export function LaboratoryBridgeCard({
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div className="site-eyebrow">Laboratory Export</div>
-                    <h2 className="mt-1 font-serif text-2xl font-black">Writer Bridge</h2>
+                    <h2 className="mt-1 font-serif text-2xl font-black">Natijani Writerga o&apos;tkazish</h2>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Natijalarni markdown ko&apos;rinishida yoki live block orqali writer ichiga olib o&apos;ting.
+                        Hisoblangan natijani yangi draftga joylang, markdown qilib oling yoki mavjud Writer blokni yangilang.
                     </p>
                 </div>
                 <div className="rounded-full border border-border px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -165,7 +165,7 @@ export function LaboratoryBridgeCard({
                         <div className="min-w-0">
                             <div className="text-sm font-black">Writer katalogi</div>
                             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                                Barcha draft va maqolalarni ko'rish, kerakli writer hujjatini ochish va target tayyorlash.
+                                Mavjud maqola yoki draftni ochib, ichiga Live Lab Block qo&apos;shish.
                             </p>
                         </div>
                     </div>
@@ -181,7 +181,7 @@ export function LaboratoryBridgeCard({
             </div>
 
             <div className="mt-3 rounded-[1.25rem] border border-border/70 bg-background/55 p-3 text-sm leading-6 text-muted-foreground">
-                Hozirgi ko&apos;chirish oqimi uch xil: `Markdown nusxa olish`, `Yangi draftga yuborish`, va `Live Writer Bridge`.
+                Eng oddiy yo&apos;l: `Writerga yuborish`. Mavjud maqoladagi aniq joyni yangilash kerak bo&apos;lsa, pastdagi Live Sync blokidan foydalaning.
             </div>
 
             {!ready ? (

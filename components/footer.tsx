@@ -16,7 +16,7 @@ const links = [
 export default function Footer() {
     const pathname = usePathname();
 
-    if (pathname.startsWith("/write")) {
+    if (pathname.startsWith("/write") || pathname.startsWith("/laboratory/")) {
         return null;
     }
 

@@ -4,6 +4,7 @@ import * as React from "react";
 
 import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { MATRIX_PRESETS } from "./constants";
+import { normalizeMatrixDimension } from "./matrix-dimension-options";
 import { MatrixSolveService } from "./services/solve-service";
 import type {
     MatrixAnalyticSolveResponse,
@@ -106,10 +107,18 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
     const matrixRows = React.useMemo(() => parseMatrixRows(matrixExpression), [matrixExpression]);
     const tensorSlices = React.useMemo(() => parseTensorSlices(matrixExpression), [matrixExpression]);
     const rhsRows = React.useMemo(() => parseVectorRows(rhsExpression), [rhsExpression]);
+    const normalizedDimension = React.useMemo(() => normalizeMatrixDimension(mode, dimension), [dimension, mode]);
     const signature = React.useMemo(
-        () => JSON.stringify({ mode, matrixExpression, rhsExpression, dimension }),
-        [dimension, matrixExpression, mode, rhsExpression],
+        () => JSON.stringify({ mode, matrixExpression, rhsExpression, dimension: normalizedDimension }),
+        [matrixExpression, mode, normalizedDimension, rhsExpression],
     );
+
+    React.useEffect(() => {
+        const nextDimension = normalizeMatrixDimension(mode, dimension);
+        if (nextDimension !== dimension) {
+            setDimension(nextDimension);
+        }
+    }, [dimension, mode]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -128,7 +137,7 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
             mode,
             expression: matrixExpression,
             rhs: rhsExpression,
-            dimension,
+            dimension: normalizedDimension,
         })
             .then((result) => {
                 if (cancelled) {
@@ -150,7 +159,7 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
         return () => {
             cancelled = true;
         };
-    }, [dimension, matrixExpression, mode, rhsExpression, signature]);
+    }, [matrixExpression, mode, normalizedDimension, rhsExpression, signature]);
 
     const summary = React.useMemo(
         () => analyticSolution?.summary ?? fallbackSummary(matrixRows, rhsRows, mode),
@@ -189,6 +198,7 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
                 analyticSolution?.summary.sparseSummary ? analyticSolution.summary.sparseSummary : "Sparsity pending",
                 summary.pivotColumns?.length ? `Pivot columns ${summary.pivotColumns.join(", ")}` : "Pivot structure pending",
                 analyticSolution?.summary.residualNorm ? `Residual norm ${analyticSolution.summary.residualNorm}` : "Residual norm pending",
+                analyticSolution?.summary.leastSquaresSummary ?? "Least-squares audit pending",
                 analyticSolution?.exact.auxiliary_latex ?? "Residual pending",
             ];
         }
@@ -236,11 +246,20 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
         if (summary.decompositionSummary) {
             notes.push(`Decomposition: ${summary.decompositionSummary}`);
         }
+        if (summary.factorAuditSummary) {
+            notes.push(`Factor audit: ${summary.factorAuditSummary}`);
+        }
         if (summary.svdSummary) {
             notes.push(`SVD σ: ${summary.svdSummary}`);
         }
         if (summary.iterativeSummary) {
             notes.push(`Iterative: ${summary.iterativeSummary}`);
+        }
+        if (summary.leastSquaresSummary) {
+            notes.push(`Least squares: ${summary.leastSquaresSummary}`);
+        }
+        if (summary.stabilitySummary) {
+            notes.push(`Stability: ${summary.stabilitySummary}`);
         }
         if (summary.sparseSummary) {
             notes.push(`Sparse profile: ${summary.sparseSummary}`);
@@ -282,7 +301,7 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
             notes.unshift(`Primary method: ${analyticSolution.exact.method_label}`);
         }
         return notes;
-    }, [analyticSolution, summary.conditionNumber, summary.pivotColumns, summary.spectralRadius, summary.decompositionSummary, summary.svdSummary, summary.iterativeSummary, summary.sparseSummary, summary.tensorShape, summary.modeRanks, summary.contractionSummary, summary.tensorProductSummary, summary.tuckerSummary, summary.cpSummary, summary.tensorEigenSummary, summary.modeSingularSummaries, summary.tensorBlockNorms, summary.tuckerFactorSummaries, summary.cpFactorSummaries]);
+    }, [analyticSolution, summary.conditionNumber, summary.pivotColumns, summary.spectralRadius, summary.decompositionSummary, summary.factorAuditSummary, summary.svdSummary, summary.iterativeSummary, summary.leastSquaresSummary, summary.stabilitySummary, summary.sparseSummary, summary.tensorShape, summary.modeRanks, summary.contractionSummary, summary.tensorProductSummary, summary.tuckerSummary, summary.cpSummary, summary.tensorEigenSummary, summary.modeSingularSummaries, summary.tensorBlockNorms, summary.tuckerFactorSummaries, summary.cpFactorSummaries]);
 
     const reportNotes = React.useMemo(() => [
         `Matrix family: ${mode}`,
@@ -291,7 +310,10 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
         `Pivot columns: ${summary.pivotColumns?.join(", ") || "pending"}`,
         `Spectral radius: ${summary.spectralRadius ?? "pending"}`,
         `Solver kind: ${summary.solverKind ?? "pending"}`,
+        `Stability: ${summary.stabilitySummary ?? "pending"}`,
+        `Least-squares: ${summary.leastSquaresSummary ?? "pending"}`,
         `Iterative lane: ${summary.iterativeSummary ?? "pending"}`,
+        `Factor audit: ${summary.factorAuditSummary ?? "pending"}`,
         `SVD summary: ${summary.svdSummary ?? "pending"}`,
         `Sparse profile: ${summary.sparseSummary ?? "pending"}`,
         `Tensor shape: ${summary.tensorShape ?? "pending"}`,
@@ -305,13 +327,13 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
         `Block energy: ${summary.tensorBlockNorms?.join(", ") ?? "pending"}`,
         `Tucker factors: ${summary.tuckerFactorSummaries?.join(" | ") ?? "pending"}`,
         `CP factors: ${summary.cpFactorSummaries?.join(" | ") ?? "pending"}`,
-    ], [mode, summary.conditionLabel, summary.pivotColumns, summary.shape, summary.spectralRadius, summary.solverKind, summary.iterativeSummary, summary.svdSummary, summary.sparseSummary, summary.tensorShape, summary.modeRanks, summary.contractionSummary, summary.tensorProductSummary, summary.tuckerSummary, summary.cpSummary, summary.tensorEigenSummary, summary.modeSingularSummaries, summary.tensorBlockNorms, summary.tuckerFactorSummaries, summary.cpFactorSummaries]);
+    ], [mode, summary.conditionLabel, summary.pivotColumns, summary.shape, summary.spectralRadius, summary.solverKind, summary.stabilitySummary, summary.leastSquaresSummary, summary.iterativeSummary, summary.factorAuditSummary, summary.svdSummary, summary.sparseSummary, summary.tensorShape, summary.modeRanks, summary.contractionSummary, summary.tensorProductSummary, summary.tuckerSummary, summary.cpSummary, summary.tensorEigenSummary, summary.modeSingularSummaries, summary.tensorBlockNorms, summary.tuckerFactorSummaries, summary.cpFactorSummaries]);
 
     const applyPreset = React.useCallback((preset: MatrixPreset) => {
         setMode(preset.mode);
         setMatrixExpression(preset.matrix);
         setRhsExpression(preset.rhs ?? "");
-        setDimension(preset.dimension);
+        setDimension(normalizeMatrixDimension(preset.mode, preset.dimension));
         setActivePresetLabel(preset.label);
     }, []);
 
@@ -322,7 +344,7 @@ export function useMatrixStudio(module: LaboratoryModuleMeta) {
             mode,
             matrixExpression,
             rhsExpression,
-            dimension,
+            dimension: normalizedDimension,
             solvePhase,
             isResultStale,
             activePresetLabel,
