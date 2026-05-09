@@ -50,15 +50,16 @@ export const experienceLevelBlocks: Record<IntegralExperienceLevel, readonly Int
 
 export const workspaceTabs: Array<{ id: IntegralWorkspaceTab; label: string; description: string }> = [
     { id: "solve", label: "Solve", description: "Input, action bar, primary result va derivation." },
+    { id: "code", label: "Code", description: "SymPy reproduce kodi, metod va numeric strategy." },
     { id: "visualize", label: "Visualize", description: "Grafik, tables, samples va sweep." },
     { id: "compare", label: "Compare", description: "Diagnostics, explain mode va scenario compare." },
     { id: "report", label: "Report", description: "Report builder, notes va export flow." },
 ];
 
 export const levelTabs: Record<IntegralExperienceLevel, readonly IntegralWorkspaceTab[]> = {
-    beginner: ["solve", "visualize", "report"],
-    advanced: ["solve", "visualize", "compare", "report"],
-    research: ["solve", "visualize", "compare", "report"],
+    beginner: ["solve", "code", "visualize", "report"],
+    advanced: ["solve", "code", "visualize", "compare", "report"],
+    research: ["solve", "code", "visualize", "compare", "report"],
 };
 
 export const integralPresetDescriptions: Record<string, string> = Object.fromEntries(

@@ -45,7 +45,7 @@ export type IntegralBlockId =
 export type IntegralMode = "single" | "double" | "triple";
 export type IntegralCoordinateSystem = "cartesian" | "polar" | "cylindrical" | "spherical" | "parametric" | "complex_plane";
 export type IntegralExperienceLevel = "beginner" | "advanced" | "research";
-export type IntegralWorkspaceTab = "solve" | "visualize" | "compare" | "report";
+export type IntegralWorkspaceTab = "solve" | "code" | "visualize" | "compare" | "report";
 export type IntegralDetectedType =
     | "definite_single"
     | "indefinite_single"
@@ -179,6 +179,18 @@ export type IntegralAnalyticSolveResponse = {
         upper_raw: string;
         upper_normalized: string;
         upper_latex: string;
+        notes: string[];
+    };
+    reproducibility?: {
+        language: string;
+        libraries: string[];
+        engine: string;
+        method: string;
+        method_summary: string;
+        status: string;
+        numeric_strategy: string;
+        editable: boolean;
+        code: string;
         notes: string[];
     };
     exact: {

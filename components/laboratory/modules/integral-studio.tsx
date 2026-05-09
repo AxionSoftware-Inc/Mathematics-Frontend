@@ -46,6 +46,7 @@ import { ScenarioPanel } from "./integral-studio/components/scenario-panel";
 import { StudioHeaderBar } from "./integral-studio/components/studio-header-bar";
 import { StudioStatusBar } from "./integral-studio/components/studio-status-bar";
 import { CompareView } from "./integral-studio/views/compare-view";
+import { CodeView } from "./integral-studio/views/code-view";
 import { ReportView } from "./integral-studio/views/report-view";
 import { SolveView } from "./integral-studio/views/solve-view";
 import { VisualizeView } from "./integral-studio/views/visualize-view";
@@ -1362,6 +1363,16 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         methodAuditCards={methodAuditCards}
                         visibleSignals={visibleSignals}
                         assumptionCards={assumptionCards}
+                    />
+                )}
+
+                {activeTab === "code" && (
+                    <CodeView
+                        analyticSolution={analyticSolution}
+                        mode={mode}
+                        expression={expression}
+                        lower={lower}
+                        upper={upper}
                     />
                 )}
 
