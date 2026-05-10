@@ -1,4 +1,4 @@
-export type SeriesLimitWorkspaceTab = "solve" | "visualize" | "compare" | "report";
+export type SeriesLimitWorkspaceTab = "solve" | "code" | "visualize" | "compare" | "report";
 export type SeriesLimitExperienceLevel = "beginner" | "advanced" | "research";
 export type SeriesLimitMode = "limits" | "sequences" | "series" | "convergence" | "power-series";
 export type SeriesLimitSolvePhase = "idle" | "auto-ready" | "analysis-ready";

@@ -29,7 +29,7 @@ export type DifferentialMode =
     | "hessian";        // f: Rⁿ → R, full H matrix (curvature)
 
 export type DifferentialExperienceLevel = "beginner" | "advanced" | "research";
-export type DifferentialWorkspaceTab = "solve" | "visualize" | "compare" | "report";
+export type DifferentialWorkspaceTab = "solve" | "code" | "visualize" | "compare" | "report";
 export type DifferentialExtendedMode = DifferentialMode | "ode" | "pde" | "sde";
 
 // ─── Solve pipeline state ──────────────────────────────────────────────────────

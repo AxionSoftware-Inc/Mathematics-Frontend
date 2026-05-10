@@ -5,6 +5,7 @@ export const SERIES_LIMIT_PRESETS: readonly SeriesLimitPreset[] = SERIES_LIMIT_P
 
 export const SERIES_LIMIT_WORKFLOW_TABS = [
     { id: "solve", label: "Solve" },
+    { id: "code", label: "Code" },
     { id: "visualize", label: "Visualize" },
     { id: "compare", label: "Compare" },
     { id: "report", label: "Report" },

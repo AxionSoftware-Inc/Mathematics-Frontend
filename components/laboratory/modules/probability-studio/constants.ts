@@ -5,6 +5,7 @@ export const PROBABILITY_PRESETS: readonly ProbabilityPreset[] = PROBABILITY_PRE
 
 export const PROBABILITY_WORKFLOW_TABS = [
     { id: "solve", label: "Solve" },
+    { id: "code", label: "Code" },
     { id: "visualize", label: "Visualize" },
     { id: "compare", label: "Compare" },
     { id: "report", label: "Report" },

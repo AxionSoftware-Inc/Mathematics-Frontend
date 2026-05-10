@@ -19,6 +19,7 @@ export class LaboratorySolveService {
             y_max: snapshot.yMax,
             z_min: snapshot.zMin,
             z_max: snapshot.zMax,
+            method: snapshot.solveMethod ?? "auto",
         };
 
         let response: Response;

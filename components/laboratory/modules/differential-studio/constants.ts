@@ -30,6 +30,7 @@ export const exportGuides = {
 
 export const workspaceTabs: Array<{ id: DifferentialWorkspaceTab; label: string; description: string }> = [
     { id: "solve", label: "Solve", description: "Input, action bar, primary result va derivation." },
+    { id: "code", label: "Code", description: "Method selector, editable code draft va AI step writer." },
     { id: "visualize", label: "Visualize", description: "Grafik, slope-field, tangent va sensitivity." },
     { id: "compare", label: "Compare", description: "Diagnostics, numeric vs symbolic compare va scenario compare." },
     { id: "report", label: "Report", description: "Report builder, notes va export flow." },

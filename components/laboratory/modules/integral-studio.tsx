@@ -79,6 +79,8 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         solvePhase,
         solveErrorMessage,
         analyticSolution,
+        solveMethod,
+        setSolveMethod,
         normalizedSegments,
         normalizedXResolution,
         normalizedYResolution,
@@ -1373,6 +1375,8 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         expression={expression}
                         lower={lower}
                         upper={upper}
+                        solveMethod={solveMethod}
+                        setSolveMethod={setSolveMethod}
                     />
                 )}
 

@@ -1,4 +1,4 @@
-export type MatrixWorkspaceTab = "solve" | "visualize" | "compare" | "report";
+export type MatrixWorkspaceTab = "solve" | "code" | "visualize" | "compare" | "report";
 export type MatrixExperienceLevel = "beginner" | "advanced" | "research";
 export type MatrixMode = "algebra" | "decomposition" | "systems" | "transform" | "tensor";
 

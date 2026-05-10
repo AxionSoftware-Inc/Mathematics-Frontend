@@ -1,4 +1,4 @@
-export type ProbabilityWorkspaceTab = "solve" | "visualize" | "compare" | "report";
+export type ProbabilityWorkspaceTab = "solve" | "code" | "visualize" | "compare" | "report";
 export type ProbabilityExperienceLevel = "beginner" | "advanced" | "research";
 export type ProbabilityMode =
     | "descriptive"

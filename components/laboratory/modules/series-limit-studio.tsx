@@ -6,6 +6,7 @@ import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
+import { LabCodeInsightPanel } from "@/components/laboratory/code-insight/lab-code-insight-panel";
 import { SERIES_LIMIT_PRESETS } from "@/components/laboratory/modules/series-limit-studio/constants";
 import { useSeriesLimitStudio } from "@/components/laboratory/modules/series-limit-studio/use-series-limit-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/series-limit-studio/components/studio-header-bar";
@@ -113,6 +114,16 @@ export function SeriesLimitStudioModule({ module }: { module: LaboratoryModuleMe
         switch (state.activeTab) {
             case "solve":
                 return <SolveView state={state} actions={actions} />;
+            case "code":
+                return (
+                    <LabCodeInsightPanel
+                        module="series-limit"
+                        title="Series / Limit"
+                        expression={state.expression}
+                        secondary={state.auxiliaryExpression || state.dimension}
+                        analyticSolution={state.analyticSolution}
+                    />
+                );
             case "visualize":
                 return <VisualizeView state={state} />;
             case "compare":

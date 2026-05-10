@@ -1,9 +1,13 @@
 import React from "react";
-import { Check, Clipboard, Code2 } from "lucide-react";
+import { Check, Clipboard, Code2, RotateCcw } from "lucide-react";
 
+import { MonacoCodeEditor } from "@/components/laboratory/code-editor/monaco-code-editor";
+import { LaboratoryAIExplainer } from "@/components/laboratory/ai-explainer/laboratory-ai-explainer";
 import { LaboratoryMetricCard } from "@/components/laboratory/laboratory-metric-card";
+import { MethodSelector } from "@/components/laboratory/method-selector/method-selector";
+import { getLaboratoryMethodOptions } from "@/components/laboratory/method-selector/method-registry";
 
-import type { IntegralAnalyticSolveResponse } from "../types";
+import type { IntegralAnalyticSolveResponse, IntegralSolveMethod } from "../types";
 
 type CodeViewProps = {
     analyticSolution: IntegralAnalyticSolveResponse | null;
@@ -11,6 +15,8 @@ type CodeViewProps = {
     expression: string;
     lower: string;
     upper: string;
+    solveMethod: IntegralSolveMethod;
+    setSolveMethod: (method: IntegralSolveMethod) => void;
 };
 
 function buildFallbackCode({ expression, lower, upper }: Pick<CodeViewProps, "expression" | "lower" | "upper">) {
@@ -31,14 +37,48 @@ print("Numeric approximation:", numeric_approximation)
 `;
 }
 
-export function CodeView({ analyticSolution, mode, expression, lower, upper }: CodeViewProps) {
+export function CodeView({ analyticSolution, mode, expression, lower, upper, solveMethod, setSolveMethod }: CodeViewProps) {
     const [copied, setCopied] = React.useState(false);
     const reproducibility = analyticSolution?.reproducibility;
-    const code = reproducibility?.code || buildFallbackCode({ expression, lower, upper });
+    const generatedCode = reproducibility?.code || buildFallbackCode({ expression, lower, upper });
+    const [code, setCode] = React.useState(generatedCode);
+    const [isDirty, setIsDirty] = React.useState(false);
     const notes = reproducibility?.notes || [
         "Run Solve first to receive backend-generated reproduction metadata.",
         "The fallback snippet mirrors the definite single-integral SymPy path.",
     ];
+    const aiPayload = React.useMemo(
+        () => ({
+            module: "integral",
+            expression,
+            expression_latex: analyticSolution?.parser?.expression_latex,
+            lower,
+            upper,
+            result_latex: analyticSolution?.exact?.evaluated_latex,
+            numeric_approximation: analyticSolution?.exact?.numeric_approximation,
+            method: {
+                selected_method: reproducibility?.selected_method || solveMethod,
+                family: reproducibility?.method_family,
+                label: reproducibility?.method,
+                summary: reproducibility?.method_summary,
+                numeric_strategy: reproducibility?.numeric_strategy,
+            },
+            steps: analyticSolution?.exact?.steps || [],
+            reproducibility: reproducibility || {},
+        }),
+        [analyticSolution, expression, lower, reproducibility, solveMethod, upper],
+    );
+
+    React.useEffect(() => {
+        if (!isDirty) {
+            setCode(generatedCode);
+        }
+    }, [generatedCode, isDirty]);
+
+    const resetGeneratedCode = () => {
+        setCode(generatedCode);
+        setIsDirty(false);
+    };
 
     const copyCode = async () => {
         await navigator.clipboard.writeText(code);
@@ -49,6 +89,13 @@ export function CodeView({ analyticSolution, mode, expression, lower, upper }: C
     return (
         <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
             <div className="space-y-4">
+                <MethodSelector
+                    title="Integral solve method"
+                    value={solveMethod}
+                    options={getLaboratoryMethodOptions("integral")}
+                    onChange={(value) => setSolveMethod(value as IntegralSolveMethod)}
+                />
+
                 <div className="site-panel p-5">
                     <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
@@ -69,7 +116,7 @@ export function CodeView({ analyticSolution, mode, expression, lower, upper }: C
                     <LaboratoryMetricCard
                         eyebrow="Engine"
                         value={reproducibility?.engine || "sympy"}
-                        detail={reproducibility?.method || (mode === "single" ? "integrate" : "frontend estimator")}
+                        detail={`${reproducibility?.method || (mode === "single" ? "integrate" : "frontend estimator")} - ${reproducibility?.selected_method || solveMethod}`}
                         tone="info"
                     />
                     <LaboratoryMetricCard
@@ -90,6 +137,8 @@ export function CodeView({ analyticSolution, mode, expression, lower, upper }: C
                         ))}
                     </div>
                 </div>
+
+                <LaboratoryAIExplainer payload={aiPayload} disabled={!analyticSolution} />
             </div>
 
             <div className="site-panel overflow-hidden">
@@ -97,21 +146,36 @@ export function CodeView({ analyticSolution, mode, expression, lower, upper }: C
                     <div>
                         <div className="site-eyebrow">Python / SymPy</div>
                         <div className="mt-1 text-sm font-semibold text-muted-foreground">
-                            {reproducibility ? "Real backend payload" : "Fallback template"}
+                            {isDirty ? "Edited code draft" : reproducibility ? "Real backend payload" : "Fallback template"}
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={copyCode}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-background px-4 text-sm font-bold transition-colors hover:bg-muted"
-                    >
-                        {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-                        {copied ? "Copied" : "Copy code"}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={resetGeneratedCode}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-background px-4 text-sm font-bold transition-colors hover:bg-muted"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            Reset
+                        </button>
+                        <button
+                            type="button"
+                            onClick={copyCode}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-border/70 bg-background px-4 text-sm font-bold transition-colors hover:bg-muted"
+                        >
+                            {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                            {copied ? "Copied" : "Copy code"}
+                        </button>
+                    </div>
                 </div>
-                <pre className="max-h-[680px] overflow-auto bg-slate-950 p-5 text-[12px] leading-6 text-slate-100">
-                    <code>{code}</code>
-                </pre>
+                <MonacoCodeEditor
+                    value={code}
+                    onChange={(nextCode) => {
+                        setCode(nextCode);
+                        setIsDirty(nextCode !== generatedCode);
+                    }}
+                    height="680px"
+                />
             </div>
         </div>
     );

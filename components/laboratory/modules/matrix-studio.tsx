@@ -6,6 +6,7 @@ import { type LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
+import { LabCodeInsightPanel } from "@/components/laboratory/code-insight/lab-code-insight-panel";
 import { MATRIX_PRESETS } from "@/components/laboratory/modules/matrix-studio/constants";
 import { useMatrixStudio } from "@/components/laboratory/modules/matrix-studio/use-matrix-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/matrix-studio/components/studio-header-bar";
@@ -122,6 +123,16 @@ export function MatrixStudioModule({ module }: { module: LaboratoryModuleMeta })
         switch (state.activeTab) {
             case "solve":
                 return <SolveView state={state} actions={actions} />;
+            case "code":
+                return (
+                    <LabCodeInsightPanel
+                        module="matrix"
+                        title="Matrix"
+                        expression={state.matrixExpression}
+                        secondary={state.rhsExpression || state.dimension}
+                        analyticSolution={state.analyticSolution}
+                    />
+                );
             case "visualize":
                 return <VisualizeView state={state} />;
             case "compare":

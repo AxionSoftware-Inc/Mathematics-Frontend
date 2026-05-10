@@ -6,6 +6,7 @@ import type { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
+import { LabCodeInsightPanel } from "@/components/laboratory/code-insight/lab-code-insight-panel";
 import { PROBABILITY_PRESETS } from "@/components/laboratory/modules/probability-studio/constants";
 import { useProbabilityStudio } from "@/components/laboratory/modules/probability-studio/use-probability-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/probability-studio/components/studio-header-bar";
@@ -111,6 +112,16 @@ export function ProbabilityStudioModule({ module }: { module: LaboratoryModuleMe
         switch (state.activeTab) {
             case "solve":
                 return <SolveView state={state} actions={actions} />;
+            case "code":
+                return (
+                    <LabCodeInsightPanel
+                        module="probability"
+                        title="Probability"
+                        expression={state.datasetExpression}
+                        secondary={state.parameterExpression || state.dimension}
+                        analyticSolution={state.analyticSolution}
+                    />
+                );
             case "visualize":
                 return <VisualizeView state={state} />;
             case "compare":

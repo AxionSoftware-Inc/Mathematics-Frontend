@@ -46,6 +46,17 @@ export type IntegralMode = "single" | "double" | "triple";
 export type IntegralCoordinateSystem = "cartesian" | "polar" | "cylindrical" | "spherical" | "parametric" | "complex_plane";
 export type IntegralExperienceLevel = "beginner" | "advanced" | "research";
 export type IntegralWorkspaceTab = "solve" | "code" | "visualize" | "compare" | "report";
+export type IntegralSolveMethod =
+    | "auto"
+    | "symbolic"
+    | "risch-heurisch"
+    | "numeric-check"
+    | "adaptive-quadrature"
+    | "gauss-legendre"
+    | "composite-simpson"
+    | "tanh-sinh"
+    | "monte-carlo"
+    | "residue-contour";
 export type IntegralDetectedType =
     | "definite_single"
     | "indefinite_single"
@@ -90,6 +101,7 @@ export type IntegralSavedExperiment = {
     xResolution: string;
     yResolution: string;
     zResolution: string;
+    solveMethod?: IntegralSolveMethod;
 };
 
 export type IntegralSolvePhase = "idle" | "analytic-loading" | "needs-numerical" | "exact-ready" | "numerical-ready" | "error";
@@ -110,6 +122,7 @@ export type IntegralSolveSnapshot = {
     xResolution: string;
     yResolution: string;
     zResolution: string;
+    solveMethod?: IntegralSolveMethod;
 };
 
 export type IntegralConstraintSeverity = "info" | "warn" | "blocker";
@@ -189,6 +202,9 @@ export type IntegralAnalyticSolveResponse = {
         method_summary: string;
         status: string;
         numeric_strategy: string;
+        selected_method?: string;
+        method_family?: "analytic" | "numeric" | "hybrid";
+        adapter_status?: "active" | "code-ready" | "planned";
         editable: boolean;
         code: string;
         notes: string[];

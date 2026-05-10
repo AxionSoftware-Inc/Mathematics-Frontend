@@ -9,6 +9,7 @@ import {
     IntegralSolveSnapshot, 
     IntegralAnalyticSolveResponse, 
     IntegralComputationSummary, 
+    IntegralSolveMethod,
     SingleIntegralSummary,
     DoubleIntegralSummary, 
     TripleIntegralSummary,
@@ -103,6 +104,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
     const [solvePhase, setSolvePhase] = React.useState<IntegralSolvePhase>("idle");
     const [solveErrorMessage, setSolveErrorMessage] = React.useState("");
     const [analyticSolution, setAnalyticSolution] = React.useState<IntegralAnalyticSolveResponse | null>(null);
+    const [solveMethod, setSolveMethod] = React.useState<IntegralSolveMethod>("auto");
 
     const initialNotebookBlocks = React.useMemo(() => [...experienceLevelBlocks.advanced], []);
 
@@ -137,8 +139,9 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
             xResolution,
             yResolution,
             zResolution,
+            solveMethod,
         }),
-        [coordinates, expression, lower, mode, segments, upper, xMax, xMin, xResolution, yMax, yMin, yResolution, zMax, zMin, zResolution],
+        [coordinates, expression, lower, mode, segments, solveMethod, upper, xMax, xMin, xResolution, yMax, yMin, yResolution, zMax, zMin, zResolution],
     );
     const classification = React.useMemo(
         () => IntegralClassificationService.classify(currentRequest),
@@ -894,6 +897,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
             solvePhase, setSolvePhase,
             solveErrorMessage, setSolveErrorMessage,
             analyticSolution, setAnalyticSolution,
+            solveMethod, setSolveMethod,
             normalizedSegments,
             normalizedXResolution,
             normalizedYResolution,

@@ -4,6 +4,7 @@ import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
+import { LabCodeInsightPanel } from "@/components/laboratory/code-insight/lab-code-insight-panel";
 import { useDifferentialStudio } from "./differential-studio/use-differential-studio";
 import { DIFFERENTIAL_PRESETS, DIFFERENTIAL_WORKFLOW_TEMPLATES } from "./differential-studio/constants";
 import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
@@ -248,6 +249,16 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
                         visibleSignals={visibleSignals}
                     />
                 );
+            case "code":
+                return (
+                    <LabCodeInsightPanel
+                        module="differential"
+                        title="Differential"
+                        expression={state.expression}
+                        secondary={`${state.variable}; point=${state.point}; order=${state.order}`}
+                        analyticSolution={state.analyticSolution}
+                    />
+                );
             case "visualize":
                 return (
                     <VisualizeView
@@ -288,9 +299,10 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
             <StudioHeaderBar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
-                availableTabs={["solve", "visualize", "compare", "report"]}
+                availableTabs={["solve", "code", "visualize", "compare", "report"]}
                 tabs={[
                     { id: "solve", label: "Solve" },
+                    { id: "code", label: "Code" },
                     { id: "visualize", label: "Visualize" },
                     { id: "compare", label: "Compare" },
                     { id: "report", label: "Report" },
