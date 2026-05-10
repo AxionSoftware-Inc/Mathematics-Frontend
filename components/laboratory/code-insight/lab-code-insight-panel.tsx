@@ -98,12 +98,12 @@ export function LabCodeInsightPanel({ module, title, expression, secondary, anal
         () => ({
             module,
             expression,
-            expression_latex: getParser(analyticSolution).expression_latex,
+            expression_latex: getString(getParser(analyticSolution), "expression_latex") || undefined,
             result_latex: getResultLatex(analyticSolution),
-            numeric_approximation: getExact(analyticSolution).numeric_approximation,
+            numeric_approximation: getString(getExact(analyticSolution), "numeric_approximation") || null,
             method: {
                 selected_method: method,
-                label: getExact(analyticSolution).method_label,
+                label: getString(getExact(analyticSolution), "method_label"),
                 summary: getString(asRecord(analyticSolution?.diagnostics), "method"),
             },
             steps: getSteps(analyticSolution),

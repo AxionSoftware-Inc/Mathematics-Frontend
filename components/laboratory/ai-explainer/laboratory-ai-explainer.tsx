@@ -28,7 +28,7 @@ type LaboratoryAIExplainerProps = {
 
 function normalizeMathMarkdown(value: string) {
     return value
-        .replace(/\\\[(.*?)\\\]/gs, (_, math) => `\n\n$$${math.trim()}$$\n\n`)
+        .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `\n\n$$${math.trim()}$$\n\n`)
         .replace(/^\s*\[\s*(\\[^\]\n]+?)\s*\]\s*$/gm, (_, math) => `\n\n$$${math.trim()}$$\n\n`);
 }
 
