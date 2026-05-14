@@ -27,9 +27,9 @@ export function LaboratorySolveLayout({
                 </div>
             </div>
 
-            <div className="space-y-5 xl:columns-2 xl:gap-5 xl:space-y-0">
+            <div className="grid auto-rows-min gap-5 xl:grid-cols-2">
                 {sections.map((section) => (
-                    <div key={section.id} className="mb-5" style={{ breakInside: "avoid" }}>
+                    <div key={section.id}>
                         {section.node}
                     </div>
                 ))}

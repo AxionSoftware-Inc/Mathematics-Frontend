@@ -13,6 +13,7 @@ import {
     LAB_PUBLICATION_PROFILE_DESCRIPTIONS,
     LAB_PUBLICATION_PROFILE_LABELS,
 } from "@/lib/laboratory-publication-profile";
+import { summarizeComputationalTrust } from "@/lib/computational-integrity";
 
 export function LaboratoryResultImportPanel({
     onImport,
@@ -65,6 +66,7 @@ export function LaboratoryResultImportPanel({
         const modules = Array.from(new Set(results.map((item) => item.module_slug)));
         return ["all", ...modules];
     }, [results]);
+    const selectedTrust = selectedResult ? summarizeComputationalTrust(selectedResult.metadata) : null;
 
     return (
         <div className="site-panel p-4">
@@ -203,6 +205,21 @@ export function LaboratoryResultImportPanel({
                                     <span className="rounded-full border border-border/60 bg-background px-3 py-1.5">
                                         {new Date(selectedResult.updated_at).toLocaleString()}
                                     </span>
+                                    {selectedTrust ? (
+                                        <span className="rounded-full border border-border/60 bg-background px-3 py-1.5">
+                                            Trust: {selectedTrust.label}
+                                            {selectedTrust.score === null ? "" : ` ${selectedTrust.score}/100`}
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <div className="mt-3 rounded-2xl border border-border/60 bg-background px-3 py-3 text-xs leading-5 text-muted-foreground">
+                                    <div className="font-black text-foreground">Import includes</div>
+                                    <div className="mt-1">- saved result snapshot with revision tracking</div>
+                                    <div>- result-backed computational citation</div>
+                                    <div>- trust/certificate summary</div>
+                                    {publicationProfile === "summary" || publicationProfile === "figures" ? null : (
+                                        <div>- reproducibility appendix with source/result hashes</div>
+                                    )}
                                 </div>
                                 <button
                                     type="button"

@@ -50,13 +50,19 @@ export type IntegralSolveMethod =
     | "auto"
     | "symbolic"
     | "risch-heurisch"
+    | "substitution"
+    | "integration-by-parts"
+    | "partial-fractions"
+    | "trig-substitution"
     | "numeric-check"
     | "adaptive-quadrature"
     | "gauss-legendre"
     | "composite-simpson"
     | "tanh-sinh"
     | "monte-carlo"
-    | "residue-contour";
+    | "residue-contour"
+    | "series-expansion-integral"
+    | "special-functions";
 export type IntegralDetectedType =
     | "definite_single"
     | "indefinite_single"

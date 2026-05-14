@@ -14,6 +14,8 @@ const navLinks = [
     { name: "Jurnal", href: "/journal" },
     { name: "Akademiya", href: "/academy" },
     { name: "Laboratoriya", href: "/laboratory" },
+    { name: "Notebook", href: "/notebook" },
+    { name: "Health", href: "/observability" },
     { name: "Hamkorlik", href: "/about" },
 ];
 

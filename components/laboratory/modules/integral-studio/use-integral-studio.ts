@@ -157,7 +157,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
 
     React.useEffect(() => {
         setBlocks(experienceLevelBlocks[experienceLevel]);
-        const allowedTabs = levelTabs.research;
+        const allowedTabs = levelTabs[experienceLevel];
         if (!allowedTabs.includes(activeTab)) {
             setActiveTab(allowedTabs[0]);
         }
@@ -920,7 +920,7 @@ export function useIntegralStudio(module: LaboratoryModuleMeta) {
             sweepSeries,
             previewVisualization,
             isResultStale,
-            availableTabs: levelTabs.research,
+            availableTabs: levelTabs[experienceLevel],
             notebook,
             liveBridge: { liveTargets, selectedLiveTargetId, setSelectedLiveTargetId }
         },

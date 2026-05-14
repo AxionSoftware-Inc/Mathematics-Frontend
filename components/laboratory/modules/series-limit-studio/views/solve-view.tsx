@@ -22,6 +22,8 @@ export function SolveView({
     };
 }) {
     const metrics = buildMetricCards(state);
+    const showMethodTrace = state.experienceLevel !== "beginner";
+    const showAnalyticForms = state.experienceLevel === "research";
     const hasAnalytic = Boolean(state.analyticSolution?.exact.result_latex || state.analyticSolution?.exact.steps.length);
     const [showNumericalDetails, setShowNumericalDetails] = React.useState(false);
     const finalFormula = state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? undefined;
@@ -138,8 +140,8 @@ export function SolveView({
             }
             sections={[
                 { id: "final-result", node: finalResultSection, weight: 2 },
-                { id: "method-trace", node: methodTraceSection, weight: 2 },
-                state.analyticSolution
+                showMethodTrace ? { id: "method-trace", node: methodTraceSection, weight: 2 } : null,
+                showAnalyticForms && state.analyticSolution
                     ? {
                           id: "analytic-forms",
                           node: (

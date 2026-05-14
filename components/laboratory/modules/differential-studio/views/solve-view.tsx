@@ -6,6 +6,8 @@ import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-pan
 import { LaboratorySolveLayout } from "@/components/laboratory/laboratory-solve-layout";
 import { LaboratorySignalPanel } from "@/components/laboratory/laboratory-signal-panel";
 import { LaboratorySolveDetailCard } from "@/components/laboratory/laboratory-solve-detail-card";
+import { MethodSelector } from "@/components/laboratory/method-selector/method-selector";
+import { getLaboratoryMethodOptions } from "@/components/laboratory/method-selector/method-registry";
 import { MatrixResultPanel } from "../components/matrix-result-panel";
 import {
     DifferentialComputationSummary,
@@ -52,6 +54,7 @@ interface SolveViewProps {
 
 export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProps) {
     const { summary, point, expression, isResultStale, analyticSolution, solvePhase, classification } = state;
+    const [selectedResearchMethod, setSelectedResearchMethod] = React.useState("auto");
     const isMatrixSummary = summary?.type === "jacobian" || summary?.type === "hessian";
     const hasAnalytic = analyticSolution?.status === "exact" && (analyticSolution?.exact?.steps?.length ?? 0) > 0;
     const exactSteps = analyticSolution?.exact?.steps || [];
@@ -371,6 +374,47 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
             </div>
         </div>
     );
+    const verificationSection = (
+        <div className="site-panel space-y-4 p-5">
+            <div className="site-eyebrow text-emerald-600">Verification / Proof Layer</div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {[
+                    {
+                        eyebrow: "ODE residual",
+                        value: state.mode === "ode" ? "tracked" : "n/a",
+                        detail: state.mode === "ode" ? "Solution should satisfy y' - f(x,y) ~= 0; numeric lanes require tolerance audit." : "Residual check activates on ODE lanes.",
+                        tone: state.mode === "ode" ? "info" as const : "neutral" as const,
+                    },
+                    {
+                        eyebrow: "Substitution check",
+                        value: analyticSolution?.status === "exact" ? "available" : "pending",
+                        detail: "Exact differential forms can be substituted back into the original equation.",
+                        tone: analyticSolution?.status === "exact" ? "success" as const : "warn" as const,
+                    },
+                    {
+                        eyebrow: "Initial condition",
+                        value: /[yx]\(0\)|[yx]\(/i.test(`${expression};${point}`) ? "provided" : "missing",
+                        detail: /[yx]\(0\)|[yx]\(/i.test(`${expression};${point}`) ? "Initial/boundary data signal detected." : "C constant or trajectory seed should be stated explicitly.",
+                        tone: /[yx]\(0\)|[yx]\(/i.test(`${expression};${point}`) ? "success" as const : "warn" as const,
+                    },
+                    {
+                        eyebrow: "Numerical stability",
+                        value: summary?.type === "ode" ? summary.stabilityLabel : summary?.type === "pde" ? String(summary.stabilityRatio.toFixed(3)) : "watch",
+                        detail: "RK/solve_ivp/PDE lanes should compare step-size sensitivity before publication.",
+                        tone: summary?.type === "pde" && summary.stabilityRatio > 0.5 ? "warn" as const : "info" as const,
+                    },
+                    {
+                        eyebrow: "Domain warning",
+                        value: analyticSolution?.diagnostics?.contract?.risk_level ?? "pending",
+                        detail: (analyticSolution?.diagnostics?.contract?.review_notes ?? [])[0] ?? "No explicit domain warning emitted yet.",
+                        tone: analyticSolution?.diagnostics?.contract?.risk_level === "low" ? "success" as const : "warn" as const,
+                    },
+                ].map((card) => (
+                    <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}`} {...card} />
+                ))}
+            </div>
+        </div>
+    );
     const signalsSection = visibleSignals.length > 0 ? (
         <LaboratorySignalPanel
             eyebrow="Runtime Diagnostics"
@@ -399,7 +443,6 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
                 <div className="space-y-6">
                     <SolverControl state={state} actions={actions} />
                     {laneGuidanceSection}
-                    {derivationSection}
                 </div>
             }
             visual={
@@ -410,10 +453,24 @@ export function SolveView({ state, actions, visibleSignals = [] }: SolveViewProp
                     </div>
                 </div>
             }
+            derivation={derivationSection}
             sections={[
                 finalResultSection ? { id: "final-result", node: finalResultSection, weight: 2 } : null,
                 matrixResultSection ? { id: "matrix-result", node: matrixResultSection, weight: 2 } : null,
+                {
+                    id: "method-selector",
+                    node: (
+                        <MethodSelector
+                            title="Differential / ODE method"
+                            value={selectedResearchMethod}
+                            options={getLaboratoryMethodOptions("differential")}
+                            onChange={setSelectedResearchMethod}
+                        />
+                    ),
+                    weight: 1,
+                },
                 { id: "method-audit", node: methodAuditSection, weight: 1 },
+                { id: "verification", node: verificationSection, weight: 1 },
                 signalsSection ? { id: "signals", node: signalsSection, weight: 1 } : null,
                 { id: "assumptions", node: assumptionsSection, weight: 1 },
             ].filter(Boolean) as { id: string; node: React.ReactNode; weight?: number }[]}

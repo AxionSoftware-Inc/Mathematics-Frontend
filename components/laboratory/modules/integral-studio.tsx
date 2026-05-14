@@ -8,9 +8,11 @@ import {
 import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
 import type { LaboratorySignal } from "@/components/laboratory/laboratory-signal-panel";
+import type { ReportGeneratorFormat } from "@/components/laboratory/laboratory-report-layout";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
 import type { WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
+import { verifyIntegralCertificate, type VerificationCertificate } from "@/lib/laboratory-verification";
 
 // Shared Services
 import { LaboratoryFormattingService } from "@/components/laboratory/services/formatting-service";
@@ -112,6 +114,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
     } = actions;
     const [templatesOpen, setTemplatesOpen] = React.useState(false);
     const [publicationProfile, setPublicationProfile] = React.useState<WriterBridgePublicationProfile>("summary");
+    const [reportFormat, setReportFormat] = React.useState<ReportGeneratorFormat>("scientific-report");
+    const [verificationCertificate, setVerificationCertificate] = React.useState<VerificationCertificate | null>(null);
+    const [verificationState, setVerificationState] = React.useState<"idle" | "checking" | "ready" | "error">("idle");
 
     const solverWarning = Boolean(error || solveErrorMessage);
     const diagnosticsSnapshot = React.useMemo(() => {
@@ -468,6 +473,41 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
 
     const visibleExactSteps = analyticSolution?.exact.steps?.length ? analyticSolution.exact.steps : fallbackExactSteps;
 
+    React.useEffect(() => {
+        if (mode !== "single" || analyticSolution?.status !== "exact" || !expression.trim()) {
+            setVerificationCertificate(null);
+            setVerificationState("idle");
+            return;
+        }
+
+        let cancelled = false;
+        setVerificationState("checking");
+        verifyIntegralCertificate({
+            expression,
+            lower,
+            upper,
+            antiderivative_latex: analyticSolution.exact.antiderivative_latex || "",
+            result_latex: analyticSolution.exact.evaluated_latex || "",
+            method: analyticSolution.reproducibility?.selected_method || solveMethod,
+        })
+            .then((certificate) => {
+                if (!cancelled) {
+                    setVerificationCertificate(certificate);
+                    setVerificationState("ready");
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setVerificationCertificate(null);
+                    setVerificationState("error");
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [analyticSolution, expression, lower, mode, solveMethod, upper]);
+
     const renderedProblemContent = React.useMemo(() => {
         const texExpression = LaboratoryFormattingService.toTexExpression(expression);
         if (mode === "single") {
@@ -768,6 +808,78 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             { eyebrow: "Voxel", value: LaboratoryFormattingService.formatMetric(tripleDiagnostics?.voxelVolume, 6), detail: "Measured cell volume used by the estimate.", tone: "success" as const },
         ];
     }, [analyticSolution, classification.kind, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.piecewiseRegions.length, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.readiness_label, doubleDiagnostics?.mean, doubleDiagnostics?.peak, doubleDiagnostics?.sampleCount, mode, normalizedSegments, normalizedXResolution, normalizedYResolution, normalizedZResolution, singleDiagnostics?.relativeSpread, singleDiagnostics?.spread, singleDiagnostics?.stability, summary, taxonomyLaneGuidance, tripleDiagnostics?.sampleCount, tripleDiagnostics?.voxelVolume]);
+
+    const verificationLayerCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
+        const cards: Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }> = [];
+        if (verificationState === "checking") {
+            cards.push({
+                eyebrow: "Certificate",
+                value: "Checking",
+                detail: "Backend verification certificate is being prepared.",
+                tone: "info",
+            });
+        } else if (verificationCertificate) {
+            cards.push({
+                eyebrow: "Certificate",
+                value: `${verificationCertificate.trust_score}/100`,
+                detail: `${verificationCertificate.status}: ${verificationCertificate.checks.length} checks recorded.`,
+                tone: verificationCertificate.status === "verified" ? "success" : verificationCertificate.status === "blocked" ? "warn" : "info",
+            });
+        } else if (verificationState === "error") {
+            cards.push({
+                eyebrow: "Certificate",
+                value: "Unavailable",
+                detail: "Backend certificate endpoint did not return a verification packet.",
+                tone: "warn",
+            });
+        }
+        cards.push({
+            eyebrow: "Check result",
+            value: analyticSolution?.status === "exact" ? "symbolic" : summary ? "numeric" : "pending",
+            detail: analyticSolution?.status === "exact"
+                ? "Exact result is available for derivative/substitution verification."
+                : summary
+                  ? "Numerical result is available; compare against symbolic lane when possible."
+                  : "Run solve to build the verification certificate.",
+            tone: analyticSolution?.status === "exact" ? "success" : summary ? "info" : "neutral",
+        });
+        cards.push({
+            eyebrow: "Derivative check",
+            value: analyticSolution?.exact?.antiderivative_latex ? "available" : "pending",
+            detail: "Analytic primitive can be differentiated back to the submitted integrand; unresolved lanes stay flagged.",
+            tone: analyticSolution?.exact?.antiderivative_latex ? "success" : "warn",
+        });
+        cards.push({
+            eyebrow: "Numeric vs symbolic",
+            value: analyticSolution?.exact?.numeric_approximation ? "compared" : summary ? "numeric-only" : "pending",
+            detail: analyticSolution?.exact?.numeric_approximation
+                ? `Backend decimal check: ${analyticSolution.exact.numeric_approximation}.`
+                : "Symbolic decimal check is not available for this lane yet.",
+            tone: analyticSolution?.exact?.numeric_approximation ? "success" : summary ? "info" : "neutral",
+        });
+        cards.push({
+            eyebrow: "Domain / singularity",
+            value: diagnosticsSnapshot.research.domain_risk_level,
+            detail: diagnosticsSnapshot.domainBlockers.length
+                ? diagnosticsSnapshot.domainBlockers.join("; ")
+                : diagnosticsSnapshot.hazardDetails.length
+                  ? diagnosticsSnapshot.hazardDetails[0].detail
+                  : "No blocking domain restriction detected.",
+            tone: diagnosticsSnapshot.research.domain_risk_level === "low" ? "success" : diagnosticsSnapshot.research.domain_risk_level === "medium" ? "info" : "warn",
+        });
+        cards.push({
+            eyebrow: "Convergence",
+            value: analyticSolution?.diagnostics?.convergence || "not_applicable",
+            detail: diagnosticsSnapshot.convergenceReason || "Convergence audit is not applicable for this lane.",
+            tone: analyticSolution?.diagnostics?.convergence === "divergent" || analyticSolution?.diagnostics?.convergence === "unresolved" ? "warn" : "success",
+        });
+        return cards;
+    }, [analyticSolution, diagnosticsSnapshot.convergenceReason, diagnosticsSnapshot.domainBlockers, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.research.domain_risk_level, summary, verificationCertificate, verificationState]);
+
+    const researchAuditCards = React.useMemo(
+        () => [...methodAuditCards, ...verificationLayerCards],
+        [methodAuditCards, verificationLayerCards],
+    );
 
     const visualizeOverviewCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         const staleTone: "warn" | "success" | "neutral" = isResultStale ? "warn" : summary ? "success" : "neutral";
@@ -1073,35 +1185,68 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
     }, [benchmarkSummary, blockingValidationCount, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.hazardDetails, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, warningSignals]);
 
     const reportSkeletonMarkdown = React.useMemo(() => {
-        if (!summary) return "- Solver natijasi tayyor bo'lgach report skeleton quriladi.";
-        const base = `## Laboratory Export: Integral Studio\n\n- Function: \`${expression}\`\n`;
-        const assumptionsSection = `\n\n### Assumptions & Domains\n${assumptionsMarkdown}`;
-        const methodSection = `\n\n### Method Audit\n${methodAuditMarkdown}`;
-        const researchSection = `\n\n### Research Contract\n- Readiness: ${diagnosticsSnapshot.research.readiness_label}\n- Exactness tier: ${diagnosticsSnapshot.research.exactness_tier}\n- Domain risk: ${diagnosticsSnapshot.research.domain_risk_level}\n- Blockers: ${diagnosticsSnapshot.research.blocker_count}\n- Hazard warnings: ${diagnosticsSnapshot.research.hazard_count}\n- Review note: ${diagnosticsSnapshot.research.review_notes[0] || "none"}`;
+        if (!summary) return "- Solver natijasi tayyor bo'lgach full research report quriladi.";
+        const exact = analyticSolution?.exact;
+        const reproducibility = analyticSolution?.reproducibility;
+        const formatTitles: Record<ReportGeneratorFormat, string> = {
+            "student-solution": "Student Solution",
+            "teacher-explanation": "Teacher Explanation",
+            "scientific-report": "Scientific Report",
+            "lab-report": "Lab Report",
+            "code-appendix": "Code Appendix",
+            "latex-paper-section": "LaTeX Paper Section",
+        };
+        const formatFocus: Record<ReportGeneratorFormat, string> = {
+            "student-solution": "Show a clean step-by-step solution, then verify the answer and state the final result.",
+            "teacher-explanation": "Explain why the selected method works, where students can make mistakes, and how the result is checked.",
+            "scientific-report": "Document the computational method, symbolic/numerical agreement, assumptions, limitations, and reproducibility metadata.",
+            "lab-report": "Record objective, procedure, observation, result, interpretation, and conclusion in laboratory style.",
+            "code-appendix": "Prioritize reproducible code, inputs, engine metadata, and exact/numerical outputs for rerun.",
+            "latex-paper-section": "Produce a concise academic section suitable for inserting into a LaTeX manuscript.",
+        };
+        const title = `# ${formatTitles[reportFormat]}: Integral Analysis\n\n## Title\nIntegral analysis of "${expression || "untitled expression"}"`;
+        const objective = `\n\n## Objective\n${formatFocus[reportFormat]} Preserve enough computation metadata for later Writer import and laboratory reopening.`;
+        const problemStatement = mode === "single"
+            ? `\n\n## Problem Statement\nCompute\n\n$$\\int_{${lower || "a"}}^{${upper || "b"}} ${analyticSolution?.parser?.expression_latex || expression} \\, dx$$\n\nInput expression: "${expression}".\nBounds: lower="${lower}", upper="${upper}".`
+            : `\n\n## Problem Statement\nCompute a ${mode} integral for "${expression}" over the configured coordinate ranges.`;
+        const method = `\n\n## Method\n- Selected method: ${reproducibility?.method || solveMethod}\n- Method family: ${reproducibility?.method_family || "hybrid"}\n- Engine: ${reproducibility?.engine || "sympy/manual-js-hybrid"}\n- Numeric strategy: ${reproducibility?.numeric_strategy || "frontend estimator / symbolic decimal check"}\n- Adapter status: ${reproducibility?.adapter_status || "active"}\n\n${methodAuditMarkdown}`;
+        const symbolicSolution = `\n\n## Solution\n${exact?.antiderivative_latex ? `Antiderivative:\n\n$$F(x)=${exact.antiderivative_latex}$$\n` : "Antiderivative was not produced for this lane.\n"}${exact?.evaluated_latex ? `Exact evaluated result:\n\n$$${exact.evaluated_latex}$$` : "Exact evaluated result is unavailable or not applicable."}`;
+        const numericalFallback = mode === "single"
+            ? `\n\n## Numerical Fallback\n- Simpson estimate: ${LaboratoryFormattingService.formatMetric((summary as SingleIntegralSummary).simpson, 10)}\n- Midpoint estimate: ${LaboratoryFormattingService.formatMetric((summary as SingleIntegralSummary).midpoint, 10)}\n- Trapezoid estimate: ${LaboratoryFormattingService.formatMetric((summary as SingleIntegralSummary).trapezoid, 10)}\n- Method spread: ${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread, 10)}\n- Backend decimal check: ${exact?.numeric_approximation || "not available"}`
+            : `\n\n## Numerical Fallback\n- Grid estimate: ${LaboratoryFormattingService.formatMetric(mode === "double" ? (summary as DoubleIntegralSummary).value : (summary as TripleIntegralSummary).value, 10)}\n- Resolution: ${mode === "double" ? `${normalizedXResolution} x ${normalizedYResolution}` : `${normalizedXResolution} x ${normalizedYResolution} x ${normalizedZResolution}`}`;
+        const visualization = `\n\n## Graph Interpretation\nThe laboratory visualization panel renders the integrand geometry, sampled trace/grid, and result overlays. Positive and negative area/volume regions should be interpreted with the selected coordinate system and domain restrictions. For exported reports, include the current plot screenshot from the laboratory UI when preparing a final manuscript.`;
+        const interpretation = `\n\n## Interpretation\n- Solver state: ${solverStatusText}\n- Readiness: ${diagnosticsSnapshot.research.readiness_label}\n- Exactness tier: ${diagnosticsSnapshot.research.exactness_tier}\n- Domain risk: ${diagnosticsSnapshot.research.domain_risk_level}\n- Primary review note: ${diagnosticsSnapshot.research.review_notes[0] || "none"}`;
+        const verification = `\n\n## Verification\n${verificationLayerCards.map((card) => `- **${card.eyebrow}:** ${card.value} - ${card.detail}`).join("\n")}`;
+        const limitations = `\n\n## Limitations\n- Blockers: ${diagnosticsSnapshot.research.blocker_count}\n- Hazard warnings: ${diagnosticsSnapshot.research.hazard_count}\n- Domain constraints: ${diagnosticsSnapshot.domainConstraints.length ? diagnosticsSnapshot.domainConstraints.join("; ") : "none detected"}\n- Numerical fallback should be independently tightened for publication-grade tolerance if the selected method adapter is code-ready/planned.`;
+        const codeAppendix = `\n\n## Code Appendix\n\`\`\`python\n${reproducibility?.code || "Run analytic solve to attach backend reproducibility code."}\n\`\`\``;
+        const references = `\n\n## References\n- SymPy documentation: symbolic integration and expression simplification.\n- SciPy documentation: adaptive quadrature and numerical integration methods.\n- MathSphere Laboratory saved-result schema: canonical bridge payload with input snapshot, computation metadata, and provenance.`;
+        const assumptionsSection = `\n\n## Assumptions & Domains\n${assumptionsMarkdown}`;
+        const researchSection = `\n\n## Research Contract\n- Readiness: ${diagnosticsSnapshot.research.readiness_label}\n- Exactness tier: ${diagnosticsSnapshot.research.exactness_tier}\n- Domain risk: ${diagnosticsSnapshot.research.domain_risk_level}\n- Blockers: ${diagnosticsSnapshot.research.blocker_count}\n- Hazard warnings: ${diagnosticsSnapshot.research.hazard_count}\n- Review note: ${diagnosticsSnapshot.research.review_notes[0] || "none"}`;
         const benchmarkSection = benchmarkSummary
-            ? `\n\n### Benchmark Confidence\n- Benchmark: ${benchmarkSummary.label}\n- Status: ${benchmarkSummary.status}\n- Expected: ${benchmarkSummary.expectedValue}\n- Actual: ${benchmarkSummary.actualValue}\n- Detail: ${benchmarkSummary.detail}`
+            ? `\n\n## Benchmark Confidence\n- Benchmark: ${benchmarkSummary.label}\n- Status: ${benchmarkSummary.status}\n- Expected: ${benchmarkSummary.expectedValue}\n- Actual: ${benchmarkSummary.actualValue}\n- Detail: ${benchmarkSummary.detail}`
             : "";
-        const trustSection = `\n\n### Trust\n- Solver state: ${solverStatusText}\n- Warning count: ${warningSignals.length}\n- Export state: ${summary && !solverWarning ? "Ready" : "Blocked"}`;
-        const resultValue = mode === "double"
-            ? (summary as DoubleIntegralSummary).value
-            : (summary as TripleIntegralSummary).value;
-        if (mode === "single") {
-            return base
-                + `- Result (Simpson): ${LaboratoryFormattingService.formatMetric((summary as SingleIntegralSummary).simpson, 6)}\n- Method spread: ${LaboratoryFormattingService.formatMetric(singleDiagnostics?.spread, 6)}`
-                + assumptionsSection
-                + methodSection
-                + researchSection
-                + benchmarkSection
-                + trustSection;
-        }
-        return base
-            + `- Result: ${LaboratoryFormattingService.formatMetric(resultValue, 8)}`
-            + assumptionsSection
-            + methodSection
-            + researchSection
-            + benchmarkSection
-            + trustSection;
-    }, [assumptionsMarkdown, benchmarkSummary, diagnosticsSnapshot.research.blocker_count, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.hazard_count, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, expression, methodAuditMarkdown, mode, singleDiagnostics, solverStatusText, solverWarning, summary, warningSignals.length]);
+        const trustSection = `\n\n## Export & Bridge\n- Export state: ${summary && !solverWarning ? "Ready" : "Blocked"}\n- Writer bridge: saved laboratory result can be imported later from Writer's saved-result import block.\n- Available exports: PDF print, LaTeX source, Word-compatible document, Writer bridge.`;
+        const conclusion = `\n\n## Conclusion\nThe reported result is ${diagnosticsSnapshot.research.readiness_label.toLowerCase()} with ${diagnosticsSnapshot.research.domain_risk_level} domain risk. Use the exact symbolic solution when available; otherwise treat the numerical fallback as an approximation that should be tightened before publication.`;
+        return [
+            title,
+            objective,
+            problemStatement,
+            method,
+            symbolicSolution,
+            numericalFallback,
+            visualization,
+            interpretation,
+            verification,
+            limitations,
+            assumptionsSection,
+            researchSection,
+            benchmarkSection,
+            codeAppendix,
+            references,
+            trustSection,
+            conclusion,
+        ].filter(Boolean).join("");
+    }, [analyticSolution, assumptionsMarkdown, benchmarkSummary, diagnosticsSnapshot.domainConstraints, diagnosticsSnapshot.research.blocker_count, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, diagnosticsSnapshot.research.hazard_count, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, expression, lower, methodAuditMarkdown, mode, normalizedXResolution, normalizedYResolution, normalizedZResolution, reportFormat, singleDiagnostics?.spread, solveMethod, solverStatusText, solverWarning, summary, upper, verificationLayerCards]);
 
     const reportExecutiveCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => {
         if (!summary) {
@@ -1132,7 +1277,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                 },
                 {
                     eyebrow: "Coverage",
-                    value: `${assumptionCards.length + methodAuditCards.length}`,
+                    value: `${assumptionCards.length + researchAuditCards.length}`,
                     detail: "Assumption va method audit signal'lari reportga kiritiladi.",
                     tone: "info",
                 },
@@ -1158,12 +1303,12 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             },
             {
                 eyebrow: "Coverage",
-                value: `${assumptionCards.length + methodAuditCards.length}`,
+                value: `${assumptionCards.length + researchAuditCards.length}`,
                 detail: "Assumption va method audit signal'lari reportga kiritiladi.",
                 tone: "info",
             },
         ];
-    }, [analyticSolution?.status, assumptionCards.length, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, methodAuditCards.length, mode, summary, warningSignals.length]);
+    }, [analyticSolution?.status, assumptionCards.length, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.readiness_label, diagnosticsSnapshot.research.review_notes, mode, researchAuditCards.length, summary, warningSignals.length]);
 
     const reportReadinessCards = React.useMemo<Array<{ eyebrow: string; value: string; detail: string; tone: "neutral" | "info" | "success" | "warn" }>>(() => ([
         {
@@ -1174,9 +1319,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         },
         {
             eyebrow: "Method audit",
-            value: `${methodAuditCards.length}`,
+            value: `${researchAuditCards.length}`,
             detail: "Computation pathway report packetga ulanadi.",
-            tone: methodAuditCards.length ? "success" : "neutral",
+            tone: researchAuditCards.length ? "success" : "neutral",
         },
         {
             eyebrow: "Research",
@@ -1196,7 +1341,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             detail: summary && !solverWarning ? "Copy, writer send, live push available." : "Export clean result kutmoqda.",
             tone: summary && !solverWarning ? "success" : "warn",
         },
-    ]), [annotations.length, assumptionCards.length, diagnosticsSnapshot.research.blocker_count, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, methodAuditCards.length, solverWarning, summary]);
+    ]), [annotations.length, assumptionCards.length, diagnosticsSnapshot.research.blocker_count, diagnosticsSnapshot.research.domain_risk_level, diagnosticsSnapshot.research.exactness_tier, researchAuditCards.length, solverWarning, summary]);
     const { saveResult, saveState, saveError, lastSavedResult } = useLaboratoryResultPersistence({
         ready: Boolean(summary && !solverWarning),
         moduleSlug: module.slug,
@@ -1244,6 +1389,36 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
             sourceLabel: "Integral Studio",
             classification: classification.label,
             solverStatusText,
+            method: analyticSolution?.reproducibility?.selected_method || solveMethod,
+            engine: analyticSolution?.reproducibility?.engine || "sympy/manual-js-hybrid",
+            computation: {
+                status: analyticSolution?.status === "exact" ? "exact" : summary ? "numeric" : "unknown",
+                method: analyticSolution?.reproducibility?.selected_method || solveMethod,
+                method_label: analyticSolution?.reproducibility?.method || solveMethod,
+                method_family: analyticSolution?.reproducibility?.method_family || "hybrid",
+                tolerance: analyticSolution?.reproducibility?.numeric_strategy || null,
+                engine: analyticSolution?.reproducibility?.engine || "sympy/manual-js-hybrid",
+                warnings: warningSignals.map((signal) => `${signal.label}: ${signal.text}`),
+                errors: solverWarning ? [solverWarning] : [],
+            },
+            verification_certificate: verificationCertificate || {
+                status: verificationState === "checking" ? "pending" : "not_requested",
+                trust_score: null,
+                checks: [],
+                warnings: [],
+                recommendations: ["Open Report Center and run/refresh verification before publication export."],
+            },
+            report_contract: {
+                format: reportFormat,
+                required_sections: ["Problem Statement", "Method", "Solution", "Verification", "Graph Interpretation", "Code Appendix", "Conclusion"],
+                readiness: summary && !solverWarning ? "draft-ready" : "blocked",
+                export_formats: ["PDF", "LaTeX", "DOCX", "Writer"],
+            },
+            billing_signal: {
+                tier: "pro",
+                feature: "full-report-verification-code-appendix",
+                reason: "Full report, verification certificate, code appendix, and Writer bridge are paid-value outputs.",
+            },
         }),
     });
 
@@ -1257,6 +1432,8 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         analyticStatusToneClass: analyticStatusCard.toneClass,
         classification,
         isResultStale,
+        saveResult,
+        saveState,
     };
 
     const visualizerProps: React.ComponentProps<typeof VisualizerDeck> = {
@@ -1288,6 +1465,42 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
         ...state,
         ...actions,
     };
+
+    const statusBarCards = React.useMemo<StudioCard[]>(() => {
+        const cards: StudioCard[] = [
+            {
+                eyebrow: "Type",
+                value: classification.label,
+                detail: classification.summary,
+                tone: classification.support === "supported" ? "success" : classification.support === "partial" ? "info" : "warn",
+            },
+            {
+                eyebrow: "Solve",
+                value: analyticStatusCard.badge,
+                detail: analyticStatusCard.body,
+                tone: solvePhase === "exact-ready" ? "success" : solvePhase === "needs-numerical" ? "warn" : solvePhase === "analytic-loading" ? "info" : "neutral",
+            },
+            {
+                eyebrow: "Engine",
+                value: analyticSolution?.reproducibility?.engine || (activeTab === "code" ? "sympy" : "hybrid"),
+                detail: analyticSolution?.reproducibility?.method || solveMethod,
+                tone: "info",
+            },
+            {
+                eyebrow: "Numeric",
+                value: analyticSolution?.reproducibility?.numeric_strategy || (summary ? "ready" : "pending"),
+                detail: summary ? "Numerical comparison data is available." : "Run solve or fallback to populate numeric data.",
+                tone: summary ? "success" : "neutral",
+            },
+            {
+                eyebrow: "Save",
+                value: saveState === "saving" ? "saving" : saveState === "saved" ? "saved" : lastSavedResult ? `rev ${lastSavedResult.revision}` : "not saved",
+                detail: saveError || (lastSavedResult ? lastSavedResult.title : "Use Save Bridge to store this result."),
+                tone: saveState === "error" ? "warn" : saveState === "saved" || lastSavedResult ? "success" : "neutral",
+            },
+        ];
+        return cards;
+    }, [activeTab, analyticSolution?.reproducibility?.engine, analyticSolution?.reproducibility?.method, analyticSolution?.reproducibility?.numeric_strategy, analyticStatusCard.badge, analyticStatusCard.body, classification.label, classification.summary, classification.support, lastSavedResult, saveError, saveState, solveMethod, solvePhase, summary]);
 
     return (
         <div className="space-y-8 pb-20">
@@ -1365,13 +1578,13 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         methodAuditCards={methodAuditCards}
                         visibleSignals={visibleSignals}
                         assumptionCards={assumptionCards}
+                        experienceLevel={experienceLevel}
                     />
                 )}
 
                 {activeTab === "code" && (
                     <CodeView
                         analyticSolution={analyticSolution}
-                        mode={mode}
                         expression={expression}
                         lower={lower}
                         upper={upper}
@@ -1389,7 +1602,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         methodTableRows={methodTableRows}
                         sampleTableRows={sampleTableRows}
                         visualizeOverviewCards={visualizeOverviewCards}
-                        methodAuditCards={methodAuditCards}
+                        methodAuditCards={researchAuditCards}
                         visibleSignals={visibleSignals}
                         sweepSeries={sweepSeries}
                         sweepTableRows={sweepTableRows}
@@ -1397,6 +1610,7 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         setSweepStart={setSweepStart}
                         sweepEnd={sweepEnd}
                         setSweepEnd={setSweepEnd}
+                        experienceLevel={experienceLevel}
                     />
                 )}
 
@@ -1406,8 +1620,9 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         trustPanelProps={trustPanelProps}
                         resultLevelCards={resultLevelCards}
                         riskRegisterCards={riskRegisterCards}
-                        methodAuditCards={methodAuditCards}
+                        methodAuditCards={researchAuditCards}
                         scenarioPanelProps={scenarioPanelProps}
+                        summary={summary as IntegralComputationSummary | null}
                     />
                 )}
 
@@ -1430,12 +1645,14 @@ export function IntegralStudioModule({ module }: { module: LaboratoryModuleMeta 
                         pushLiveResult={pushLiveResult}
                         publicationProfile={publicationProfile}
                         setPublicationProfile={setPublicationProfile}
+                        reportFormat={reportFormat}
+                        setReportFormat={setReportFormat}
                     />
                 )}
             </div>
 
             {/* Sleek Status Bar */}
-            <StudioStatusBar cards={[...solveOverviewCards, ...workflowReadinessCards]} resetWorkspace={resetWorkspace} />
+            <StudioStatusBar cards={statusBarCards} resetWorkspace={resetWorkspace} />
 
         </div>
     );

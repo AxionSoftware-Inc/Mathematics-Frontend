@@ -10,6 +10,15 @@ import {
     applyPublicationProfileToBlock,
     applyPublicationProfileToMarkdown,
 } from "@/lib/laboratory-publication-profile";
+import {
+    buildComputationalCitationMarkdown,
+    buildReproducibilityAppendixMarkdown,
+    buildReproducibilityCapsule,
+    deterministicHash,
+    summarizeComputationalTrust,
+} from "@/lib/computational-integrity";
+import { assumptionsToStatements, inferAssumptions } from "@/lib/assumptions";
+import { buildNumericalTrustMeter } from "@/lib/numerical-trust";
 
 export const SAVED_LAB_RESULT_SCHEMA_VERSION = 1;
 
@@ -78,6 +87,37 @@ function buildCanonicalMetadata(payload: CreateSavedLaboratoryResultPayload) {
     const inputSnapshot = isRecord(payload.input_snapshot) ? payload.input_snapshot : {};
     const structuredPayload = payload.structured_payload;
     const savedAt = new Date().toISOString();
+    const assumptions = inferAssumptions({
+        input: inputSnapshot,
+        metadata: sourceMetadata,
+        fallbackText: payload.report_markdown,
+    });
+    const reproducibilityCapsule = buildReproducibilityCapsule({
+        input: inputSnapshot,
+        result: {
+            structured_payload: structuredPayload,
+            report_markdown: payload.report_markdown,
+        },
+        metadata: { ...sourceMetadata, assumptions: assumptionsToStatements(assumptions) },
+        createdAt: savedAt,
+    });
+    const verificationCertificate = isRecord(sourceMetadata.verification_certificate)
+        ? sourceMetadata.verification_certificate
+        : {
+              status: "not_requested",
+              trust_score: null,
+              checks: [],
+              warnings: [],
+              recommendations: ["Run verification certificate before final publication export."],
+          };
+    const computationWarnings = normalizeStringList(sourceComputation.warnings ?? sourceMetadata.warnings);
+    const computationErrors = normalizeStringList(sourceComputation.errors ?? sourceMetadata.errors);
+    const numericalTrustMeter = buildNumericalTrustMeter({
+        method: reproducibilityCapsule.method,
+        warnings: computationWarnings,
+        tolerance: reproducibilityCapsule.numericSettings.tolerance,
+        runtimeMs: typeof sourceComputation.runtime_ms === "number" ? sourceComputation.runtime_ms : null,
+    });
 
     return {
         ...sourceMetadata,
@@ -87,6 +127,12 @@ function buildCanonicalMetadata(payload: CreateSavedLaboratoryResultPayload) {
                 : SAVED_LAB_RESULT_SCHEMA_VERSION,
         result_standard: "mathsphere.saved_lab_result",
         original_input: isRecord(sourceMetadata.original_input) ? sourceMetadata.original_input : inputSnapshot,
+        assumptions: assumptionsToStatements(assumptions),
+        assumption_contract: {
+            assumptions,
+            source: assumptions.some((item) => item.source === "user") ? "user" : "inferred",
+            affected_outputs: ["solve", "limit", "integral", "graph", "code", "report", "verification"],
+        },
         provenance: {
             app: "MathSphere Laboratory",
             source_label:
@@ -126,10 +172,67 @@ function buildCanonicalMetadata(payload: CreateSavedLaboratoryResultPayload) {
                     : typeof sourceMetadata.engine === "string"
                       ? sourceMetadata.engine
                       : "sympy/manual-js-hybrid",
-            warnings: normalizeStringList(sourceComputation.warnings ?? sourceMetadata.warnings),
-            errors: normalizeStringList(sourceComputation.errors ?? sourceMetadata.errors),
+            warnings: computationWarnings,
+            errors: computationErrors,
             ...sourceComputation,
         },
+        verification_certificate: verificationCertificate,
+        reproducibility_capsule: isRecord(sourceMetadata.reproducibility_capsule)
+            ? sourceMetadata.reproducibility_capsule
+            : reproducibilityCapsule,
+        integrity: {
+            source_hash:
+                typeof sourceMetadata.source_hash === "string"
+                    ? sourceMetadata.source_hash
+                    : reproducibilityCapsule.sourceHash,
+            result_hash:
+                typeof sourceMetadata.result_hash === "string"
+                    ? sourceMetadata.result_hash
+                    : reproducibilityCapsule.resultHash,
+            report_hash: deterministicHash(payload.report_markdown),
+            dependency_contract: [
+                "final answer",
+                "step-by-step explanation",
+                "graph / visual",
+                "Python code",
+                "report paragraph",
+                "notebook conclusion",
+            ],
+            outdated_detection: "revision-and-hash",
+        },
+        numerical_trust: {
+            ...summarizeComputationalTrust({
+                ...sourceMetadata,
+                verification_certificate: verificationCertificate,
+                computation: {
+                    warnings: computationWarnings,
+                    errors: computationErrors,
+                },
+            }),
+            meter: numericalTrustMeter,
+        },
+        report_contract: isRecord(sourceMetadata.report_contract)
+            ? sourceMetadata.report_contract
+            : {
+                  required_sections: [
+                      "Problem Statement",
+                      "Method",
+                      "Solution",
+                      "Verification",
+                      "Graph Interpretation",
+                      "Code Appendix",
+                      "Conclusion",
+                  ],
+                  export_formats: ["PDF", "LaTeX", "DOCX", "Writer"],
+                  readiness: payload.report_markdown.trim().length > 0 ? "draft-ready" : "blocked",
+              },
+        billing_signal: isRecord(sourceMetadata.billing_signal)
+            ? sourceMetadata.billing_signal
+            : {
+                  tier: "pro",
+                  feature: "saved-lab-result-report-bridge",
+                  reason: "Saved result, report export, writer import, and verification certificate are paid-value workflow features.",
+              },
     };
 }
 
@@ -311,11 +414,32 @@ export function createWriterImportPayloadFromSavedResult(
         kind: result.structured_payload.kind || result.mode || "report",
         status: "ready",
     };
+    const trust = summarizeComputationalTrust(result.metadata);
+    const capsule = isRecord(result.metadata.reproducibility_capsule)
+        ? (result.metadata.reproducibility_capsule as Record<string, unknown>)
+        : {};
+    baseBlock.integrity = {
+        sourceHash: typeof capsule.sourceHash === "string" ? capsule.sourceHash : undefined,
+        resultHash: typeof capsule.resultHash === "string" ? capsule.resultHash : undefined,
+        method: typeof capsule.method === "string" ? capsule.method : undefined,
+        trustLabel: trust.label,
+        trustScore: trust.score,
+    };
     const block = applyPublicationProfileToBlock(baseBlock, profile);
+    const profiledMarkdown = applyPublicationProfileToMarkdown(result.report_markdown, block, profile);
+    const citation = buildComputationalCitationMarkdown({
+        resultId: result.id,
+        title: result.title,
+        moduleTitle: result.module_title,
+        revision: result.revision,
+        metadata: result.metadata,
+        updatedAt: result.updated_at,
+    });
+    const appendix = profile === "summary" || profile === "figures" ? "" : buildReproducibilityAppendixMarkdown(result.metadata);
 
     return {
         version: LIVE_WRITER_EXPORT_VERSION,
-        markdown: applyPublicationProfileToMarkdown(result.report_markdown, block, profile),
+        markdown: [profiledMarkdown, citation, appendix].filter(Boolean).join("\n\n"),
         block,
         title: result.title,
         abstract: result.summary || `Imported from ${result.module_title}.`,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, ArrowRight, AreaChart, Blocks, FlaskConical, Sigma, TrendingUp } from "lucide-react";
+import { Activity, ArrowRight, AreaChart, Blocks, BookOpenText, FlaskConical, Sigma, TrendingUp } from "lucide-react";
 
 import { HeroBadge, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchLaboratoryModules } from "@/lib/laboratory";
@@ -50,6 +50,20 @@ export default async function LaboratoryPage() {
                                 Laboratoriya modullari yagona vizualizatsiya va tahlil arxitekturasi ustida qurilgan. 
                                 Har bir studio o&apos;z yo&apos;nalishi bo&apos;yicha research-grade hisoblash muhitini taqdim etadi.
                             </p>
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <Link href="/notebook" className="site-btn-accent inline-flex items-center gap-2 px-5">
+                                    <BookOpenText className="h-4 w-4" />
+                                    Open Notebook / Worksheet
+                                </Link>
+                                <Link href="/write" className="site-btn inline-flex items-center gap-2 px-5">
+                                    Writer
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                                <Link href="/observability" className="site-btn inline-flex items-center gap-2 px-5">
+                                    Observability
+                                    <Activity className="h-4 w-4" />
+                                </Link>
+                            </div>
                         </section>
 
                         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

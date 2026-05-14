@@ -59,6 +59,8 @@ export function SolveView({
     const transformedVector = matrixTimesVector(numericMatrix, numericVector);
     const planeScale = determinant2x2(numericMatrix);
     const hasAnalytic = Boolean(state.analyticSolution?.exact.result_latex || state.analyticSolution?.exact.steps.length);
+    const showMethodTrace = state.experienceLevel !== "beginner";
+    const showAnalyticForms = state.experienceLevel === "research";
     const [showNumericalDetails, setShowNumericalDetails] = React.useState(false);
     const matrixShape = state.summary.shape ?? (state.matrixRows.length && state.matrixRows[0]?.length ? `${state.matrixRows.length}x${state.matrixRows[0].length}` : "pending");
 
@@ -272,8 +274,8 @@ export function SolveView({
             }
             sections={[
                 { id: "final-result", node: finalResultSection, weight: 3 },
-                { id: "method-trace", node: methodTraceSection, weight: 2 },
-                state.analyticSolution
+                showMethodTrace ? { id: "method-trace", node: methodTraceSection, weight: 2 } : null,
+                showAnalyticForms && state.analyticSolution
                     ? {
                           id: "analytic-forms",
                           node: (

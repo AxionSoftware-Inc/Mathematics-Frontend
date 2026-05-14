@@ -64,6 +64,10 @@ export function CompareView({ state }: { state: MatrixStudioState }) {
     return (
         <LaboratoryCompareLayout
             overviewCards={overviewCards}
+            methodModule="matrix"
+            selectedMethod="auto"
+            exactResult={state.analyticSolution?.exact.result_latex ?? state.summary.rank ?? undefined}
+            numericResult={state.summary.conditionNumber ?? state.summary.residualNorm ?? undefined}
             sections={[
                 { id: "compare-notes", title: "Method Compare", node: compareNotesSection, weight: 2 },
                 { id: "audit", title: "Audit Snapshot", node: auditSection, weight: 2 },

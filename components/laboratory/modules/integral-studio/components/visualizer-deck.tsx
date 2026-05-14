@@ -94,10 +94,6 @@ export function VisualizerDeck({
     summary,
     previewVisualization,
     analyticSolution,
-    expression,
-    normalizedXResolution,
-    normalizedYResolution,
-    normalizedZResolution,
     singleDiagnostics,
     doubleDiagnostics,
     tripleDiagnostics,
@@ -113,7 +109,6 @@ export function VisualizerDeck({
     const previewTitle = previewVisualization && "title" in previewVisualization ? previewVisualization.title : "";
     const previewPlotKind = previewVisualization && "plotKind" in previewVisualization ? previewVisualization.plotKind : "";
     const previewSummary = previewVisualization && "summary" in previewVisualization ? previewVisualization.summary : null;
-    const previewGridLabel = previewVisualization && "gridLabel" in previewVisualization ? previewVisualization.gridLabel : "Lightweight";
     const singleSeriesPoints =
         mode === "single" && (isResultStale || !summary) && previewVisualization?.kind === "single"
             ? previewSamples
@@ -206,24 +201,7 @@ export function VisualizerDeck({
     };
 
     return (
-        <div className="rounded-3xl border border-border/60 bg-background/45 p-3 xl:sticky xl:top-24">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Visualizer Deck</div>
-            <div className="mt-3">
-                <div className="site-panel-strong p-6 space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="site-eyebrow text-accent">Primary Visualization</div>
-                        <div className="flex flex-wrap gap-2">
-                            <div className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                {mode === "single" ? "2D plot" : mode === "double" ? "3D surface" : "3D volume"}
-                            </div>
-                            {((!summary && previewVisualization) || showSinglePreview) ? (
-                                <div className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-sky-700 dark:text-sky-300">
-                                    Preview
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-
+        <div className="site-panel-strong space-y-4 p-3 xl:sticky xl:top-24">
                     {summary || showSinglePreview ? (
                         <>
                             <div className="w-full">
@@ -244,7 +222,7 @@ export function VisualizerDeck({
                                     </div>
                                 ) : mode === "single" ? (
                                     <CartesianPlot 
-                                        title={showSinglePreview ? "Function preview" : "Function trace"}
+                                        title=""
                                         highlightInterval={{ start: Number(lower), end: Number(upper) }}
                                         series={[{ label: "f(x)", color: "var(--accent)", points: singleSeriesPoints }]} 
                                     />
@@ -252,20 +230,20 @@ export function VisualizerDeck({
                                     <ScientificPlot
                                         type="surface"
                                         data={(summary as DoubleIntegralSummary).samples as Array<Record<string, unknown>>}
-                                        title={`f(x,y) = ${expression}`}
-                                        insights={[`${normalizedXResolution}x${normalizedYResolution} midpoint grid`, "surface relief", "x/y profile slices"]}
+                                        title=""
+                                        insights={[]}
                                     />
                                 ) : (
                                     <ScientificPlot
                                         type="volume"
                                         data={(summary as TripleIntegralSummary).samples as Array<Record<string, unknown>>}
-                                        title={`f(x,y,z) = ${expression}`}
-                                        insights={[`${normalizedXResolution}x${normalizedYResolution}x${normalizedZResolution} grid`, "volumetric isosurface", "density profile"]}
+                                        title=""
+                                        insights={[]}
                                     />
                                 )}
                             </div>
 
-                            <div className="grid gap-4 sm:grid-cols-4">
+                            <div className="hidden">
                                 {mode === "single" && summary && !showSinglePreview ? (
                                     <>
                                         <div className="site-outline-card border-accent/20 bg-accent/5 p-4"><div className="text-[9px] font-bold uppercase tracking-widest text-accent">Simpson</div><div className="mt-1 font-serif text-xl font-black">{formatMetric((summary as SingleIntegralSummary).simpson, 6)}</div></div>
@@ -343,7 +321,7 @@ export function VisualizerDeck({
                         </>
                     ) : previewVisualization ? (
                         <>
-                            <div className="rounded-2xl border border-sky-500/20 bg-background px-4 py-3 text-sm leading-7 text-muted-foreground shadow-sm">
+                                <div className="hidden">
                                 Bu yengil preview. To&apos;liq natija, jadval va compare metric&apos;lar numerik solve tasdiqlangandan keyin chiqadi.
                             </div>
                             <div className="w-full">
@@ -364,7 +342,7 @@ export function VisualizerDeck({
                                     </div>
                                 ) : previewVisualization.kind === "single" ? (
                                     <CartesianPlot 
-                                        title="Function preview" 
+                                        title="" 
                                         highlightInterval={{ start: Number(lower), end: Number(upper) }}
                                         series={[{ label: "f(x)", color: "var(--accent)", points: previewSamples }]} 
                                     />
@@ -372,19 +350,19 @@ export function VisualizerDeck({
                                     <ScientificPlot
                                         type="surface"
                                         data={previewSummary?.samples as Array<Record<string, unknown>>}
-                                        title={`Preview: f(x,y) = ${expression}`}
-                                        insights={[`${previewGridLabel} preview grid`, "surface preview"]}
+                                        title=""
+                                        insights={[]}
                                     />
                                 ) : (
                                     <ScientificPlot
                                         type="volume"
                                         data={previewSummary?.samples as Array<Record<string, unknown>>}
-                                        title={`Preview: f(x,y,z) = ${expression}`}
-                                        insights={[`${previewGridLabel} preview grid`, "volume preview"]}
+                                        title=""
+                                        insights={[]}
                                     />
                                 )}
                             </div>
-                            <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="hidden">
                                 <div className="site-outline-card bg-background p-4 shadow-sm">
                                     <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Preview status</div>
                                     <div className="mt-2 text-sm font-bold text-foreground">{previewVisualization.kind === "geometry" ? "Geometry setup ready" : "Lightweight visual ready"}</div>
@@ -404,8 +382,6 @@ export function VisualizerDeck({
                             Grafik va asosiy metric&apos;lar numerik result chiqqandan keyin shu yerda birinchi bo&apos;lib ko&apos;rinadi.
                         </div>
                     )}
-                </div>
-            </div>
         </div>
     );
 }

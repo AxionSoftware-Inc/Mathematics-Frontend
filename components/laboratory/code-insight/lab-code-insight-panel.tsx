@@ -1,12 +1,20 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { Check, Clipboard, RotateCcw } from "lucide-react";
 
-import { LaboratoryAIExplainer } from "@/components/laboratory/ai-explainer/laboratory-ai-explainer";
 import { MonacoCodeEditor } from "@/components/laboratory/code-editor/monaco-code-editor";
 import { MethodSelector } from "@/components/laboratory/method-selector/method-selector";
 import { getLaboratoryMethodOptions, type LaboratoryMethodModule } from "@/components/laboratory/method-selector/method-registry";
+
+const LaboratoryAIExplainer = dynamic(
+    () => import("@/components/laboratory/ai-explainer/laboratory-ai-explainer").then((mod) => mod.LaboratoryAIExplainer),
+    {
+        ssr: false,
+        loading: () => <div className="site-panel p-5 text-sm font-semibold text-muted-foreground">Loading AI panel...</div>,
+    },
+);
 
 type LabCodeInsightPanelProps = {
     module: LaboratoryMethodModule;

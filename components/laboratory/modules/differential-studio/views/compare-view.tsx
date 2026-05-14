@@ -2,6 +2,9 @@ import React from "react";
 import { LaboratoryMetricCard } from "@/components/laboratory/laboratory-metric-card";
 import { LaboratoryResultLevelsPanel } from "@/components/laboratory/laboratory-result-levels-panel";
 import { LaboratoryDataTable } from "@/components/laboratory/laboratory-data-table";
+import { MethodIntelligenceTable } from "@/components/laboratory/method-intelligence-table";
+import { getLaboratoryMethodOptions } from "@/components/laboratory/method-selector/method-registry";
+import { buildMethodIntelligenceRows } from "@/lib/method-intelligence";
 import { DifferentialMathService } from "../services/math-service";
 import { ScenarioPanel } from "../components/scenario-panel";
 import { TrustPanel } from "../components/trust-panel";
@@ -91,6 +94,16 @@ export function CompareView({ state }: { state: CompareViewState }) {
             { eyebrow: "Method Spread", value: spread.toExponential(2), detail: "Observed numeric spread", tone: "info" as const },
         ];
     }, [sweepEntries]);
+    const methodIntelligenceRows = React.useMemo(
+        () =>
+            buildMethodIntelligenceRows({
+                options: getLaboratoryMethodOptions("differential"),
+                selectedMethod: mode,
+                exactResult: analyticSolution?.exact?.derivative_latex ?? analyticSolution?.exact?.evaluated_latex ?? undefined,
+                numericResult: summary && "valueAtPoint" in summary ? String(summary.valueAtPoint) : undefined,
+            }),
+        [analyticSolution, mode, summary],
+    );
 
     const resultLevelsCards = React.useMemo(() => {
         if (!summary && analyticSolution?.status === "exact") {
@@ -227,6 +240,8 @@ export function CompareView({ state }: { state: CompareViewState }) {
                     ))}
                 </div>
             )}
+
+            <MethodIntelligenceTable rows={methodIntelligenceRows} />
 
             <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="space-y-6">

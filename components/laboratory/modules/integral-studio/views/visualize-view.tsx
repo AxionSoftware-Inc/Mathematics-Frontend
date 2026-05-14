@@ -7,6 +7,7 @@ import { LaboratorySignalPanel } from "@/components/laboratory/laboratory-signal
 
 import { VisualizerDeck } from "../components/visualizer-deck";
 import { StudioMetricCard, StudioSignal } from "../presentation-types";
+import type { IntegralExperienceLevel } from "../types";
 
 type SweepSeriesLike = {
     title: string;
@@ -30,6 +31,7 @@ type VisualizeViewProps = {
     setSweepStart: (value: string) => void;
     sweepEnd: string;
     setSweepEnd: (value: string) => void;
+    experienceLevel: IntegralExperienceLevel;
 };
 
 export function VisualizeView({
@@ -48,7 +50,13 @@ export function VisualizeView({
     setSweepStart,
     sweepEnd,
     setSweepEnd,
+    experienceLevel,
 }: VisualizeViewProps) {
+    const showTables = experienceLevel !== "beginner";
+    const showSweep = experienceLevel === "research";
+    const showSignals = experienceLevel === "research";
+    const auditCards = experienceLevel === "advanced" ? visualizeOverviewCards : [...visualizeOverviewCards, ...methodAuditCards];
+
     return (
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
@@ -58,6 +66,7 @@ export function VisualizeView({
                         <VisualizerDeck {...visualizerProps} />
                     </div>
                 </div>
+                {showTables ? (
                 <div className="relative">
                     {staleOverlay}
                     <div className={`grid gap-8 lg:grid-cols-2 ${stalePanelClassName}`}>
@@ -71,6 +80,7 @@ export function VisualizeView({
                         />
                     </div>
                 </div>
+                ) : null}
             </div>
             <div className="space-y-8">
                 <div className="relative">
@@ -78,17 +88,13 @@ export function VisualizeView({
                     <div className={`site-panel space-y-4 p-5 ${stalePanelClassName}`}>
                         <div className="site-eyebrow text-accent">Visual Audit</div>
                         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                            {visualizeOverviewCards.map((card) => (
+                            {auditCards.map((card) => (
                                 <LaboratoryMetricCard key={`visual-${card.eyebrow}-${card.value}`} {...card} />
-                            ))}
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                            {methodAuditCards.map((card) => (
-                                <LaboratoryMetricCard key={`visual-audit-${card.eyebrow}-${card.value}`} {...card} />
                             ))}
                         </div>
                     </div>
                 </div>
+                {showSweep ? (
                 <div className="relative">
                     {staleOverlay}
                     <div className={`site-panel space-y-6 p-6 ${stalePanelClassName}`}>
@@ -122,12 +128,15 @@ export function VisualizeView({
                         )}
                     </div>
                 </div>
+                ) : null}
+                {showSignals ? (
                 <div className="relative">
                     {staleOverlay}
                     <div className={stalePanelClassName}>
                         <LaboratorySignalPanel eyebrow="Runtime Signals" title="Visualization validation" items={visibleSignals} />
                     </div>
                 </div>
+                ) : null}
             </div>
         </div>
     );

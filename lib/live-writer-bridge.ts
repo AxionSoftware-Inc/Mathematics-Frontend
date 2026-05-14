@@ -56,6 +56,13 @@ export type WriterBridgeBlockData = {
     metrics: WriterBridgeMetric[];
     savedResultId?: string;
     savedResultRevision?: number;
+    integrity?: {
+        sourceHash?: string;
+        resultHash?: string;
+        method?: string;
+        trustLabel?: string;
+        trustScore?: number | null;
+    };
     notes?: string[];
     coefficients?: WriterBridgeCoefficient[];
     matrixTables?: WriterBridgeMatrixTable[];

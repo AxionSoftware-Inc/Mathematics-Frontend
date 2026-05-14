@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, ChevronDown, Orbit, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Activity, ChevronDown, Orbit, Save, SlidersHorizontal, Sparkles } from "lucide-react";
 import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
 import { IntegralClassification, IntegralCoordinateSystem, IntegralMode } from "../types";
 import { GeometryLaneBuilder } from "./geometry-lane-builder";
@@ -46,6 +46,8 @@ interface SolverControlProps {
     analyticStatusToneClass: string;
     classification: IntegralClassification;
     isResultStale?: boolean;
+    saveResult?: () => void | Promise<unknown>;
+    saveState?: "idle" | "saving" | "saved" | "error";
 }
 
 const modeOptions: Array<{ id: IntegralMode; label: string }> = [
@@ -90,12 +92,10 @@ export function SolverControl({
     solvePhase,
     activePresetDescription,
     renderedProblemContent,
-    analyticStatusTitle,
-    analyticStatusBody,
-    analyticStatusBadge,
-    analyticStatusToneClass,
     classification,
     isResultStale,
+    saveResult,
+    saveState = "idle",
 }: SolverControlProps) {
     const geometryLaneActive =
         classification.kind === "line_integral_candidate"
@@ -147,18 +147,38 @@ export function SolverControl({
                 : solvePhase === "error"
                   ? "Attention"
                   : "Ready";
+    const resultReady = !isResultStale && (solvePhase === "exact-ready" || solvePhase === "numerical-ready");
+    const primarySolveLabel =
+        solvePhase === "analytic-loading"
+            ? "Analyzing..."
+            : isResultStale
+              ? "Update solution"
+              : solvePhase === "needs-numerical"
+                ? "Symbolic unavailable"
+                : solvePhase === "exact-ready"
+                  ? "Exact solution ready"
+                  : solvePhase === "numerical-ready"
+                    ? "Numerical result ready"
+                    : solvePhase === "error"
+                      ? "Retry analysis"
+                      : "Analyze symbolic solution";
+    const solveFlowHint =
+        solvePhase === "analytic-loading"
+            ? "SymPy symbolic lane ishlayapti. Natija exact bo'lsa avtomatik report, code va visualizationga ulanadi."
+            : isResultStale
+              ? "Input o'zgardi. Yangi expression yoki bounds uchun symbolic analysis qayta ishlatiladi."
+              : solvePhase === "needs-numerical"
+                ? "Analitik lane toza yechim bermadi. Numerical fallbackni user tasdiqlagandan keyin hisoblaymiz."
+                : solvePhase === "exact-ready"
+                  ? "Analitik natija tayyor. Numerical check mumkin bo'lsa orqa hisob sifatida compare/reportga ulanadi."
+                  : solvePhase === "numerical-ready"
+                    ? "Raqamli natija tayyor. Keyingi qadam: compare, visualization yoki report export."
+                    : "Avval symbolic analysis ishlaydi; agar analytic yechim topilmasa numerical fallback taklif qilinadi.";
 
     const samplingLabel =
         mode === "single"
             ? `${segments || "--"} segments`
             : `${xResolution || "--"} x ${yResolution || "--"}${mode === "triple" ? ` x ${zResolution || "--"}` : ""}`;
-    const classificationToneClass =
-        classification.support === "supported"
-            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-            : classification.support === "partial"
-              ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-              : "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300";
-
     const insertSnippet = (snippet: string) => {
         if (snippet === "pi") {
             setExpression((expression ? `${expression} ` : "") + "pi");
@@ -169,7 +189,7 @@ export function SolverControl({
     };
 
     const controlInputClassName =
-        "h-11 w-full rounded-2xl border border-border/60 bg-background px-3.5 text-sm font-medium text-foreground outline-none transition-all placeholder:text-muted-foreground/65 focus:border-accent/30 focus:ring-4 focus:ring-[var(--accent-soft)]";
+        "h-11 w-full min-w-0 rounded-2xl border border-border/60 bg-background px-3 text-sm font-medium text-foreground outline-none transition-all placeholder:text-muted-foreground/65 focus:border-accent/30 focus:ring-4 focus:ring-[var(--accent-soft)]";
     const controlMonoInputClassName = `${controlInputClassName} font-mono`;
     const selectShellClassName =
         "relative flex h-11 items-center rounded-2xl border border-border/60 bg-background transition-all focus-within:border-accent/30 focus-within:ring-4 focus-within:ring-[var(--accent-soft)]";
@@ -218,6 +238,15 @@ export function SolverControl({
                     ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => void saveResult?.()}
+                        disabled={!saveResult || saveState === "saving"}
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-accent/25 bg-accent/10 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-accent transition hover:border-accent/45 disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                        <Save className="h-3.5 w-3.5" />
+                        {saveState === "saving" ? "Saving" : saveState === "saved" ? "Saved" : "Save Bridge"}
+                    </button>
                     <div className="rounded-full border border-border/60 bg-background px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                         {samplingLabel}
                     </div>
@@ -230,9 +259,9 @@ export function SolverControl({
                 </div>
             </div>
 
-            <div className="grid gap-4 p-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+            <div className="grid gap-4 p-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(460px,0.85fr)]">
                 <div className="space-y-4">
-                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_190px] 2xl:grid-cols-[minmax(0,1.45fr)_190px_128px]">
+                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_160px]">
                         <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 p-1">
                             <div className="mb-2 px-2 pt-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                                 Analysis Mode
@@ -275,13 +304,6 @@ export function SolverControl({
                                 <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-muted-foreground" />
                             </div>
                         </div>
-
-                        <div className="rounded-2xl border border-border/60 bg-background/70 px-2.5 py-3 xl:col-span-2 2xl:col-span-1">
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Variables</div>
-                            <div className="mt-2 flex min-h-[44px] items-center rounded-xl border border-border/50 bg-muted/10 px-2.5 text-sm font-medium text-foreground">
-                                {variableHint}
-                            </div>
-                        </div>
                     </div>
 
                     <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
@@ -311,34 +333,14 @@ export function SolverControl({
                                 <GeometryLaneBuilder expression={expression} setExpression={setExpression} classification={classification} />
                             </div>
                         ) : null}
-                        <div className="mt-3 grid gap-3 xl:grid-cols-[0.95fr_1.05fr]">
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Detected Type</div>
-                                    <div className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${classificationToneClass}`}>
-                                        {classification.support}
-                                    </div>
-                                </div>
-                                <div className="mt-2 text-sm font-black text-foreground">{classification.label}</div>
-                                <div className="mt-1 text-xs leading-5 text-muted-foreground line-clamp-3">{classification.summary}</div>
-                            </div>
-                            <div className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-background px-4 py-3">
+                        <div className="mt-3">
+                            <div className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-background px-4 py-3 xl:col-span-2">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Rendered Preview</div>
                                 <div className="mt-2 overflow-x-auto text-sm">
                                     <div className="min-w-0 break-words">
                                         <LaboratoryInlineMathMarkdown content={renderedProblemContent} />
                                     </div>
                                 </div>
-                            </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Analytic Status</div>
-                                    <div className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${analyticStatusToneClass}`}>
-                                        {analyticStatusBadge}
-                                    </div>
-                                </div>
-                                <div className="mt-2 text-sm font-black text-foreground">{analyticStatusTitle}</div>
-                                <div className="mt-1 text-xs leading-5 text-muted-foreground line-clamp-3">{analyticStatusBody}</div>
                             </div>
                         </div>
                     </div>
@@ -353,7 +355,7 @@ export function SolverControl({
                             </div>
                         ) : (
                             <>
-                                <div className={`mt-3 grid gap-3 ${mode === "triple" ? "grid-cols-1" : mode === "double" ? "sm:grid-cols-2" : "grid-cols-1"}`}>
+                                <div className={`mt-3 grid gap-3 ${mode === "triple" ? "lg:grid-cols-3" : mode === "double" ? "sm:grid-cols-2" : "grid-cols-1"}`}>
                                     {axisGroups.map((axis) => (
                                         <div key={axis.key} className="rounded-2xl border border-border/60 bg-background p-3">
                                             <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
@@ -364,13 +366,13 @@ export function SolverControl({
                                                     value={axis.min}
                                                     onChange={(e) => axis.setMin(e.target.value)}
                                                     placeholder={axis.minPlaceholder}
-                                                    className={`${controlMonoInputClassName} text-center`}
+                                                    className={controlMonoInputClassName}
                                                 />
                                                 <input
                                                     value={axis.max}
                                                     onChange={(e) => axis.setMax(e.target.value)}
                                                     placeholder={axis.maxPlaceholder}
-                                                    className={`${controlMonoInputClassName} text-center`}
+                                                    className={controlMonoInputClassName}
                                                 />
                                             </div>
                                         </div>
@@ -393,19 +395,31 @@ export function SolverControl({
                             {geometryLaneActive ? "Lane Execution" : "Sampling"}
                         </label>
                         {!geometryLaneActive && mode === "single" ? (
-                            <input
-                                type="text"
-                                value={segments}
-                                onChange={(e) => setSegments(e.target.value)}
-                                className={controlMonoInputClassName}
-                            />
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                                <input
+                                    type="text"
+                                    value={segments}
+                                    onChange={(e) => setSegments(e.target.value)}
+                                    className={controlMonoInputClassName}
+                                />
+                                <div className="rounded-2xl border border-border/60 bg-muted/10 px-3 py-2">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Variables</div>
+                                    <div className="mt-1 truncate font-mono text-sm font-semibold text-foreground">{variableHint}</div>
+                                </div>
+                            </div>
                         ) : !geometryLaneActive ? (
-                            <div className={`grid gap-2 ${mode === "triple" ? "grid-cols-1 md:grid-cols-3" : "md:grid-cols-2"}`}>
-                                <input type="text" value={xResolution} onChange={(e) => setXResolution(e.target.value)} placeholder="x res" className={controlMonoInputClassName} />
-                                <input type="text" value={yResolution} onChange={(e) => setYResolution(e.target.value)} placeholder="y res" className={controlMonoInputClassName} />
-                                {mode === "triple" ? (
-                                    <input type="text" value={zResolution} onChange={(e) => setZResolution(e.target.value)} placeholder="z res" className={controlMonoInputClassName} />
-                                ) : null}
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                                <div className={`grid gap-2 ${mode === "triple" ? "grid-cols-1 md:grid-cols-3" : "md:grid-cols-2"}`}>
+                                    <input type="text" value={xResolution} onChange={(e) => setXResolution(e.target.value)} placeholder="x res" className={controlMonoInputClassName} />
+                                    <input type="text" value={yResolution} onChange={(e) => setYResolution(e.target.value)} placeholder="y res" className={controlMonoInputClassName} />
+                                    {mode === "triple" ? (
+                                        <input type="text" value={zResolution} onChange={(e) => setZResolution(e.target.value)} placeholder="z res" className={controlMonoInputClassName} />
+                                    ) : null}
+                                </div>
+                                <div className="rounded-2xl border border-border/60 bg-muted/10 px-3 py-2">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Variables</div>
+                                    <div className="mt-1 truncate font-mono text-sm font-semibold text-foreground" title={variableHint}>{variableHint}</div>
+                                </div>
                             </div>
                         ) : (
                             <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-3 text-xs leading-5 text-muted-foreground">
@@ -418,7 +432,7 @@ export function SolverControl({
                         <button
                             type="button"
                             onClick={requestAnalyticSolve}
-                            disabled={solvePhase === "analytic-loading"}
+                            disabled={solvePhase === "analytic-loading" || resultReady || (!isResultStale && solvePhase === "needs-numerical")}
                             className={`flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold transition-all ${
                                 isResultStale
                                     ? "border border-accent/40 bg-accent text-white shadow-lg shadow-accent/20 hover:scale-[1.01] active:scale-[0.99]"
@@ -428,18 +442,26 @@ export function SolverControl({
                             {solvePhase === "analytic-loading" ? "Analyzing..." : (
                                 <>
                                     <Sparkles className="h-4 w-4" />
-                                    Analyze And Solve
+                                    {primarySolveLabel}
                                 </>
                             )}
                         </button>
+                        <div className="rounded-2xl border border-border/60 bg-muted/10 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                            {solveFlowHint}
+                        </div>
                         {solvePhase === "needs-numerical" ? (
+                            <>
                             <button
                                 type="button"
                                 onClick={confirmNumericalSolve}
-                                className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3 text-xs font-black uppercase tracking-[0.16em] text-sky-700 transition-all hover:bg-sky-500/20 dark:text-sky-300"
+                                className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3 text-xs font-black uppercase tracking-[0.14em] text-sky-700 transition-all hover:bg-sky-500/20 dark:text-sky-300"
                             >
-                                Confirm Numerical Execution
+                                Run numerical fallback
                             </button>
+                            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-xs leading-5 text-sky-700 dark:text-sky-300">
+                                Symbolic yechim topilmadi yoki tasdiqlanmadi. Numerical fallback tez taxminiy qiymat beradi va compare/reportda alohida belgilanadi.
+                            </div>
+                            </>
                         ) : null}
                     </div>
                 </div>

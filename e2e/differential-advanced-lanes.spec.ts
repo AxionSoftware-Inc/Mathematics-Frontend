@@ -95,7 +95,7 @@ test.describe("Differential advanced lanes", () => {
 
         await expect(page.getByTestId("diff-expression-input")).toHaveValue("y' = y*(1-y); y(0)=0.25");
         await expect(page.getByTestId("diff-ode-phase-panel")).toBeVisible();
-        await expect(page.getByText("Phase Portrait")).toBeVisible();
+        await expect(page.getByTestId("diff-ode-phase-panel").getByText("Phase Portrait")).toBeVisible();
     });
 
     test("PDE guided form reaches heatmap and profile panels", async ({ page }) => {

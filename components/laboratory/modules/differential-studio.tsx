@@ -29,28 +29,62 @@ type DifferentialTemplatePreset = {
 };
 
 function buildDifferentialReportMarkdown(state: ReturnType<typeof useDifferentialStudio>["state"]) {
-    return `# Differential Report
+    const exact = state.analyticSolution?.exact;
+    const diagnostics = state.analyticSolution?.diagnostics;
+    const contract = diagnostics?.contract;
+    const result = describeDifferentialResult(state.summary) ?? exact?.numeric_approximation ?? "pending";
+    return `# Differential / ODE Analysis Report
 
-- mode: ${state.mode}
-- expression: ${state.expression}
-- variable: ${state.variable}
-- point: ${state.point}
-- method: ${state.analyticSolution?.exact.method_label ?? "client fallback"}
-- continuity: ${state.analyticSolution?.diagnostics?.continuity ?? "pending"}
-- differentiability: ${state.analyticSolution?.diagnostics?.differentiability ?? "pending"}
-- trust score: ${state.reportExecutiveCards?.[2]?.value ?? "pending"}
-- contract: ${state.analyticSolution?.diagnostics?.contract?.status ?? "n/a"}
-- readiness: ${state.analyticSolution?.diagnostics?.contract?.readiness_label ?? "n/a"}
-- risk level: ${state.analyticSolution?.diagnostics?.contract?.risk_level ?? "n/a"}
-- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}
+## Title
+Differential analysis of "${state.expression || "untitled expression"}"
 
-## core signals
-- classification: ${state.classification.label}
-- result: ${describeDifferentialResult(state.summary) ?? state.analyticSolution?.exact.numeric_approximation ?? "pending"}
-- taxonomy: ${state.analyticSolution?.diagnostics?.taxonomy?.family ?? "pending"}
-- blockers: ${(state.analyticSolution?.diagnostics?.domain_analysis?.blockers ?? []).join(" | ") || "none"}
-- review notes: ${(state.analyticSolution?.diagnostics?.contract?.review_notes ?? []).join(" | ") || "none"}
-- benchmark detail: ${state.benchmarkSummary?.detail ?? "none"}`;
+## Objective
+Solve or analyze the submitted derivative/ODE task, expose the method route, preserve numerical fallback data, and prepare a Writer-ready laboratory result.
+
+## Problem Statement
+- Mode: ${state.mode}
+- Expression: ${state.expression}
+- Variable: ${state.variable}
+- Evaluation point: ${state.point}
+- Classification: ${state.classification.label}
+
+## Method
+- Method: ${exact?.method_label ?? "client fallback"}
+- Method summary: ${exact?.method_label ?? state.classification.summary}
+- Continuity: ${diagnostics?.continuity ?? "pending"}
+- Differentiability: ${diagnostics?.differentiability ?? "pending"}
+- Taxonomy: ${diagnostics?.taxonomy?.family ?? "pending"}
+
+## Symbolic Solution
+${exact?.derivative_latex ? `$$${exact.derivative_latex}$$` : "Symbolic derivative/ODE expression is pending or not available."}
+
+## Numerical Fallback
+- Result: ${result}
+- Numeric approximation: ${exact?.numeric_approximation ?? "not available"}
+- Benchmark status: ${state.benchmarkSummary?.status ?? "n/a"}
+- Benchmark detail: ${state.benchmarkSummary?.detail ?? "none"}
+
+## Visualization
+Differential Studio visualization stores slope/trajectory/sample information where the selected mode supports it. Include the plot panel when exporting a final manuscript.
+
+## Interpretation
+- Contract: ${contract?.status ?? "n/a"}
+- Readiness: ${contract?.readiness_label ?? "n/a"}
+- Risk level: ${contract?.risk_level ?? "n/a"}
+- Trust score: ${state.reportExecutiveCards?.[2]?.value ?? "pending"}
+
+## Limitations
+- Blockers: ${(diagnostics?.domain_analysis?.blockers ?? []).join(" | ") || "none"}
+- Review notes: ${(contract?.review_notes ?? []).join(" | ") || "none"}
+- Numerical ODE/SDE/PDE results should include tolerance, step size, and convergence diagnostics before publication use.
+
+## Code Appendix
+Use the Code tab to generate editable reproducibility code for this differential task.
+
+## References
+- SymPy documentation: symbolic differentiation and equation solving.
+- SciPy documentation: solve_ivp and numerical differential equation solvers.
+- MathSphere Laboratory saved-result schema for Writer bridge import.`;
 }
 
 function describeDifferentialResult(summary: DifferentialComputationSummary | null) {

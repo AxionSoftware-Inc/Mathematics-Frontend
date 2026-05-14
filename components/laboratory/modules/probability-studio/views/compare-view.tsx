@@ -13,6 +13,10 @@ export function CompareView({ state }: { state: ProbabilityStudioState }) {
     return (
         <LaboratoryCompareLayout
             overviewCards={overviewCards}
+            methodModule="probability"
+            selectedMethod="auto"
+            exactResult={state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? undefined}
+            numericResult={state.summary.mean ?? state.summary.monteCarloEstimate ?? state.summary.confidenceInterval ?? undefined}
             sections={[
                 {
                     id: "compare-notes",

@@ -9,6 +9,7 @@ import { LaboratorySolveDetailCard } from "@/components/laboratory/laboratory-so
 import { SolverControl } from "../components/solver-control";
 import { VisualizerDeck } from "../components/visualizer-deck";
 import { StudioExactStep, StudioMetricCard, StudioSignal } from "../presentation-types";
+import type { IntegralExperienceLevel } from "../types";
 
 type SolveViewProps = {
     solverControlProps: React.ComponentProps<typeof SolverControl>;
@@ -25,6 +26,7 @@ type SolveViewProps = {
     methodAuditCards: StudioMetricCard[];
     visibleSignals: StudioSignal[];
     assumptionCards: StudioMetricCard[];
+    experienceLevel: IntegralExperienceLevel;
 };
 
 export function SolveView({
@@ -42,7 +44,10 @@ export function SolveView({
     methodAuditCards,
     visibleSignals,
     assumptionCards,
+    experienceLevel,
 }: SolveViewProps) {
+    const showResearchTools = experienceLevel === "research";
+    const showAdvancedTools = experienceLevel === "advanced" || experienceLevel === "research";
     const resultSection = (
         <div className="site-panel space-y-3 p-4">
             <div className="site-eyebrow text-accent">Final Result</div>
@@ -86,8 +91,8 @@ export function SolveView({
     const auditSection = (
         <div className="site-panel space-y-3 p-4">
             <div className="site-eyebrow text-sky-600">Method Audit</div>
-            <div className="grid gap-3 sm:grid-cols-3">
-                {methodAuditCards.map((card) => (
+            <div className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+                {methodAuditCards.slice(0, 4).map((card) => (
                     <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}`} {...card} />
                 ))}
             </div>
@@ -97,11 +102,17 @@ export function SolveView({
     const assumptionsSection = (
         <div className="site-panel space-y-3 p-4">
             <div className="site-eyebrow text-amber-600">Assumptions</div>
-            <div className="grid gap-3 sm:grid-cols-2">
-                {assumptionCards.map((card) => (
-                    <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}`} {...card} />
-                ))}
-            </div>
+            {assumptionCards.length ? (
+                <div className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+                    {assumptionCards.map((card) => (
+                        <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}`} {...card} />
+                    ))}
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                    Domain yoki convergence bo'yicha alohida assumption signal topilmadi.
+                </div>
+            )}
         </div>
     );
 
@@ -131,11 +142,11 @@ export function SolveView({
             }
             sections={[
                 { id: "result", node: resultSection, weight: 2 },
-                methodTraceSection ? { id: "method-trace", node: methodTraceSection, weight: 2 } : null,
-                exactStepsSection ? { id: "exact-steps", node: exactStepsSection, weight: 2 } : null,
-                { id: "audit", node: auditSection, weight: 1 },
-                { id: "signals", node: signalsSection, weight: 1 },
-                { id: "assumptions", node: assumptionsSection, weight: 1 },
+                showResearchTools && methodTraceSection ? { id: "method-trace", node: methodTraceSection, weight: 2 } : null,
+                showAdvancedTools && exactStepsSection ? { id: "exact-steps", node: exactStepsSection, weight: 2 } : null,
+                showAdvancedTools ? { id: "audit", node: auditSection, weight: 1 } : null,
+                showResearchTools ? { id: "signals", node: signalsSection, weight: 1 } : null,
+                showAdvancedTools ? { id: "assumptions", node: assumptionsSection, weight: 1 } : null,
             ].filter(Boolean) as { id: string; node: React.ReactNode; weight?: number }[]}
         />
     );

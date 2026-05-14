@@ -1,6 +1,6 @@
 import React from "react";
 
-import { LaboratoryReportLayout } from "@/components/laboratory/laboratory-report-layout";
+import { LaboratoryReportLayout, type ReportGeneratorFormat } from "@/components/laboratory/laboratory-report-layout";
 import type { WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
 
 import { AnnotationPanel } from "../components/annotation-panel";
@@ -29,6 +29,8 @@ type ReportViewProps = {
     pushLiveResult: () => void;
     publicationProfile: WriterBridgePublicationProfile;
     setPublicationProfile: (profile: WriterBridgePublicationProfile) => void;
+    reportFormat: ReportGeneratorFormat;
+    setReportFormat: (format: ReportGeneratorFormat) => void;
 };
 
 export function ReportView({
@@ -49,6 +51,8 @@ export function ReportView({
     pushLiveResult,
     publicationProfile,
     setPublicationProfile,
+    reportFormat,
+    setReportFormat,
 }: ReportViewProps) {
     return (
         <LaboratoryReportLayout
@@ -69,6 +73,9 @@ export function ReportView({
             selectedLiveTargetId={selectedLiveTargetId}
             setSelectedLiveTargetId={setSelectedLiveTargetId}
             annotationNode={<AnnotationPanel {...annotationPanelProps} />}
+            reportTitle="Generated Report"
+            reportFormat={reportFormat}
+            setReportFormat={setReportFormat}
         />
     );
 }

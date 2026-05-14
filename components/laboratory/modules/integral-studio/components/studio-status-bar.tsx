@@ -10,11 +10,11 @@ type StudioStatusBarProps = {
 
 export function StudioStatusBar({ cards, resetWorkspace }: StudioStatusBarProps) {
     return (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/50 bg-background/95 px-4 py-2.5 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/50 bg-background/95 px-4 py-2 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all">
             <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-8">
-                <div className="scrollbar-hide flex flex-1 items-center gap-8 overflow-x-auto pr-4">
+                <div className="scrollbar-hide flex flex-1 items-center gap-5 overflow-x-auto pr-4">
                     {cards.map((card) => (
-                        <div key={`${card.eyebrow}-${card.value}`} className="group flex shrink-0 items-center gap-2.5 transition-opacity hover:opacity-80">
+                        <div key={`${card.eyebrow}-${card.value}`} title={card.detail} className="group flex max-w-[230px] shrink-0 items-center gap-2 transition-opacity hover:opacity-80">
                             <div className="flex flex-col">
                                 <span className="mb-1 text-[8px] font-black uppercase leading-none tracking-[0.2em] text-muted-foreground/70">{card.eyebrow}</span>
                                 <div className="flex items-center gap-1.5 leading-none">
@@ -29,7 +29,7 @@ export function StudioStatusBar({ cards, resetWorkspace }: StudioStatusBarProps)
                                                     : "bg-muted-foreground/40"
                                         }`}
                                     />
-                                    <span className="text-[11px] font-black uppercase tracking-tight text-foreground/90">{card.value}</span>
+                                    <span className="truncate text-[11px] font-black uppercase tracking-tight text-foreground/90">{card.value}</span>
                                 </div>
                             </div>
                             <div className="h-4 w-px bg-border/40 last:hidden" />
@@ -51,4 +51,3 @@ export function StudioStatusBar({ cards, resetWorkspace }: StudioStatusBarProps)
         </div>
     );
 }
-

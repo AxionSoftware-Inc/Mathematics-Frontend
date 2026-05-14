@@ -34,6 +34,7 @@ import { CitationManager } from "@/components/citation-manager";
 import { LaboratoryResultImportPanel } from "@/components/laboratory/laboratory-result-import-panel";
 import { WriterProjectPanel } from "@/components/writer-project-panel";
 import {
+    extractWriterBridgeBlocks,
     serializeWriterBridgeBlock,
     type WriterImportPayload,
 } from "@/lib/live-writer-bridge";
@@ -51,6 +52,7 @@ import {
     fetchSavedLaboratoryResult,
     type SavedLaboratoryResult,
 } from "@/lib/laboratory-results";
+import { buildChangeImpactMap, type ChangeImpactMap } from "@/lib/computational-integrity";
 
 export type PaperFormData = {
     title: string;
@@ -79,6 +81,7 @@ type OutdatedLabImport = {
     savedResultId: string;
     currentRevision: number;
     latest: SavedLaboratoryResult;
+    impact: ChangeImpactMap;
 };
 
 const CONTENT_SYNC_DELAY_MS = 160;
@@ -194,11 +197,13 @@ function buildSavedResultImportSnippet(payload: WriterImportPayload) {
 }
 
 function extractSavedResultImports(content: string) {
-    const imports: Array<{ savedResultId: string; revision: number }> = [];
+    const imports: Array<{ savedResultId: string; revision: number; integrity?: { sourceHash?: string; resultHash?: string; method?: string } | null }> = [];
     for (const match of content.matchAll(LAB_IMPORT_BLOCK_REGEX)) {
+        const block = extractWriterBridgeBlocks(match[3])[0];
         imports.push({
             savedResultId: match[1],
             revision: Number(match[2]),
+            integrity: block?.integrity ?? null,
         });
     }
     return imports;
@@ -362,6 +367,12 @@ export function PaperEditorWorkspace({
                                 savedResultId: item.savedResultId,
                                 currentRevision: item.revision,
                                 latest,
+                                impact: buildChangeImpactMap({
+                                    currentRevision: item.revision,
+                                    latestRevision: latest.revision,
+                                    latestMetadata: latest.metadata,
+                                    currentIntegrity: item.integrity,
+                                }),
                             });
                         }
                     } catch {
@@ -1145,13 +1156,26 @@ export function PaperEditorWorkspace({
                                                     <div className="mt-1 text-xs leading-5 text-muted-foreground">
                                                         Dokumentda r{item.currentRevision}, labda r{item.latest.revision}. {item.latest.summary}
                                                     </div>
+                                                    <div className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-5 text-amber-900 dark:text-amber-100">
+                                                        <div className="font-black">This report section is outdated.</div>
+                                                        <div className="mt-1">Reason: {item.impact.reason}</div>
+                                                        {item.impact.affected.length ? (
+                                                            <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                                                                {item.impact.affected.slice(0, 6).map((affected) => (
+                                                                    <div key={affected.label} className="font-semibold">
+                                                                        - {affected.label}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
                                                     <div className="mt-3 flex flex-wrap gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => handleUpdateSavedResultImport(item)}
                                                             className="rounded-2xl bg-foreground px-3 py-2 text-xs font-bold text-background transition hover:opacity-90"
                                                         >
-                                                            Update from lab
+                                                            Update all dependent blocks
                                                         </button>
                                                         <button
                                                             type="button"

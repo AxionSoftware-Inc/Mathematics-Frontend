@@ -15,7 +15,7 @@ export default defineConfig({
     },
     webServer: {
         command:
-            'powershell -NoProfile -Command "if (!(Test-Path .next\\BUILD_ID)) { npm.cmd run build | Out-Host }; npm.cmd run start -- --hostname 127.0.0.1 --port 3005"',
+            'powershell -NoProfile -Command "npm.cmd run dev -- --hostname 127.0.0.1 --port 3005"',
         url: "http://127.0.0.1:3005",
         reuseExistingServer: true,
         timeout: 120_000,

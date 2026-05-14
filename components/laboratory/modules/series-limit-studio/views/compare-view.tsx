@@ -35,6 +35,10 @@ export function CompareView({ state }: { state: SeriesLimitStudioState }) {
     return (
         <LaboratoryCompareLayout
             overviewCards={overviewCards}
+            methodModule="series-limit"
+            selectedMethod="auto"
+            exactResult={state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? undefined}
+            numericResult={state.summary.convergenceSignal ?? state.summary.radiusSignal ?? undefined}
             sections={[
                 { id: "summary", title: "Compare Summary", node: <Panel title="Compare Summary" items={state.compareNotes} />, weight: 2 },
                 {
