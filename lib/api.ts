@@ -1,7 +1,9 @@
 // lib/api.ts is now client-safe (no next/headers)
 
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const PUBLIC_API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+const SERVER_API_URL = (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const API_URL = typeof window === "undefined" ? SERVER_API_URL : PUBLIC_API_URL;
 const READ_TIMEOUT_MS = 8000;
 const WRITE_TIMEOUT_MS = 60000;
 
@@ -97,7 +99,7 @@ export function isExpectedBackendOfflineError(error: unknown) {
 }
 
 function getBackendBaseUrl(): string {
-    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+    const apiUrl = (typeof window === "undefined" ? SERVER_API_URL : PUBLIC_API_URL).replace(/\/$/, "");
     return apiUrl.replace(/\/api$/, "");
 }
 
