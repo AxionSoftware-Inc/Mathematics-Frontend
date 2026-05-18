@@ -53,6 +53,12 @@ import {
     type SavedLaboratoryResult,
 } from "@/lib/laboratory-results";
 import { buildChangeImpactMap, type ChangeImpactMap } from "@/lib/computational-integrity";
+import {
+    analyzeWriterDocument,
+    compareWriterRevisions,
+    createWriterRevisionSnapshot,
+    type WriterRevisionSnapshot,
+} from "@/lib/writer-intelligence";
 
 export type PaperFormData = {
     title: string;
@@ -76,7 +82,7 @@ type BlockPreset = {
 };
 
 type PreviewSyncMode = "live" | "manual";
-type InspectorSection = "navigator" | "tools" | "metadata" | "templates" | "outline";
+type InspectorSection = "navigator" | "tools" | "review" | "metadata" | "templates" | "outline";
 type OutdatedLabImport = {
     savedResultId: string;
     currentRevision: number;
@@ -209,6 +215,24 @@ function extractSavedResultImports(content: string) {
     return imports;
 }
 
+function buildWriterSnapshotStorageKey(mode: "new" | "edit", title: string, firstSectionKey: string) {
+    const basis = `${mode}:${title || firstSectionKey || "draft"}`
+        .toLowerCase()
+        .replace(/[^a-z0-9:_-]+/g, "-")
+        .replace(/-+/g, "-");
+    return `mathsphere_writer_snapshots::${basis}`;
+}
+
+function downloadWriterText(filename: string, content: string) {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
 export function PaperEditorWorkspace({
     formData,
     onChange,
@@ -265,6 +289,8 @@ export function PaperEditorWorkspace({
     const [splitRatio, setSplitRatio] = useState(52);
     const [outdatedLabImports, setOutdatedLabImports] = useState<OutdatedLabImport[]>([]);
     const [dismissedLabImportKeys, setDismissedLabImportKeys] = useState<Set<string>>(() => new Set());
+    const [revisionSnapshots, setRevisionSnapshots] = useState<WriterRevisionSnapshot[]>([]);
+    const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
     const latestEditorContentRef = useRef(activeSection?.content ?? "");
     const lastCommittedContentRef = useRef(activeSection?.content ?? "");
 
@@ -321,6 +347,28 @@ export function PaperEditorWorkspace({
     const splitLayoutEnabled = viewMode === "split" && splitViewAvailable;
     const savedResultImports = useMemo(() => extractSavedResultImports(compiledProjectContent), [compiledProjectContent]);
     const savedResultImportSignature = useMemo(() => JSON.stringify(savedResultImports), [savedResultImports]);
+    const snapshotStorageKey = useMemo(
+        () => buildWriterSnapshotStorageKey(mode, formData.title, getWriterSectionKey(normalizedSections[0])),
+        [formData.title, mode, normalizedSections],
+    );
+    const intelligenceReport = useMemo(
+        () => analyzeWriterDocument(compiledProjectContent, normalizedSections),
+        [compiledProjectContent, normalizedSections],
+    );
+    const selectedSnapshot =
+        revisionSnapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? revisionSnapshots[0] ?? null;
+    const revisionComparison = useMemo(
+        () =>
+            selectedSnapshot
+                ? compareWriterRevisions(
+                      compiledProjectContent,
+                      selectedSnapshot.content,
+                      formData.abstract,
+                      selectedSnapshot.abstract,
+                  )
+                : null,
+        [compiledProjectContent, formData.abstract, selectedSnapshot],
+    );
 
     const compileProjectContent = useCallback((sections: WriterProjectSection[]) => {
         return compileWriterProjectSections(sections, {
@@ -342,6 +390,35 @@ export function PaperEditorWorkspace({
     useEffect(() => {
         latestFormDataRef.current = formData;
     }, [formData]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        try {
+            const raw = window.localStorage.getItem(snapshotStorageKey);
+            if (!raw) {
+                setRevisionSnapshots([]);
+                setSelectedSnapshotId(null);
+                return;
+            }
+            const parsed = JSON.parse(raw) as WriterRevisionSnapshot[];
+            const snapshots = Array.isArray(parsed) ? parsed : [];
+            setRevisionSnapshots(snapshots);
+            setSelectedSnapshotId((current) => current ?? snapshots[0]?.id ?? null);
+        } catch {
+            setRevisionSnapshots([]);
+            setSelectedSnapshotId(null);
+        }
+    }, [snapshotStorageKey]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+        window.localStorage.setItem(snapshotStorageKey, JSON.stringify(revisionSnapshots.slice(0, 12)));
+    }, [revisionSnapshots, snapshotStorageKey]);
 
     useEffect(() => {
         let cancelled = false;
@@ -589,6 +666,22 @@ export function PaperEditorWorkspace({
         setPreviewContent(compileProjectContent(nextSections));
     }, [compileProjectContent, getSectionsWithCurrentDraft]);
 
+    const createRevisionSnapshotFromCurrent = useCallback((label: string) => {
+        const nextSections = getSectionsWithCurrentDraft();
+        const nextCompiledContent = compileProjectContent(nextSections);
+        const snapshot = createWriterRevisionSnapshot({
+            id: crypto.randomUUID(),
+            label,
+            title: latestFormDataRef.current.title,
+            abstract: latestFormDataRef.current.abstract,
+            content: nextCompiledContent,
+            sectionCount: nextSections.length,
+        });
+        setRevisionSnapshots((current) => [snapshot, ...current.filter((item) => item.id !== snapshot.id)].slice(0, 12));
+        setSelectedSnapshotId(snapshot.id);
+        return snapshot;
+    }, [compileProjectContent, getSectionsWithCurrentDraft]);
+
     async function handleSave() {
         const nextSections = getSectionsWithCurrentDraft();
         const nextData = {
@@ -597,6 +690,7 @@ export function PaperEditorWorkspace({
             content: compileProjectContent(nextSections),
         };
         syncFullDocument(nextData, { syncPreview: true });
+        createRevisionSnapshotFromCurrent(mode === "new" ? "Manual save draft" : "Saved revision");
         await Promise.resolve(onSubmit(nextData));
     }
 
@@ -835,7 +929,11 @@ export function PaperEditorWorkspace({
             textWithInline += "\n\n## Ishlatilgan adabiyotlar\n";
         }
 
-        textWithInline += `\n- [${inlineRef}] ${citation}`;
+        const bibliographyEntry = `- [${inlineRef}] ${citation}`;
+        const alreadyPresent = new RegExp(`^\\s*[-*]\\s+\\[${inlineRef.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\]\\s+`, "m").test(textWithInline);
+        if (!alreadyPresent) {
+            textWithInline += `\n${bibliographyEntry}`;
+        }
 
         latestEditorContentRef.current = textWithInline;
         setEditorContent(textWithInline);
@@ -869,6 +967,53 @@ export function PaperEditorWorkspace({
         });
     }
 
+    function handleRestoreSnapshot(snapshot: WriterRevisionSnapshot) {
+        const restoredSection = createWriterProjectSection({
+            title: latestFormDataRef.current.title || snapshot.title || "Main Draft",
+            kind: formData.document_kind === "book" ? "chapter" : "section",
+            progress_state: "drafting",
+            content: snapshot.content,
+            order: 1,
+        });
+        syncFullDocument({
+            ...latestFormDataRef.current,
+            title: snapshot.title,
+            abstract: snapshot.abstract,
+            sections: [restoredSection],
+            content: snapshot.content,
+        });
+    }
+
+    function exportPreflightReport() {
+        const lines = [
+            `# Writer Preflight`,
+            ``,
+            `- title: ${formData.title || "Untitled draft"}`,
+            `- status: ${intelligenceReport.preflight.status}`,
+            `- score: ${intelligenceReport.preflight.score}`,
+            `- words: ${words}`,
+            `- sections: ${normalizedSections.length}`,
+            `- equations: ${equations}`,
+            `- code blocks: ${codeBlocks}`,
+            ``,
+            `## Blockers`,
+            ...(intelligenceReport.preflight.blockers.length ? intelligenceReport.preflight.blockers.map((item) => `- ${item}`) : ["- none"]),
+            ``,
+            `## Warnings`,
+            ...(intelligenceReport.preflight.warnings.length ? intelligenceReport.preflight.warnings.map((item) => `- ${item}`) : ["- none"]),
+            ``,
+            `## Strengths`,
+            ...(intelligenceReport.preflight.strengths.length ? intelligenceReport.preflight.strengths.map((item) => `- ${item}`) : ["- none"]),
+            ``,
+            `## Citation Audit`,
+            `- inline citations: ${intelligenceReport.inlineCitationKeys.length}`,
+            `- bibliography entries: ${intelligenceReport.bibliographyKeys.length}`,
+            `- missing bibliography keys: ${intelligenceReport.missingBibliographyKeys.join(", ") || "none"}`,
+            `- unused bibliography keys: ${intelligenceReport.unusedBibliographyKeys.join(", ") || "none"}`,
+        ];
+        downloadWriterText("writer-preflight-report.md", lines.join("\n"));
+    }
+
     const statusTone =
         formData.status === "published"
             ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
@@ -897,11 +1042,11 @@ export function PaperEditorWorkspace({
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground print:bg-white print:h-auto print:overflow-visible">
+        <div className="site-workspace-shell flex h-full min-h-0 flex-1 flex-col overflow-hidden text-foreground print:bg-white print:h-auto print:overflow-visible">
             <div className="flex h-full min-h-0 flex-1 flex-col print:h-auto print:block">
-                <div className="border-b border-border/50 bg-muted/20 print:hidden">
+                <div className="site-workspace-topbar border-b-0 print:hidden">
                     <div className="px-2.5 py-2 sm:px-3">
-                        <div className="rounded-[1.5rem] border border-border/60 bg-background px-3 py-2.5 shadow-sm">
+                        <div className="site-toolbar-shell px-3 py-2.5">
                             <div className="flex w-full items-center gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-3">
                                     <Link
@@ -1067,6 +1212,7 @@ export function PaperEditorWorkspace({
                                     {[
                                         { id: "navigator", label: "Files" },
                                         { id: "tools", label: "Tools" },
+                                        { id: "review", label: "Review" },
                                         { id: "metadata", label: "Meta" },
                                         { id: "templates", label: "Templates" },
                                         { id: "outline", label: "Outline" },
@@ -1317,6 +1463,163 @@ export function PaperEditorWorkspace({
                                     ))}
                                 </div>
                             </div>
+                                </>
+                            )}
+
+                            {inspectorSection === "review" && (
+                                <>
+                                <div className="site-panel p-4">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                                Preflight
+                                            </div>
+                                            <div className="mt-1 text-lg font-black">Publication readiness</div>
+                                        </div>
+                                        <div className={`site-status-pill px-3 py-1 ${intelligenceReport.preflight.status === "ready" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : intelligenceReport.preflight.status === "review" ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300"}`}>
+                                            {intelligenceReport.preflight.status}
+                                        </div>
+                                    </div>
+                                    <div className="mb-4 h-2 overflow-hidden rounded-full bg-muted">
+                                        <div className="h-full rounded-full bg-gradient-to-r from-teal-500 via-cyan-500 to-indigo-500 transition-all" style={{ width: `${intelligenceReport.preflight.score}%` }} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="site-soft-panel rounded-2xl bg-background/80 p-3">
+                                            <div className="text-xs text-muted-foreground">Score</div>
+                                            <div className="mt-1 text-lg font-black">{intelligenceReport.preflight.score}</div>
+                                        </div>
+                                        <div className="site-soft-panel rounded-2xl bg-background/80 p-3">
+                                            <div className="text-xs text-muted-foreground">References</div>
+                                            <div className="mt-1 text-lg font-black">{intelligenceReport.bibliographyKeys.length}</div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 space-y-2">
+                                        {intelligenceReport.preflight.blockers.map((item) => (
+                                            <div key={item} className="rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
+                                                {item}
+                                            </div>
+                                        ))}
+                                        {intelligenceReport.preflight.warnings.map((item) => (
+                                            <div key={item} className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                                                {item}
+                                            </div>
+                                        ))}
+                                        {!intelligenceReport.preflight.blockers.length && !intelligenceReport.preflight.warnings.length ? (
+                                            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                                                No blocking publication issues detected.
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <button type="button" onClick={exportPreflightReport} className="site-btn px-4 text-xs">Export preflight</button>
+                                        <button type="button" onClick={() => createRevisionSnapshotFromCurrent("Checkpoint snapshot")} className="site-btn-accent px-4 text-xs">Create snapshot</button>
+                                    </div>
+                                </div>
+
+                                <div className="site-panel p-4">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                                Citation audit
+                                            </div>
+                                            <div className="mt-1 text-lg font-black">Reference integrity</div>
+                                        </div>
+                                        <BookText className="h-5 w-5 text-indigo-500" />
+                                    </div>
+                                    <div className="grid gap-2 text-sm">
+                                        <div className="site-soft-panel rounded-2xl bg-background/80 px-4 py-3">In-text citations: <span className="font-black">{intelligenceReport.inlineCitationKeys.length}</span></div>
+                                        <div className="site-soft-panel rounded-2xl bg-background/80 px-4 py-3">Bibliography entries: <span className="font-black">{intelligenceReport.bibliographyKeys.length}</span></div>
+                                        <div className={`rounded-2xl border px-4 py-3 ${intelligenceReport.missingBibliographyKeys.length ? "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300" : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+                                            Missing bibliography keys: {intelligenceReport.missingBibliographyKeys.join(", ") || "none"}
+                                        </div>
+                                        <div className={`rounded-2xl border px-4 py-3 ${intelligenceReport.unusedBibliographyKeys.length ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+                                            Unused bibliography keys: {intelligenceReport.unusedBibliographyKeys.join(", ") || "none"}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="site-panel p-4">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                                Revision compare
+                                            </div>
+                                            <div className="mt-1 text-lg font-black">Snapshot review</div>
+                                        </div>
+                                        <RefreshCw className="h-5 w-5 text-sky-500" />
+                                    </div>
+                                    {revisionSnapshots.length ? (
+                                        <>
+                                            <select
+                                                value={selectedSnapshot?.id ?? ""}
+                                                onChange={(event) => setSelectedSnapshotId(event.target.value)}
+                                                className="w-full rounded-2xl border border-border/60 bg-background px-4 py-3 text-sm outline-none transition-colors focus:border-accent/30"
+                                            >
+                                                {revisionSnapshots.map((snapshot) => (
+                                                    <option key={snapshot.id} value={snapshot.id}>
+                                                        {snapshot.label} - {new Date(snapshot.createdAt).toLocaleString()}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {revisionComparison ? (
+                                                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                                    <div className="site-soft-panel rounded-2xl bg-background/80 p-3">
+                                                        <div className="text-xs text-muted-foreground">Added words</div>
+                                                        <div className="mt-1 text-lg font-black">{revisionComparison.addedWords}</div>
+                                                    </div>
+                                                    <div className="site-soft-panel rounded-2xl bg-background/80 p-3">
+                                                        <div className="text-xs text-muted-foreground">Removed words</div>
+                                                        <div className="mt-1 text-lg font-black">{revisionComparison.removedWords}</div>
+                                                    </div>
+                                                    <div className="site-soft-panel rounded-2xl bg-background/80 p-3">
+                                                        <div className="text-xs text-muted-foreground">Heading delta</div>
+                                                        <div className="mt-1 text-lg font-black">{revisionComparison.headingDelta}</div>
+                                                    </div>
+                                                    <div className="site-soft-panel rounded-2xl bg-background/80 p-3">
+                                                        <div className="text-xs text-muted-foreground">Equation delta</div>
+                                                        <div className="mt-1 text-lg font-black">{revisionComparison.equationDelta}</div>
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <button type="button" onClick={() => selectedSnapshot && handleRestoreSnapshot(selectedSnapshot)} className="site-btn px-4 text-xs">Restore snapshot</button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
+                                            Hali snapshot yo&apos;q. Save yoki `Create snapshot` orqali compare bazasini yarating.
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="site-panel p-4">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">
+                                                Intelligence
+                                            </div>
+                                            <div className="mt-1 text-lg font-black">Consistency checks</div>
+                                        </div>
+                                        <Sparkles className="h-5 w-5 text-teal-500" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        {intelligenceReport.duplicateHeadingTitles.map((item) => (
+                                            <div key={item.title} className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                                                Duplicate heading: {item.title} ({item.count}x)
+                                            </div>
+                                        ))}
+                                        {intelligenceReport.undefinedSymbolCandidates.map((item) => (
+                                            <div key={item.symbol} className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                                                Symbol definition review: {item.symbol} appears {item.count} times without an obvious definition cue.
+                                            </div>
+                                        ))}
+                                        {!intelligenceReport.duplicateHeadingTitles.length && !intelligenceReport.undefinedSymbolCandidates.length ? (
+                                            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                                                No structural consistency issues were detected in the current draft.
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                </div>
                                 </>
                             )}
 
@@ -1576,7 +1879,7 @@ export function PaperEditorWorkspace({
                         ) : null}
 
                         {(viewMode === "preview" || viewMode === "split") && (
-                            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/50 bg-background shadow-sm print:block print:w-full print:rounded-none print:bg-white print:overflow-visible">
+                            <section className="site-document-frame flex h-full min-h-0 flex-col overflow-hidden print:block print:w-full print:rounded-none print:border-none print:bg-white print:overflow-visible">
                                 <div className="min-h-0 flex-1 overflow-y-auto">
                                     <div className="mx-auto flex w-full max-w-[78rem] flex-col gap-4 px-3 py-4 md:px-6 print:m-0 print:max-w-none print:p-0">
                                     {previewSyncMode === "manual" && previewIsStale ? (
@@ -1584,8 +1887,8 @@ export function PaperEditorWorkspace({
                                             Preview hozircha eski snapshotni ko&apos;rsatyapti. `Refresh` bossangiz yangi holat render bo&apos;ladi.
                                         </div>
                                     ) : null}
-                                    <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-white print:border-none print:shadow-none print:bg-white print:rounded-none">
-                                        <div className="border-b border-border/60 bg-white px-6 py-6 md:px-8 print:border-none print:p-0 print:pb-6">
+                                    <div className="site-document-page overflow-hidden rounded-[2rem] border border-border/60 print:border-none print:shadow-none print:bg-white print:text-black print:rounded-none">
+                                        <div className="border-b border-border/60 px-6 py-6 md:px-8 print:border-none print:p-0 print:pb-6">
                                             <h1 className="max-w-3xl text-3xl font-black tracking-tight md:text-5xl">
                                                 {deferredTitle || "Nomsiz maqola"}
                                             </h1>
@@ -1594,7 +1897,7 @@ export function PaperEditorWorkspace({
                                                     {authorList.map((author) => (
                                                         <span
                                                             key={author}
-                                                            className="rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs font-bold text-foreground"
+                                                            className="site-document-chip px-3 py-1.5 text-xs font-bold"
                                                         >
                                                             {author}
                                                         </span>
@@ -1606,7 +1909,7 @@ export function PaperEditorWorkspace({
                                                     {keywordList.map((keyword) => (
                                                         <span
                                                             key={keyword}
-                                                            className="rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs font-semibold text-muted-foreground"
+                                                            className="site-document-chip px-3 py-1.5 text-xs font-semibold text-muted-foreground dark:text-slate-300 print:text-muted-foreground"
                                                         >
                                                             #{keyword}
                                                         </span>
@@ -1616,11 +1919,11 @@ export function PaperEditorWorkspace({
                                         </div>
 
                                         {deferredAbstract.trim() && (
-                                            <div className="border-b border-border/60 bg-white px-6 py-5 md:px-8 print:border-none print:px-0">
+                                            <div className="border-b border-border/60 px-6 py-5 md:px-8 print:border-none print:px-0">
                                                 <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.24em] text-accent print:text-black">
                                                     Abstract
                                                 </div>
-                                                <p className="max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
+                                                <p className="max-w-3xl text-sm leading-7 text-muted-foreground dark:text-slate-300 md:text-base print:text-slate-700">
                                                     {deferredAbstract}
                                                 </p>
                                             </div>
@@ -1629,7 +1932,7 @@ export function PaperEditorWorkspace({
                                         <div className="px-6 py-8 md:px-8 print:p-0 print:text-black">
                                             <ArticleRichContent
                                                 content={deferredPreviewContent}
-                                                className="prose prose-neutral max-w-none text-black prose-headings:font-playfair prose-headings:font-black prose-headings:tracking-tight prose-headings:text-black prose-h1:text-4xl prose-h2:mt-14 prose-h2:text-3xl prose-h3:mt-10 prose-h3:text-2xl prose-p:text-[16px] prose-p:leading-8 prose-p:text-black prose-li:leading-8 prose-li:text-black prose-strong:text-black prose-code:rounded-md prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-black prose-pre:rounded-[1.5rem] prose-pre:border prose-pre:border-border prose-pre:bg-slate-50 prose-blockquote:rounded-[1.25rem] prose-blockquote:border-l-4 prose-blockquote:border-slate-400 prose-blockquote:bg-slate-50 prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:text-black prose-img:rounded-[1.5rem] prose-img:border prose-img:border-border prose-hr:border-border"
+                                                className="prose prose-neutral dark:prose-invert max-w-none text-slate-900 dark:text-slate-100 print:text-black prose-headings:font-playfair prose-headings:font-black prose-headings:tracking-tight prose-headings:text-slate-950 dark:prose-headings:text-slate-50 print:prose-headings:text-black prose-h1:text-4xl prose-h2:mt-14 prose-h2:text-3xl prose-h3:mt-10 prose-h3:text-2xl prose-p:text-[16px] prose-p:leading-8 prose-p:text-slate-800 dark:prose-p:text-slate-200 print:prose-p:text-black prose-li:leading-8 prose-li:text-slate-800 dark:prose-li:text-slate-200 print:prose-li:text-black prose-strong:text-slate-950 dark:prose-strong:text-slate-50 print:prose-strong:text-black prose-code:rounded-md prose-code:bg-slate-100 dark:prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-slate-950 dark:prose-code:text-slate-100 prose-pre:rounded-[1.5rem] prose-pre:border prose-pre:border-border prose-pre:bg-slate-50 dark:prose-pre:bg-white/6 prose-blockquote:rounded-[1.25rem] prose-blockquote:border-l-4 prose-blockquote:border-slate-400 dark:prose-blockquote:border-slate-500 prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-white/6 prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:text-slate-900 dark:prose-blockquote:text-slate-100 prose-img:rounded-[1.5rem] prose-img:border prose-img:border-border prose-hr:border-border"
                                             />
                                         </div>
                                     </div>

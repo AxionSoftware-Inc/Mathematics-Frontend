@@ -1,13 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
     BookOpen,
     ChevronDown,
     ChevronUp,
     Copy,
+    Filter,
     FilePlus2,
     FolderTree,
+    Search,
     Trash2,
     type LucideIcon,
 } from "lucide-react";
@@ -109,6 +111,26 @@ export function WriterProjectPanel({
     onMoveSection: (sectionId: string, direction: "up" | "down") => void;
     onRemoveSection: (sectionId: string) => void;
 }) {
+    const [search, setSearch] = useState("");
+    const [kindFilter, setKindFilter] = useState<WriterProjectSection["kind"] | "all">("all");
+    const [hideDone, setHideDone] = useState(false);
+
+    const visibleSections = useMemo(() => {
+        return sections.filter((section) => {
+            if (hideDone && section.progress_state === "done") {
+                return false;
+            }
+            if (kindFilter !== "all" && section.kind !== kindFilter) {
+                return false;
+            }
+            if (!search.trim()) {
+                return true;
+            }
+            const haystack = `${section.title} ${section.kind} ${section.progress_state}`.toLowerCase();
+            return haystack.includes(search.trim().toLowerCase());
+        });
+    }, [hideDone, kindFilter, search, sections]);
+
     return (
         <div className="overflow-hidden rounded-[1.6rem] border border-border/60 bg-background/85 p-3 shadow-sm">
             <div className="rounded-[1.2rem] border border-border/50 bg-muted/10 p-3">
@@ -132,6 +154,53 @@ export function WriterProjectPanel({
                 <div className="mt-3 grid grid-cols-2 gap-1.5">
                     <ActionIcon icon={FilePlus2} label="Yangi file yaratish" onClick={onAddSection} />
                     <ActionIcon icon={Copy} label="Hozirgi file nusxasini yaratish" onClick={onDuplicateSection} />
+                </div>
+            </div>
+
+            <div className="mt-3 rounded-[1.2rem] border border-border/50 bg-muted/10 p-3">
+                <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                    <Search className="h-3.5 w-3.5 text-accent" />
+                    Navigation
+                </div>
+                <div className="space-y-2">
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="File qidirish..."
+                            className="w-full rounded-2xl border border-border/60 bg-background px-9 py-2.5 text-sm font-medium outline-none transition-colors focus:border-accent/40"
+                        />
+                    </div>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                        <div className="relative">
+                            <Filter className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                            <select
+                                value={kindFilter}
+                                onChange={(event) => setKindFilter(event.target.value as WriterProjectSection["kind"] | "all")}
+                                className="w-full appearance-none rounded-2xl border border-border/60 bg-background px-9 py-2.5 text-sm font-medium outline-none transition-colors focus:border-accent/40"
+                            >
+                                <option value="all">All file kinds</option>
+                                <option value="frontmatter">Frontmatter</option>
+                                <option value="chapter">Chapter</option>
+                                <option value="section">Section</option>
+                                <option value="appendix">Appendix</option>
+                                <option value="references">References</option>
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setHideDone((value) => !value)}
+                            className={`rounded-2xl border px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors ${
+                                hideDone
+                                    ? "border-accent/25 bg-[var(--accent-soft)] text-accent"
+                                    : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            Hide done
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -176,7 +245,8 @@ export function WriterProjectPanel({
             </div>
 
             <div className="mt-3 max-h-[52vh] space-y-2 overflow-x-hidden overflow-y-auto pr-1">
-                {sections.map((section, index) => {
+                {visibleSections.map((section) => {
+                    const index = sections.findIndex((entry) => getWriterSectionKey(entry) === getWriterSectionKey(section));
                     const sectionId = getWriterSectionKey(section);
                     const active = sectionId === activeSectionId;
 
@@ -257,6 +327,11 @@ export function WriterProjectPanel({
                         </div>
                     );
                 })}
+                {!visibleSections.length ? (
+                    <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-3 py-4 text-sm text-muted-foreground">
+                        Hozirgi filter bo&apos;yicha file topilmadi.
+                    </div>
+                ) : null}
             </div>
         </div>
     );

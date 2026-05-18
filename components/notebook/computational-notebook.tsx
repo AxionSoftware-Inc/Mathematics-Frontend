@@ -7,11 +7,14 @@ import {
     Braces,
     CheckCircle2,
     Download,
+    Filter,
     FileText,
     FunctionSquare,
     Grid3X3,
     ListPlus,
     Play,
+    Search,
+    Send,
     Sigma,
     Table2,
     TextCursorInput,
@@ -23,6 +26,7 @@ import { PremiumFeatureBadge } from "@/components/premium-feature-badge";
 import { fetchPublic } from "@/lib/api";
 import { buildIntegralCodeForMode } from "@/lib/integral-code-generator";
 import { fetchSavedLaboratoryResults, type SavedLaboratoryResult } from "@/lib/laboratory-results";
+import { createLaboratoryWriterDraftHref, queueWriterImport } from "@/lib/live-writer-bridge";
 import { createNotebookDocument, fetchNotebookDocuments, updateNotebookDocument, type NotebookDocument } from "@/lib/notebook";
 
 type NotebookBlockKind =
@@ -58,6 +62,16 @@ type NotebookSolveResult = {
 };
 
 type GraphPoint = { x: number; y: number };
+type NotebookExecutionEntry = {
+    id: string;
+    blockId: string;
+    title: string;
+    kind: NotebookBlockKind;
+    status: "success" | "error";
+    startedAt: string;
+    durationMs: number;
+    detail: string;
+};
 
 const blockCatalog: Array<{ kind: NotebookBlockKind; label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = [
     { kind: "text", label: "Text", icon: TextCursorInput, description: "Research notes, explanation, narrative." },
@@ -207,11 +221,26 @@ function downloadText(filename: string, content: string) {
     URL.revokeObjectURL(url);
 }
 
+function createExecutionEntry(params: Omit<NotebookExecutionEntry, "id">): NotebookExecutionEntry {
+    return {
+        id: crypto.randomUUID(),
+        ...params,
+    };
+}
+
+function formatDuration(durationMs: number) {
+    if (durationMs < 1000) {
+        return `${Math.round(durationMs)} ms`;
+    }
+    return `${(durationMs / 1000).toFixed(2)} s`;
+}
+
 export function ComputationalNotebook() {
     const [blocks, setBlocks] = React.useState<NotebookBlock[]>(starterBlocks);
     const [activeBlockId, setActiveBlockId] = React.useState(starterBlocks[0].id);
     const [selectedBlockIds, setSelectedBlockIds] = React.useState<Set<string>>(() => new Set(starterBlocks.map((block) => block.id)));
     const [runAllState, setRunAllState] = React.useState<"idle" | "running">("idle");
+    const [sessionId] = React.useState(() => crypto.randomUUID());
     const [documentTitle, setDocumentTitle] = React.useState("Computational Worksheet");
     const [documentSummary, setDocumentSummary] = React.useState("Live worksheet with formulas, solving, graphs, code, proofs, and exports.");
     const [documentId, setDocumentId] = React.useState<string | null>(null);
@@ -220,6 +249,11 @@ export function ComputationalNotebook() {
     const [savedResults, setSavedResults] = React.useState<SavedLaboratoryResult[]>([]);
     const [saveState, setSaveState] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
     const [saveError, setSaveError] = React.useState<string | null>(null);
+    const [executionTimeline, setExecutionTimeline] = React.useState<NotebookExecutionEntry[]>([]);
+    const [outlineSearch, setOutlineSearch] = React.useState("");
+    const [outlineFilter, setOutlineFilter] = React.useState<NotebookBlockKind | "all">("all");
+    const [hideSettled, setHideSettled] = React.useState(false);
+    const [collapsedBlocks, setCollapsedBlocks] = React.useState<Record<string, boolean>>({});
     const activeBlock = blocks.find((block) => block.id === activeBlockId) ?? blocks[0];
     const markdown = React.useMemo(() => blocks.map(blockToMarkdown).join("\n\n"), [blocks]);
     const selectedMarkdown = React.useMemo(
@@ -245,6 +279,21 @@ export function ComputationalNotebook() {
             };
         });
     }, [blocks]);
+    const visibleBlocks = React.useMemo(() => {
+        return blocks.filter((block) => {
+            if (outlineFilter !== "all" && block.kind !== outlineFilter) {
+                return false;
+            }
+            if (hideSettled && block.config?.stale !== "true" && block.config?.executedAt) {
+                return false;
+            }
+            if (!outlineSearch.trim()) {
+                return true;
+            }
+            const haystack = `${block.title} ${block.kind} ${block.content}`.toLowerCase();
+            return haystack.includes(outlineSearch.trim().toLowerCase());
+        });
+    }, [blocks, hideSettled, outlineFilter, outlineSearch]);
 
     React.useEffect(() => {
         let alive = true;
@@ -270,10 +319,12 @@ export function ComputationalNotebook() {
             block_count: blocks.length,
             dependency_graph: dependencyGraph,
             stale_block_count: dependencyGraph.filter((item) => item.stale).length,
+            execution_session_id: sessionId,
+            execution_timeline: executionTimeline.slice(0, 40),
             connected_modules: Array.from(new Set(blocks.map((block) => block.kind === "lab-result" ? "laboratory-results" : block.kind))),
             updated_in_browser_at: new Date().toISOString(),
         },
-    }), [blocks, dependencyGraph, documentSummary, documentTitle]);
+    }), [blocks, dependencyGraph, documentSummary, documentTitle, executionTimeline, sessionId]);
 
     const saveDocument = React.useCallback(async () => {
         setSaveState("saving");
@@ -287,6 +338,7 @@ export function ComputationalNotebook() {
             setDocumentTitle(saved.title);
             setDocumentSummary(saved.summary);
             setBlocks(saved.blocks);
+            setExecutionTimeline(Array.isArray(saved.metadata?.execution_timeline) ? saved.metadata.execution_timeline as NotebookExecutionEntry[] : []);
             setDocuments((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
             setSaveState("saved");
             window.setTimeout(() => setSaveState("idle"), 1600);
@@ -320,11 +372,25 @@ export function ComputationalNotebook() {
         setSelectedBlockIds((current) => new Set([...current, block.id]));
     };
 
+    const pushExecutionEntry = React.useCallback((entry: NotebookExecutionEntry) => {
+        setExecutionTimeline((current) => [entry, ...current].slice(0, 40));
+    }, []);
+
     const runSolveBlockById = React.useCallback(async (blockId: string) => {
         const block = blocks.find((item) => item.id === blockId);
         if (!block || block.kind !== "solve") return;
+        const startedAt = performance.now();
         const cacheKey = `${block.content}|${block.config?.lower || "0"}|${block.config?.upper || "1"}|${block.config?.method || "auto"}`;
         if (block.config?.cacheKey === cacheKey && block.config?.backendStatus === "exact") {
+            pushExecutionEntry(createExecutionEntry({
+                blockId,
+                title: block.title,
+                kind: block.kind,
+                status: "success",
+                startedAt: new Date().toISOString(),
+                durationMs: 0,
+                detail: "Cache hit",
+            }));
             return;
         }
         const response = await fetchPublic("/api/laboratory/solve/integral/", {
@@ -347,10 +413,79 @@ export function ComputationalNotebook() {
                 backendNumeric: data.exact?.numeric_approximation || "",
                 backendMethod: data.exact?.method_label || block.config?.method || "auto",
                 executedAt: new Date().toISOString(),
+                runCount: String((safeNumber(block.config?.runCount, 0) + 1)),
+                lastDurationMs: String(Math.round(performance.now() - startedAt)),
                 stale: "false",
             },
         }));
-    }, [blocks]);
+        pushExecutionEntry(createExecutionEntry({
+            blockId,
+            title: block.title,
+            kind: block.kind,
+            status: response.ok ? "success" : "error",
+            startedAt: new Date().toISOString(),
+            durationMs: performance.now() - startedAt,
+            detail: response.ok ? (data.exact?.method_label || data.status || "solve complete") : (data.message || "solve failed"),
+        }));
+    }, [blocks, pushExecutionEntry]);
+
+    const runPassiveBlockById = React.useCallback((blockId: string) => {
+        const block = blocks.find((item) => item.id === blockId);
+        if (!block || (block.kind !== "graph" && block.kind !== "table" && block.kind !== "python")) {
+            return;
+        }
+        const startedAt = performance.now();
+        let detail = "Prepared preview";
+        try {
+            if (block.kind === "graph") {
+                const points = sampleGraph(block.content, safeNumber(block.config?.xMin, -5), safeNumber(block.config?.xMax, 5), Math.round(safeNumber(block.config?.samples, 160)));
+                detail = `${points.length} sampled points`;
+            } else if (block.kind === "table") {
+                const rows = Math.max(2, Math.min(50, Math.round(safeNumber(block.config?.rows, 8))));
+                detail = `${rows} generated rows`;
+            } else {
+                detail = `${block.content.split(/\r?\n/).length} code lines`;
+            }
+            setBlocks((current) => updateBlock(current, blockId, {
+                config: {
+                    ...(block.config || {}),
+                    executedAt: new Date().toISOString(),
+                    runCount: String((safeNumber(block.config?.runCount, 0) + 1)),
+                    lastDurationMs: String(Math.round(performance.now() - startedAt)),
+                    outputSummary: detail,
+                    stale: "false",
+                },
+            }));
+            pushExecutionEntry(createExecutionEntry({
+                blockId,
+                title: block.title,
+                kind: block.kind,
+                status: "success",
+                startedAt: new Date().toISOString(),
+                durationMs: performance.now() - startedAt,
+                detail,
+            }));
+        } catch (error) {
+            setBlocks((current) => updateBlock(current, blockId, {
+                config: {
+                    ...(block.config || {}),
+                    backendStatus: "error",
+                    backendMessage: error instanceof Error ? error.message : "Preview execution failed.",
+                    executedAt: new Date().toISOString(),
+                    stale: "true",
+                },
+            }));
+            pushExecutionEntry(createExecutionEntry({
+                blockId,
+                title: block.title,
+                kind: block.kind,
+                status: "error",
+                startedAt: new Date().toISOString(),
+                durationMs: performance.now() - startedAt,
+                detail: error instanceof Error ? error.message : "Preview execution failed.",
+            }));
+        }
+    }, [blocks, pushExecutionEntry]);
 
     const runAll = async () => {
         setRunAllState("running");
@@ -358,6 +493,23 @@ export function ComputationalNotebook() {
             for (const block of blocks) {
                 if (block.kind === "solve") {
                     await runSolveBlockById(block.id);
+                } else if (block.kind === "graph" || block.kind === "table" || block.kind === "python") {
+                    runPassiveBlockById(block.id);
+                }
+            }
+        } finally {
+            setRunAllState("idle");
+        }
+    };
+
+    const runStaleOnly = async () => {
+        setRunAllState("running");
+        try {
+            for (const block of blocks.filter((item) => item.config?.stale === "true")) {
+                if (block.kind === "solve") {
+                    await runSolveBlockById(block.id);
+                } else if (block.kind === "graph" || block.kind === "table" || block.kind === "python") {
+                    runPassiveBlockById(block.id);
                 }
             }
         } finally {
@@ -371,6 +523,7 @@ export function ComputationalNotebook() {
         setDocumentTitle(document.title);
         setDocumentSummary(document.summary);
         setBlocks(document.blocks.length ? document.blocks : starterBlocks);
+        setExecutionTimeline(Array.isArray(document.metadata?.execution_timeline) ? document.metadata.execution_timeline as NotebookExecutionEntry[] : []);
         setActiveBlockId(document.blocks[0]?.id ?? starterBlocks[0].id);
     };
 
@@ -406,14 +559,26 @@ export function ComputationalNotebook() {
     const exportSelectedReport = () => {
         downloadText("mathsphere-selected-blocks-report.md", `# ${documentTitle}\n\n${selectedMarkdown || markdown}`);
     };
+    const sendSelectionToWriter = () => {
+        const payload = {
+            version: 1 as const,
+            markdown: `# ${documentTitle}\n\n${selectedMarkdown || markdown}`,
+            title: documentTitle,
+            abstract: documentSummary,
+            keywords: "notebook, computational worksheet",
+        };
+        const requestId = queueWriterImport(payload);
+        window.location.assign(createLaboratoryWriterDraftHref(requestId));
+    };
     const staleBlockCount = dependencyGraph.filter((item) => item.stale).length;
     const solveBlockCount = blocks.filter((block) => block.kind === "solve").length;
     const saveLabel = saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save";
+    const liveStatusLabel = documentId ? "persisted" : "local draft";
 
     return (
-        <div className="min-h-screen bg-[#f7f7f5] text-foreground dark:bg-[#10110f]">
-            <div className="sticky top-[80px] z-30 border-b border-border/70 bg-background/95 backdrop-blur">
-                <div className="mx-auto flex h-14 max-w-[1800px] items-center gap-3 px-4">
+        <div className="site-workspace-shell min-h-screen text-foreground">
+            <div className="site-workspace-topbar sticky top-[80px] z-30">
+                <div className="mx-auto flex min-h-16 max-w-[1800px] flex-wrap items-center gap-3 px-4 py-2">
                     <div className="min-w-0 flex-1">
                         <div className="site-eyebrow hidden text-accent sm:block">Notebook</div>
                         <input value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} className="w-full bg-transparent text-lg font-black tracking-tight outline-none" />
@@ -423,14 +588,21 @@ export function ComputationalNotebook() {
                         </div>
                     </div>
                     <div className="hidden min-w-0 flex-[0.8] lg:block">
-                        <input value={documentSummary} onChange={(event) => setDocumentSummary(event.target.value)} className="h-9 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-xs font-semibold text-muted-foreground outline-none focus:border-accent/45" />
+                        <input value={documentSummary} onChange={(event) => setDocumentSummary(event.target.value)} className="h-10 w-full rounded-2xl border border-border/70 bg-background/75 px-3 text-xs font-semibold text-muted-foreground outline-none focus:border-accent/45" />
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="site-toolbar-shell flex shrink-0 items-center gap-1.5 p-1.5">
                         <button onClick={() => void saveDocument()} disabled={saveState === "saving"} className="site-btn-accent h-9 px-3 text-xs">
                             {saveLabel}
                         </button>
                         <button onClick={() => void runAll()} disabled={runAllState === "running"} className="site-btn h-9 px-3 text-xs">
                             {runAllState === "running" ? "Running" : "Run all"}
+                        </button>
+                        <button onClick={() => void runStaleOnly()} disabled={runAllState === "running" || !staleBlockCount} className="site-btn h-9 px-3 text-xs">
+                            Run stale
+                        </button>
+                        <button onClick={sendSelectionToWriter} className="site-btn h-9 px-3 text-xs">
+                            <Send className="h-3.5 w-3.5" />
+                            Writer
                         </button>
                         <button onClick={exportSelectedReport} className="site-btn h-9 px-3 text-xs">Report</button>
                         <button onClick={() => exportWorksheet("md")} className="site-btn h-9 px-3 text-xs">MD</button>
@@ -463,6 +635,42 @@ export function ComputationalNotebook() {
                         </div>
                     </div>
                     <div className="site-panel p-3">
+                        <div className="site-eyebrow text-sky-600">Navigator</div>
+                        <div className="mt-3 space-y-2">
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                    value={outlineSearch}
+                                    onChange={(event) => setOutlineSearch(event.target.value)}
+                                    placeholder="Block qidirish..."
+                                    className="h-10 w-full rounded-2xl border border-border/70 bg-background/70 pl-9 pr-3 text-sm outline-none focus:border-accent/45"
+                                />
+                            </div>
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                                <div className="relative">
+                                    <Filter className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    <select
+                                        value={outlineFilter}
+                                        onChange={(event) => setOutlineFilter(event.target.value as NotebookBlockKind | "all")}
+                                        className="h-10 w-full appearance-none rounded-2xl border border-border/70 bg-background/70 pl-9 pr-3 text-sm outline-none focus:border-accent/45"
+                                    >
+                                        <option value="all">All block kinds</option>
+                                        {blockCatalog.map((item) => (
+                                            <option key={item.kind} value={item.kind}>{item.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setHideSettled((value) => !value)}
+                                    className={`rounded-2xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] ${hideSettled ? "border-accent/30 bg-[var(--accent-soft)] text-accent" : "border-border/70 bg-background/70 text-muted-foreground"}`}
+                                >
+                                    Stale only
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="site-panel p-3">
                         <div className="site-eyebrow text-emerald-600">Saved Lab Results</div>
                         <div className="mt-3 max-h-[280px] space-y-1.5 overflow-auto pr-1">
                             {savedResults.length ? savedResults.slice(0, 12).map((result) => (
@@ -482,22 +690,25 @@ export function ComputationalNotebook() {
                 <main className="space-y-3">
                     <div className="site-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                         <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-muted-foreground">
-                            <span className="rounded-full border border-border/70 bg-background px-3 py-1">Selected {selectedBlockIds.size}</span>
-                            <span className="rounded-full border border-border/70 bg-background px-3 py-1">Compute {solveBlockCount}</span>
-                            <span className={`rounded-full border px-3 py-1 ${staleBlockCount ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-border/70 bg-background"}`}>Stale {staleBlockCount}</span>
+                            <span className="site-status-pill px-3 py-1">Selected {selectedBlockIds.size}</span>
+                            <span className="site-status-pill px-3 py-1">Compute {solveBlockCount}</span>
+                            <span className={`site-status-pill px-3 py-1 ${staleBlockCount ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : ""}`}>Stale {staleBlockCount}</span>
                         </div>
                         <div className="text-xs font-semibold text-muted-foreground">
                             Active: <span className="font-black text-foreground">{activeBlock?.title}</span>
                         </div>
                     </div>
-                    {blocks.map((block, index) => (
+                    {visibleBlocks.map((block) => (
                         <NotebookBlockCard
                             key={block.id}
                             block={block}
-                            index={index}
+                            index={blocks.findIndex((item) => item.id === block.id)}
                             active={block.id === activeBlockId}
                             onFocus={() => setActiveBlockId(block.id)}
                             selected={selectedBlockIds.has(block.id)}
+                            collapsed={Boolean(collapsedBlocks[block.id])}
+                            onToggleCollapsed={() => setCollapsedBlocks((current) => ({ ...current, [block.id]: !current[block.id] }))}
+                            onRunPassive={runPassiveBlockById}
                             onToggleSelected={() => setSelectedBlockIds((current) => {
                                 const next = new Set(current);
                                 if (next.has(block.id)) next.delete(block.id);
@@ -515,13 +726,18 @@ export function ComputationalNotebook() {
                             }}
                         />
                     ))}
+                    {!visibleBlocks.length ? (
+                        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+                            Hozirgi filter bo&apos;yicha block topilmadi.
+                        </div>
+                    ) : null}
                 </main>
 
                 <aside className="space-y-3 xl:sticky xl:top-[152px] xl:self-start">
                     <div className="site-panel p-3">
                         <div className="site-eyebrow text-sky-600">Outline</div>
                         <div className="mt-3 max-h-[300px] space-y-1.5 overflow-auto pr-1">
-                            {blocks.map((block, index) => (
+                            {visibleBlocks.map((block) => (
                                 <button
                                     key={block.id}
                                     onClick={() => setActiveBlockId(block.id)}
@@ -529,7 +745,7 @@ export function ComputationalNotebook() {
                                         block.id === activeBlockId ? "border-accent/40 bg-[var(--accent-soft)] font-bold" : "border-border/60 bg-background/60 text-muted-foreground hover:bg-muted/50"
                                     }`}
                                 >
-                                    <span className="block truncate">{index + 1}. {block.title}</span>
+                                    <span className="block truncate">{blocks.findIndex((item) => item.id === block.id) + 1}. {block.title}</span>
                                 </button>
                             ))}
                         </div>
@@ -557,7 +773,7 @@ export function ComputationalNotebook() {
                             </div>
                             <div className="col-span-2 rounded-xl border border-border/70 bg-background/70 p-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Live status</div>
-                                <div className="mt-1 font-bold text-emerald-600">DB connected</div>
+                                <div className="mt-1 font-bold text-emerald-600">{liveStatusLabel}</div>
                             </div>
                             <div className="rounded-xl border border-border/70 bg-background/70 p-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Export blocks</div>
@@ -573,6 +789,26 @@ export function ComputationalNotebook() {
                                     {blocks.filter((block) => block.kind === "solve").map((block, index) => (
                                         <div key={block.id}>{index + 1}. {block.title} {block.config?.stale === "true" ? "(stale)" : ""}</div>
                                     ))}
+                                </div>
+                            </div>
+                            <div className="col-span-2 rounded-xl border border-border/70 bg-background/70 p-3">
+                                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Execution timeline</div>
+                                <div className="mt-2 max-h-40 space-y-2 overflow-auto text-xs text-muted-foreground">
+                                    {executionTimeline.length ? executionTimeline.map((entry) => (
+                                        <div key={entry.id} className="rounded-xl border border-border/60 bg-muted/10 px-3 py-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-bold text-foreground">{entry.title}</span>
+                                                <span className={entry.status === "success" ? "text-emerald-600" : "text-rose-600"}>{entry.status}</span>
+                                            </div>
+                                            <div className="mt-1">{entry.detail}</div>
+                                            <div className="mt-1 flex items-center justify-between gap-2">
+                                                <span>{new Date(entry.startedAt).toLocaleTimeString()}</span>
+                                                <span>{formatDuration(entry.durationMs)}</span>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="text-muted-foreground">Hali execution history yo&apos;q.</div>
+                                    )}
                                 </div>
                             </div>
                             <div className="col-span-2 rounded-xl border border-border/70 bg-background/70 p-3">
@@ -598,9 +834,12 @@ function NotebookBlockCard({
     index,
     active,
     selected,
+    collapsed,
     onFocus,
+    onToggleCollapsed,
     onToggleSelected,
     onChange,
+    onRunPassive,
     onInsertBlockAfter,
     onRemove,
 }: {
@@ -608,9 +847,12 @@ function NotebookBlockCard({
     index: number;
     active: boolean;
     selected: boolean;
+    collapsed: boolean;
     onFocus: () => void;
+    onToggleCollapsed: () => void;
     onToggleSelected: () => void;
     onChange: (patch: Partial<NotebookBlock>) => void;
+    onRunPassive: (blockId: string) => void;
     onInsertBlockAfter: (block: NotebookBlock) => void;
     onRemove: () => void;
 }) {
@@ -712,16 +954,32 @@ function NotebookBlockCard({
                                 Add code
                             </button>
                         </>
+                    ) : block.kind === "graph" || block.kind === "table" || block.kind === "python" ? (
+                        <button onClick={() => onRunPassive(block.id)} className="site-btn h-9 px-3 text-xs">
+                            Refresh output
+                        </button>
                     ) : null}
+                    <button onClick={onToggleCollapsed} className="site-btn h-9 px-3 text-xs">
+                        {collapsed ? "Expand" : "Collapse"}
+                    </button>
                     <button onClick={onRemove} className="h-9 rounded-xl border border-border/70 px-3 text-xs font-bold text-muted-foreground hover:text-rose-600">
                         Remove
                     </button>
                 </div>
             </div>
-            <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                <BlockEditor block={block} onChange={onChange} />
-                <BlockPreview block={block} />
+            <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
+                <span className="site-status-pill px-2.5 py-1">{block.kind}</span>
+                {block.config?.executedAt ? <span className="site-status-pill px-2.5 py-1">Executed {new Date(block.config.executedAt).toLocaleTimeString()}</span> : null}
+                {block.config?.lastDurationMs ? <span className="site-status-pill px-2.5 py-1">{formatDuration(Number(block.config.lastDurationMs))}</span> : null}
+                {block.config?.runCount ? <span className="site-status-pill px-2.5 py-1">Runs {block.config.runCount}</span> : null}
+                {block.config?.outputSummary ? <span className="site-status-pill px-2.5 py-1">{block.config.outputSummary}</span> : null}
             </div>
+            {!collapsed ? (
+                <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                    <BlockEditor block={block} onChange={onChange} />
+                    <BlockPreview block={block} />
+                </div>
+            ) : null}
         </section>
     );
 }
@@ -773,6 +1031,11 @@ function BlockPreview({ block }: { block: NotebookBlock }) {
                         <Metric label="Value" value={result.value.toPrecision(12)} />
                         <Metric label="Segments" value={String(result.segments)} />
                     </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                        <Metric label="Session" value={block.config?.runCount || "0"} />
+                        <Metric label="Last runtime" value={block.config?.lastDurationMs ? formatDuration(Number(block.config.lastDurationMs)) : "pending"} />
+                        <Metric label="Cache key" value={block.config?.cacheKey ? "ready" : "none"} />
+                    </div>
                     {hasBackend ? (
                         <div className="mt-4 rounded-2xl border border-border/70 bg-background p-4">
                             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Backend certificate-ready result</div>
@@ -796,7 +1059,16 @@ function BlockPreview({ block }: { block: NotebookBlock }) {
         }
         if (block.kind === "graph") {
             const points = sampleGraph(block.content, safeNumber(block.config?.xMin, -5), safeNumber(block.config?.xMax, 5), Math.round(safeNumber(block.config?.samples, 160)));
-            return <PreviewShell title="Live graph"><Sparkline points={points} /></PreviewShell>;
+            return (
+                <PreviewShell title="Live graph">
+                    <div className="mb-3 grid gap-3 sm:grid-cols-3">
+                        <Metric label="Points" value={String(points.length)} />
+                        <Metric label="Y min" value={points.length ? Math.min(...points.map((point) => point.y)).toFixed(4) : "n/a"} />
+                        <Metric label="Y max" value={points.length ? Math.max(...points.map((point) => point.y)).toFixed(4) : "n/a"} />
+                    </div>
+                    <Sparkline points={points} />
+                </PreviewShell>
+            );
         }
         if (block.kind === "table") {
             const rows = Math.max(2, Math.min(50, Math.round(safeNumber(block.config?.rows, 8))));
@@ -808,6 +1080,11 @@ function BlockPreview({ block }: { block: NotebookBlock }) {
             });
             return (
                 <PreviewShell title="Generated table">
+                    <div className="mb-3 grid gap-3 sm:grid-cols-3">
+                        <Metric label="Rows" value={String(data.length)} />
+                        <Metric label="First x" value={data[0] ? data[0].x.toFixed(3) : "n/a"} />
+                        <Metric label="Last y" value={data[data.length - 1] ? data[data.length - 1].y.toFixed(4) : "n/a"} />
+                    </div>
                     <div className="overflow-hidden rounded-2xl border border-border/70">
                         {data.map((row) => (
                             <div key={row.x} className="grid grid-cols-2 border-b border-border/50 px-3 py-2 text-sm last:border-b-0">
@@ -820,7 +1097,16 @@ function BlockPreview({ block }: { block: NotebookBlock }) {
             );
         }
         if (block.kind === "python") {
-            return <PreviewShell title="Code appendix"><pre className="overflow-auto rounded-2xl bg-foreground p-4 text-sm leading-6 text-background">{block.content}</pre></PreviewShell>;
+            return (
+                <PreviewShell title="Code appendix">
+                    <div className="mb-3 grid gap-3 sm:grid-cols-3">
+                        <Metric label="Lines" value={String(block.content.split(/\r?\n/).length)} />
+                        <Metric label="Chars" value={String(block.content.length)} />
+                        <Metric label="Last run" value={block.config?.executedAt ? new Date(block.config.executedAt).toLocaleTimeString() : "not run"} />
+                    </div>
+                    <pre className="site-code-surface overflow-auto p-4 text-sm leading-6">{block.content}</pre>
+                </PreviewShell>
+            );
         }
         if (block.kind === "theorem" || block.kind === "exercise" || block.kind === "answer" || block.kind === "export") {
             return <PreviewShell title="Document block"><div className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{block.content}</div></PreviewShell>;
@@ -853,7 +1139,7 @@ function BlockPreview({ block }: { block: NotebookBlock }) {
 
 function PreviewShell({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+        <div className="site-soft-panel rounded-[1.25rem] p-3">
             <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                 <Grid3X3 className="h-3.5 w-3.5" />
                 {title}
@@ -865,7 +1151,7 @@ function PreviewShell({ title, children }: { title: string; children: React.Reac
 
 function Metric({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-xl border border-border/70 bg-background p-3">
+        <div className="site-soft-panel rounded-[1.1rem] bg-background/80 p-3">
             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
             <div className="mt-2 break-words font-mono text-sm font-black">{value}</div>
         </div>

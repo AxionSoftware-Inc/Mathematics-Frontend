@@ -8,6 +8,7 @@ import {
     PaperEditorWorkspace,
     type PaperFormData,
 } from "@/components/paper-editor-workspace";
+import { fetchWriterPaper, updateWriterPaper } from "@/lib/writer-api";
 
 export default function EditPaperPage() {
     const router = useRouter();
@@ -33,26 +34,19 @@ export default function EditPaperPage() {
     useEffect(() => {
         async function fetchPaper() {
             try {
-                const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-                const res = await fetch(`${apiUrl}/api/builder/papers/${id}/`);
-
-                if (res.ok) {
-                    const data = await res.json();
-                    setFormData({
-                        title: data.title || "",
-                        abstract: data.abstract || "",
-                        content: data.content || "",
-                        authors: data.authors || "",
-                        keywords: data.keywords || "",
-                        document_kind: data.document_kind || "paper",
-                        branding_enabled: data.branding_enabled ?? true,
-                        branding_label: data.branding_label || "Powered by MathSphere Writer",
-                        status: data.status || "draft",
-                        sections: Array.isArray(data.sections) ? data.sections : [],
-                    });
-                } else {
-                    router.push("/write");
-                }
+                const data = await fetchWriterPaper(id);
+                setFormData({
+                    title: data.title || "",
+                    abstract: data.abstract || "",
+                    content: data.content || "",
+                    authors: data.authors || "",
+                    keywords: data.keywords || "",
+                    document_kind: data.document_kind || "paper",
+                    branding_enabled: data.branding_enabled ?? true,
+                    branding_label: data.branding_label || "Powered by MathSphere Writer",
+                    status: data.status || "draft",
+                    sections: Array.isArray(data.sections) ? data.sections : [],
+                });
             } catch (error) {
                 console.error("Xatolik:", error);
                 router.push("/write");
@@ -66,31 +60,18 @@ export default function EditPaperPage() {
 
     async function handleSubmit(nextData?: PaperFormData) {
         setStatus("submitting");
+        setErrorMessage("");
 
         try {
             const payload = nextData ?? formData;
-            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-            const res = await fetch(`${apiUrl}/api/builder/papers/${id}/`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (res.ok) {
-                setStatus("success");
-                setTimeout(() => {
-                    router.push("/write");
-                }, 900);
-            } else {
-                const data = await res.json();
-                setErrorMessage(data.detail || "Xatolik yuz berdi. Iltimos qayta urinib ko'ring.");
-                setStatus("error");
-            }
+            await updateWriterPaper(id, payload);
+            setStatus("success");
+            setTimeout(() => {
+                router.push("/write");
+            }, 900);
         } catch (error) {
             console.error("Submission error:", error);
-            setErrorMessage("Tarmoq xatosi. Server bilan bog'lanishda muammo.");
+            setErrorMessage(error instanceof Error ? error.message : "Tarmoq xatosi. Server bilan bog'lanishda muammo.");
             setStatus("error");
         }
     }

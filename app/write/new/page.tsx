@@ -9,6 +9,7 @@ import {
     type PaperFormData,
 } from "@/components/paper-editor-workspace";
 import { readQueuedWriterImport, removeQueuedWriterImport, serializeWriterBridgeBlock } from "@/lib/live-writer-bridge";
+import { createWriterPaper } from "@/lib/writer-api";
 import { compileWriterProjectSections } from "@/lib/writer-project";
 import { createDraftFromTemplate, getDefaultWriterTemplate, getWriterTemplate, getWriterTemplatePreset } from "@/lib/writer-templates";
 
@@ -94,31 +95,18 @@ function NewPaperPageContent() {
 
     async function handleSubmit(nextData?: PaperFormData) {
         setStatus("submitting");
+        setErrorMessage("");
 
         try {
             const payload = nextData ?? formData;
-            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-            const res = await fetch(`${apiUrl}/api/builder/papers/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (res.ok) {
-                setStatus("success");
-                setTimeout(() => {
-                    router.push("/write");
-                }, 900);
-            } else {
-                const data = await res.json();
-                setErrorMessage(data.detail || "Xatolik yuz berdi. Iltimos qayta urinib ko'ring.");
-                setStatus("error");
-            }
+            await createWriterPaper(payload);
+            setStatus("success");
+            setTimeout(() => {
+                router.push("/write");
+            }, 900);
         } catch (error) {
             console.error("Submission error:", error);
-            setErrorMessage("Tarmoq xatosi. Server bilan bog'lanishda muammo.");
+            setErrorMessage(error instanceof Error ? error.message : "Tarmoq xatosi. Server bilan bog'lanishda muammo.");
             setStatus("error");
         }
     }

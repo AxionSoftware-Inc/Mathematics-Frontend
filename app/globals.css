@@ -299,6 +299,47 @@ h6 {
   background: color-mix(in srgb, var(--surface) 90%, transparent);
 }
 
+.site-workspace-shell {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--accent-soft) 34%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--background) 100%, transparent));
+}
+
+.site-workspace-topbar {
+  @apply border;
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  box-shadow: 0 14px 34px -30px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.site-document-frame {
+  @apply border shadow-sm;
+  border-radius: 2rem;
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 98%, transparent), color-mix(in srgb, var(--surface) 96%, transparent));
+}
+
+.site-document-page {
+  background: color-mix(in srgb, white 94%, var(--surface) 6%);
+  color: rgb(17 24 39);
+}
+
+.site-document-chip {
+  @apply rounded-full border;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+}
+
+.site-code-surface {
+  @apply border;
+  border-radius: 1.15rem;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--foreground) 92%, transparent);
+  color: color-mix(in srgb, var(--background) 96%, transparent);
+}
+
 .site-lab-card {
   @apply border shadow-sm;
   border-radius: 1.45rem;
@@ -312,8 +353,17 @@ h6 {
 .dark .site-toolbar-shell,
 .dark .site-toolbar-segment,
 .dark .site-toolbar-pill,
-.dark .site-status-pill {
+.dark .site-status-pill,
+.dark .site-workspace-topbar,
+.dark .site-document-frame,
+.dark .site-document-chip,
+.dark .site-code-surface {
   border-color: color-mix(in srgb, white 9%, transparent);
+}
+
+.dark .site-document-page {
+  background: linear-gradient(180deg, rgba(16, 18, 19, 0.98), rgba(12, 14, 15, 0.98));
+  color: rgb(241 245 249);
 }
 
 .site-button-primary {

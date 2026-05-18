@@ -18,6 +18,7 @@ import {
 
 import { WriteTypeSelector } from "@/components/write-type-selector";
 import { fetchPublic, isExpectedBackendOfflineError } from "@/lib/api";
+import { deleteWriterPaper } from "@/lib/writer-api";
 
 interface Paper {
     id: number;
@@ -89,13 +90,8 @@ export default function WriteIndexPage() {
         if (!confirm("Haqiqatan ham ushbu maqolani o'chirib tashlamoqchimisiz?")) return;
 
         try {
-            const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-            const res = await fetch(`${apiUrl}/api/builder/papers/${id}/`, {
-                method: "DELETE",
-            });
-            if (res.ok) {
-                fetchPapers();
-            }
+            await deleteWriterPaper(id);
+            fetchPapers();
         } catch (e) {
             console.error("Xatolik", e);
         }
