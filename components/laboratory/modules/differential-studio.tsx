@@ -4,7 +4,6 @@ import { LaboratoryModuleMeta } from "@/lib/laboratory";
 import { useLaboratoryWriterBridge } from "@/components/live-writer-bridge/use-laboratory-writer-bridge";
 import { useLiveWriterTargets } from "@/components/live-writer-bridge/use-live-writer-targets";
 import { useLaboratoryResultPersistence } from "@/components/laboratory/use-laboratory-result-persistence";
-import { LabCodeInsightPanel } from "@/components/laboratory/code-insight/lab-code-insight-panel";
 import { useDifferentialStudio } from "./differential-studio/use-differential-studio";
 import { DIFFERENTIAL_PRESETS, DIFFERENTIAL_WORKFLOW_TEMPLATES } from "./differential-studio/constants";
 import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from "@/lib/live-writer-bridge";
@@ -12,6 +11,7 @@ import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from 
 // Local Components
 import { StudioHeaderBar } from "./differential-studio/components/studio-header-bar";
 import { StudioStatusBar } from "./differential-studio/components/studio-status-bar";
+import { CodeView } from "./differential-studio/views/code-view";
 import { CompareView } from "./differential-studio/views/compare-view";
 import { ReportView } from "./differential-studio/views/report-view";
 import { SolveView } from "./differential-studio/views/solve-view";
@@ -285,12 +285,14 @@ export function DifferentialStudioModule({ module }: { module: LaboratoryModuleM
                 );
             case "code":
                 return (
-                    <LabCodeInsightPanel
-                        module="differential"
-                        title="Differential"
-                        expression={state.expression}
-                        secondary={`${state.variable}; point=${state.point}; order=${state.order}`}
+                    <CodeView
                         analyticSolution={state.analyticSolution}
+                        mode={state.mode}
+                        expression={state.expression}
+                        variable={state.variable}
+                        point={state.point}
+                        order={state.order}
+                        direction={state.direction}
                     />
                 );
             case "visualize":

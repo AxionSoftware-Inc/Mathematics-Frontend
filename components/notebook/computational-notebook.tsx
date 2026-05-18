@@ -406,65 +406,68 @@ export function ComputationalNotebook() {
     const exportSelectedReport = () => {
         downloadText("mathsphere-selected-blocks-report.md", `# ${documentTitle}\n\n${selectedMarkdown || markdown}`);
     };
+    const staleBlockCount = dependencyGraph.filter((item) => item.stale).length;
+    const solveBlockCount = blocks.filter((block) => block.kind === "solve").length;
+    const saveLabel = saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save";
 
     return (
-        <div className="min-h-screen bg-muted/20">
-            <div className="border-b border-border/70 bg-background">
-                <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <div className="site-eyebrow text-accent">Computational Notebook</div>
-                        <input value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} className="mt-1 w-full bg-transparent text-2xl font-black tracking-tight outline-none" />
-                        <textarea value={documentSummary} onChange={(event) => setDocumentSummary(event.target.value)} className="mt-2 min-h-12 w-full max-w-3xl resize-none bg-transparent text-sm leading-6 text-muted-foreground outline-none" />
-                        <div className="mt-2 text-xs font-semibold text-muted-foreground">
+        <div className="min-h-screen bg-[#f7f7f5] text-foreground dark:bg-[#10110f]">
+            <div className="sticky top-[80px] z-30 border-b border-border/70 bg-background/95 backdrop-blur">
+                <div className="mx-auto flex h-14 max-w-[1800px] items-center gap-3 px-4">
+                    <div className="min-w-0 flex-1">
+                        <div className="site-eyebrow hidden text-accent sm:block">Notebook</div>
+                        <input value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} className="w-full bg-transparent text-lg font-black tracking-tight outline-none" />
+                        <textarea value={documentSummary} onChange={(event) => setDocumentSummary(event.target.value)} className="hidden" />
+                        <div className="hidden text-xs font-semibold text-muted-foreground md:block">
                             {documentId ? `Saved document ${documentId} · revision ${revision ?? 1}` : "Unsaved local worksheet"}
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <button onClick={() => void saveDocument()} disabled={saveState === "saving"} className="site-btn-accent px-4">
-                            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save DB"}
+                    <div className="hidden min-w-0 flex-[0.8] lg:block">
+                        <input value={documentSummary} onChange={(event) => setDocumentSummary(event.target.value)} className="h-9 w-full rounded-xl border border-border/70 bg-muted/30 px-3 text-xs font-semibold text-muted-foreground outline-none focus:border-accent/45" />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                        <button onClick={() => void saveDocument()} disabled={saveState === "saving"} className="site-btn-accent h-9 px-3 text-xs">
+                            {saveLabel}
                         </button>
-                        <button onClick={() => void runAll()} disabled={runAllState === "running"} className="site-btn-accent px-4">
-                            {runAllState === "running" ? "Running..." : "Run all"}
+                        <button onClick={() => void runAll()} disabled={runAllState === "running"} className="site-btn h-9 px-3 text-xs">
+                            {runAllState === "running" ? "Running" : "Run all"}
                         </button>
-                        <button onClick={exportSelectedReport} className="site-btn px-4">Selected report</button>
-                        <button onClick={() => exportWorksheet("md")} className="site-btn px-4">Markdown</button>
-                        <button onClick={() => exportWorksheet("tex")} className="site-btn px-4">LaTeX</button>
-                        <button onClick={() => exportWorksheet("json")} className="site-btn-accent px-4">Notebook JSON</button>
+                        <button onClick={exportSelectedReport} className="site-btn h-9 px-3 text-xs">Report</button>
+                        <button onClick={() => exportWorksheet("md")} className="site-btn h-9 px-3 text-xs">MD</button>
+                        <button onClick={() => exportWorksheet("tex")} className="site-btn h-9 px-3 text-xs">TeX</button>
+                        <button onClick={() => exportWorksheet("json")} className="site-btn h-9 px-3 text-xs">JSON</button>
                     </div>
                 </div>
                 {saveState === "error" && saveError ? (
-                    <div className="mx-auto max-w-[1600px] px-5 pb-4 text-sm font-semibold text-rose-600">{saveError}</div>
+                    <div className="mx-auto max-w-[1800px] px-4 pb-2 text-xs font-semibold text-rose-600">{saveError}</div>
                 ) : null}
             </div>
 
-            <div className="mx-auto grid max-w-[1600px] gap-5 px-5 py-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-                <aside className="space-y-4">
-                    <div className="site-panel p-4">
-                        <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="mx-auto grid max-w-[1800px] gap-4 px-4 py-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+                <aside className="space-y-3 xl:sticky xl:top-[152px] xl:self-start">
+                    <div className="site-panel p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
                             <div className="site-eyebrow">Blocks</div>
                             <ListPlus className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div className="grid gap-2">
+                        <div className="grid grid-cols-2 gap-1.5">
                             {blockCatalog.map((item) => {
                                 const Icon = item.icon;
                                 return (
-                                    <button key={item.kind} onClick={() => addBlock(item.kind)} className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/70 p-3 text-left transition hover:bg-muted/50">
-                                        <Icon className="mt-0.5 h-4 w-4 text-accent" />
-                                        <span>
-                                            <span className="block text-sm font-black">{item.label}</span>
-                                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
-                                        </span>
+                                    <button key={item.kind} onClick={() => addBlock(item.kind)} title={item.description} className="flex h-11 items-center gap-2 rounded-xl border border-border/70 bg-background/70 px-2 text-left transition hover:border-accent/30 hover:bg-muted/50">
+                                        <Icon className="h-4 w-4 shrink-0 text-accent" />
+                                        <span className="truncate text-xs font-black">{item.label}</span>
                                     </button>
                                 );
                             })}
                         </div>
                     </div>
-                    <div className="site-panel p-4">
+                    <div className="site-panel p-3">
                         <div className="site-eyebrow text-emerald-600">Saved Lab Results</div>
-                        <div className="mt-3 max-h-[360px] space-y-2 overflow-auto pr-1">
+                        <div className="mt-3 max-h-[280px] space-y-1.5 overflow-auto pr-1">
                             {savedResults.length ? savedResults.slice(0, 12).map((result) => (
-                                <button key={result.id} onClick={() => importSavedResult(result)} className="w-full rounded-xl border border-border/70 bg-background/70 p-3 text-left transition hover:bg-muted/50">
-                                    <span className="block text-sm font-black">{result.title}</span>
+                                <button key={result.id} onClick={() => importSavedResult(result)} className="w-full rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-left transition hover:bg-muted/50">
+                                    <span className="block truncate text-xs font-black">{result.title}</span>
                                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{result.module_title} · rev {result.revision}</span>
                                 </button>
                             )) : (
@@ -476,7 +479,17 @@ export function ComputationalNotebook() {
                     </div>
                 </aside>
 
-                <main className="space-y-4">
+                <main className="space-y-3">
+                    <div className="site-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-muted-foreground">
+                            <span className="rounded-full border border-border/70 bg-background px-3 py-1">Selected {selectedBlockIds.size}</span>
+                            <span className="rounded-full border border-border/70 bg-background px-3 py-1">Compute {solveBlockCount}</span>
+                            <span className={`rounded-full border px-3 py-1 ${staleBlockCount ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-border/70 bg-background"}`}>Stale {staleBlockCount}</span>
+                        </div>
+                        <div className="text-xs font-semibold text-muted-foreground">
+                            Active: <span className="font-black text-foreground">{activeBlock?.title}</span>
+                        </div>
+                    </div>
                     {blocks.map((block, index) => (
                         <NotebookBlockCard
                             key={block.id}
@@ -504,29 +517,29 @@ export function ComputationalNotebook() {
                     ))}
                 </main>
 
-                <aside className="space-y-4">
-                    <div className="site-panel p-5">
+                <aside className="space-y-3 xl:sticky xl:top-[152px] xl:self-start">
+                    <div className="site-panel p-3">
                         <div className="site-eyebrow text-sky-600">Outline</div>
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-3 max-h-[300px] space-y-1.5 overflow-auto pr-1">
                             {blocks.map((block, index) => (
                                 <button
                                     key={block.id}
                                     onClick={() => setActiveBlockId(block.id)}
-                                    className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
+                                    className={`w-full rounded-xl border px-3 py-2 text-left text-xs transition ${
                                         block.id === activeBlockId ? "border-accent/40 bg-[var(--accent-soft)] font-bold" : "border-border/60 bg-background/60 text-muted-foreground hover:bg-muted/50"
                                     }`}
                                 >
-                                    {index + 1}. {block.title}
+                                    <span className="block truncate">{index + 1}. {block.title}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div className="site-panel p-5">
+                    <div className="site-panel p-3">
                         <div className="site-eyebrow text-amber-600">Documents</div>
-                        <div className="mt-4 max-h-[300px] space-y-2 overflow-auto pr-1">
+                        <div className="mt-3 max-h-[220px] space-y-1.5 overflow-auto pr-1">
                             {documents.length ? documents.map((document) => (
-                                <button key={document.id} onClick={() => loadDocument(document)} className="w-full rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-left text-sm transition hover:bg-muted/50">
-                                    <span className="block font-bold">{document.title}</span>
+                                <button key={document.id} onClick={() => loadDocument(document)} className="w-full rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-left text-xs transition hover:bg-muted/50">
+                                    <span className="block truncate font-bold">{document.title}</span>
                                     <span className="text-xs text-muted-foreground">rev {document.revision}</span>
                                 </button>
                             )) : (
@@ -535,14 +548,14 @@ export function ComputationalNotebook() {
                         </div>
                     </div>
 
-                    <div className="site-panel p-5">
+                    <div className="site-panel p-3">
                         <div className="site-eyebrow text-emerald-600">Inspector</div>
-                        <div className="mt-4 space-y-3 text-sm">
-                            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                            <div className="col-span-2 rounded-xl border border-border/70 bg-background/70 p-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Active block</div>
-                                <div className="mt-1 font-bold">{activeBlock?.title}</div>
+                                <div className="mt-1 truncate font-bold">{activeBlock?.title}</div>
                             </div>
-                            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                            <div className="col-span-2 rounded-xl border border-border/70 bg-background/70 p-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Live status</div>
                                 <div className="mt-1 font-bold text-emerald-600">DB connected</div>
                             </div>
@@ -556,15 +569,15 @@ export function ComputationalNotebook() {
                             </div>
                             <div className="rounded-xl border border-border/70 bg-background/70 p-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Execution order</div>
-                                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <div className="mt-2 max-h-24 space-y-1 overflow-auto text-xs text-muted-foreground">
                                     {blocks.filter((block) => block.kind === "solve").map((block, index) => (
                                         <div key={block.id}>{index + 1}. {block.title} {block.config?.stale === "true" ? "(stale)" : ""}</div>
                                     ))}
                                 </div>
                             </div>
-                            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                            <div className="col-span-2 rounded-xl border border-border/70 bg-background/70 p-3">
                                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Dependency graph</div>
-                                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <div className="mt-2 max-h-36 space-y-1 overflow-auto text-xs text-muted-foreground">
                                     {dependencyGraph.map((item) => (
                                         <div key={item.id}>
                                             {item.title} {item.dependsOn ? "-> depends on solve" : "-> source"} {item.stale ? "(stale)" : ""}
@@ -670,19 +683,19 @@ function NotebookBlockCard({
     };
 
     return (
-        <section onClick={onFocus} className={`site-panel overflow-hidden ${active ? "ring-2 ring-accent/25" : ""}`}>
-            <div className="flex flex-col gap-3 border-b border-border/70 bg-background/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <section onClick={onFocus} className={`site-panel overflow-hidden border-l-4 ${active ? "border-l-accent ring-2 ring-accent/15" : "border-l-transparent"}`}>
+            <div className="flex flex-col gap-3 border-b border-border/70 bg-background/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                     <input type="checkbox" checked={selected} onChange={onToggleSelected} onClick={(event) => event.stopPropagation()} className="h-4 w-4 accent-[var(--accent)]" />
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-accent">
-                        <Icon className="h-5 w-5" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-accent">
+                        <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
                         <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Block {index + 1} · {block.kind}</div>
                         <input
                             value={block.title}
                             onChange={(event) => onChange({ title: event.target.value })}
-                            className="mt-1 w-full bg-transparent text-lg font-black tracking-tight outline-none"
+                            className="mt-0.5 w-full bg-transparent text-base font-black tracking-tight outline-none"
                         />
                         {block.config?.stale === "true" ? (
                             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-600">Stale · run block to refresh</div>
@@ -692,20 +705,20 @@ function NotebookBlockCard({
                 <div className="flex flex-wrap items-center gap-2">
                     {block.kind === "solve" ? (
                         <>
-                            <button onClick={() => void runSolveBlock()} disabled={runState === "running"} className="site-btn-accent px-3 py-2 text-xs">
+                            <button onClick={() => void runSolveBlock()} disabled={runState === "running"} className="site-btn-accent h-9 px-3 text-xs">
                                 {runState === "running" ? "Running..." : "Run backend"}
                             </button>
-                            <button onClick={addCodeAppendix} className="site-btn px-3 py-2 text-xs">
+                            <button onClick={addCodeAppendix} className="site-btn h-9 px-3 text-xs">
                                 Add code
                             </button>
                         </>
                     ) : null}
-                    <button onClick={onRemove} className="rounded-xl border border-border/70 px-3 py-2 text-xs font-bold text-muted-foreground hover:text-rose-600">
+                    <button onClick={onRemove} className="h-9 rounded-xl border border-border/70 px-3 text-xs font-bold text-muted-foreground hover:text-rose-600">
                         Remove
                     </button>
                 </div>
             </div>
-            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <BlockEditor block={block} onChange={onChange} />
                 <BlockPreview block={block} />
             </div>
@@ -719,19 +732,19 @@ function BlockEditor({ block, onChange }: { block: NotebookBlock; onChange: (pat
             <textarea
                 value={block.content}
                 onChange={(event) => onChange({ content: event.target.value })}
-                className="min-h-36 w-full resize-y rounded-2xl border border-border/70 bg-background px-4 py-3 font-mono text-sm leading-6 outline-none focus:border-accent/45 focus:ring-4 focus:ring-[var(--accent-soft)]"
+                className="min-h-32 w-full resize-y rounded-xl border border-border/70 bg-background px-4 py-3 font-mono text-sm leading-6 outline-none focus:border-accent/45 focus:ring-4 focus:ring-[var(--accent-soft)]"
             />
             {block.kind === "solve" ? (
                 <div className="grid gap-2 sm:grid-cols-4">
                     {(["variable", "lower", "upper", "method"] as const).map((key) => (
-                        <input key={key} value={block.config?.[key] ?? ""} onChange={(event) => onChange({ config: { ...(block.config || {}), [key]: event.target.value } })} placeholder={key} className="h-10 rounded-xl border border-border/70 bg-background px-3 font-mono text-sm outline-none" />
+                        <input key={key} value={block.config?.[key] ?? ""} onChange={(event) => onChange({ config: { ...(block.config || {}), [key]: event.target.value } })} placeholder={key} className="h-9 rounded-xl border border-border/70 bg-background px-3 font-mono text-xs outline-none" />
                     ))}
                 </div>
             ) : null}
             {block.kind === "graph" || block.kind === "table" ? (
                 <div className="grid gap-2 sm:grid-cols-3">
                     {(block.kind === "graph" ? ["xMin", "xMax", "samples"] : ["xMin", "xMax", "rows"]).map((key) => (
-                        <input key={key} value={block.config?.[key] ?? ""} onChange={(event) => onChange({ config: { ...(block.config || {}), [key]: event.target.value } })} placeholder={key} className="h-10 rounded-xl border border-border/70 bg-background px-3 font-mono text-sm outline-none" />
+                        <input key={key} value={block.config?.[key] ?? ""} onChange={(event) => onChange({ config: { ...(block.config || {}), [key]: event.target.value } })} placeholder={key} className="h-9 rounded-xl border border-border/70 bg-background px-3 font-mono text-xs outline-none" />
                     ))}
                 </div>
             ) : null}
@@ -840,7 +853,7 @@ function BlockPreview({ block }: { block: NotebookBlock }) {
 
 function PreviewShell({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+        <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
             <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                 <Grid3X3 className="h-3.5 w-3.5" />
                 {title}
@@ -852,7 +865,7 @@ function PreviewShell({ title, children }: { title: string; children: React.Reac
 
 function Metric({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-2xl border border-border/70 bg-background p-4">
+        <div className="rounded-xl border border-border/70 bg-background p-3">
             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
             <div className="mt-2 break-words font-mono text-sm font-black">{value}</div>
         </div>

@@ -5,9 +5,9 @@ import { Check, Clipboard, Code2, Download, RotateCcw } from "lucide-react";
 import { MonacoCodeEditor } from "@/components/laboratory/code-editor/monaco-code-editor";
 import { MethodSelector } from "@/components/laboratory/method-selector/method-selector";
 import { getLaboratoryMethodOptions } from "@/components/laboratory/method-selector/method-registry";
-import { buildIntegralCodeForMode, integralCodeExportModes, type IntegralCodeExportMode } from "@/lib/integral-code-generator";
+import { buildDifferentialCodeForMode, differentialCodeExportModes, type DifferentialCodeExportMode } from "@/lib/differential-code-generator";
 
-import type { IntegralAnalyticSolveResponse, IntegralSolveMethod } from "../types";
+import type { DifferentialAnalyticSolveResponse, DifferentialExtendedMode } from "../types";
 
 const LaboratoryAIExplainer = dynamic(
     () => import("@/components/laboratory/ai-explainer/laboratory-ai-explainer").then((mod) => mod.LaboratoryAIExplainer),
@@ -18,55 +18,53 @@ const LaboratoryAIExplainer = dynamic(
 );
 
 type CodeViewProps = {
-    analyticSolution: IntegralAnalyticSolveResponse | null;
+    analyticSolution: DifferentialAnalyticSolveResponse | null;
+    mode: DifferentialExtendedMode;
     expression: string;
-    lower: string;
-    upper: string;
-    solveMethod: IntegralSolveMethod;
-    setSolveMethod: (method: IntegralSolveMethod) => void;
+    variable: string;
+    point: string;
+    order: string;
+    direction: string;
 };
 
-export function CodeView({ analyticSolution, expression, lower, upper, solveMethod, setSolveMethod }: CodeViewProps) {
+export function CodeView({ analyticSolution, mode, expression, variable, point, order, direction }: CodeViewProps) {
+    const [method, setMethod] = React.useState("auto");
+    const [exportMode, setExportMode] = React.useState<DifferentialCodeExportMode>("python-sympy");
     const [copied, setCopied] = React.useState(false);
-    const [exportMode, setExportMode] = React.useState<IntegralCodeExportMode>("python-sympy");
-    const reproducibility = analyticSolution?.reproducibility;
     const generatedCode = React.useMemo(
-        () => buildIntegralCodeForMode(exportMode, { expression, lower, upper, solveMethod }),
-        [exportMode, expression, lower, solveMethod, upper],
+        () => buildDifferentialCodeForMode(exportMode, { mode, expression, variable, point, order, direction, solveMethod: method }),
+        [direction, exportMode, expression, method, mode, order, point, variable],
     );
     const [code, setCode] = React.useState(generatedCode);
     const [isDirty, setIsDirty] = React.useState(false);
-    const notes = reproducibility?.notes || [
-        "Run Solve first to receive backend-generated reproduction metadata.",
-        "The code below is regenerated from current expression, bounds, export mode, and selected method.",
-    ];
-    const selectedExportMode = integralCodeExportModes.find((item) => item.id === exportMode);
-    const aiPayload = React.useMemo(
-        () => ({
-            module: "integral",
-            expression,
-            expression_latex: analyticSolution?.parser?.expression_latex,
-            lower,
-            upper,
-            result_latex: analyticSolution?.exact?.evaluated_latex,
-            numeric_approximation: analyticSolution?.exact?.numeric_approximation,
-            method: {
-                selected_method: reproducibility?.selected_method || solveMethod,
-                family: reproducibility?.method_family,
-                label: reproducibility?.method,
-                summary: reproducibility?.method_summary,
-                numeric_strategy: reproducibility?.numeric_strategy,
-            },
-            steps: analyticSolution?.exact?.steps || [],
-            reproducibility: reproducibility || {},
-        }),
-        [analyticSolution, expression, lower, reproducibility, solveMethod, upper],
-    );
+    const selectedExportMode = differentialCodeExportModes.find((item) => item.id === exportMode);
 
     React.useEffect(() => {
         setCode(generatedCode);
         setIsDirty(false);
     }, [generatedCode]);
+
+    const aiPayload = React.useMemo(
+        () => ({
+            module: "differential",
+            expression,
+            expression_latex: analyticSolution?.parser?.expression_latex,
+            result_latex: analyticSolution?.exact?.evaluated_latex || analyticSolution?.exact?.derivative_latex,
+            numeric_approximation: analyticSolution?.exact?.numeric_approximation,
+            method: {
+                selected_method: method,
+                label: analyticSolution?.exact?.method_label,
+                mode,
+            },
+            steps: analyticSolution?.exact?.steps || [],
+            reproducibility: {
+                engine: "sympy/scipy",
+                selected_method: method,
+                pipeline: "parser-normalizer-detector-executor-verifier-numeric-visual-code-report-graph",
+            },
+        }),
+        [analyticSolution, expression, method, mode],
+    );
 
     const resetGeneratedCode = () => {
         setCode(generatedCode);
@@ -85,7 +83,7 @@ export function CodeView({ analyticSolution, expression, lower, upper, solveMeth
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `mathsphere-integral-${exportMode}.${extension}`;
+        link.download = `mathsphere-differential-${exportMode}.${extension}`;
         link.click();
         URL.revokeObjectURL(url);
     };
@@ -94,10 +92,10 @@ export function CodeView({ analyticSolution, expression, lower, upper, solveMeth
         <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
             <div className="space-y-4">
                 <MethodSelector
-                    title="Integral solve method"
-                    value={solveMethod}
-                    options={getLaboratoryMethodOptions("integral")}
-                    onChange={(value) => setSolveMethod(value as IntegralSolveMethod)}
+                    title="Differential / ODE method"
+                    value={method}
+                    options={getLaboratoryMethodOptions("differential")}
+                    onChange={setMethod}
                 />
 
                 <div className="site-panel p-5">
@@ -107,24 +105,13 @@ export function CodeView({ analyticSolution, expression, lower, upper, solveMeth
                         </div>
                         <div>
                             <div className="site-eyebrow">Reproduce</div>
-                            <h2 className="text-lg font-black tracking-tight">Method-aware code generator</h2>
+                            <h2 className="text-lg font-black tracking-tight">Differential pipeline code</h2>
                         </div>
                     </div>
                     <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                        Kod hozirgi expression, bounds va method tanlovidan qayta quriladi. Method almashtirilsa, template ham shu
-                        methodga mos transform, verification va numeric trust signalini o&apos;zgartiradi.
+                        Kod mode, expression, variable, point, order va method tanlovidan qayta quriladi. Method almashtirilsa
+                        parser, detector, executor, verification va numerical fallback yo&apos;li ham kodda o&apos;zgaradi.
                     </p>
-                </div>
-
-                <div className="site-panel p-5">
-                    <div className="site-eyebrow text-amber-600">Notes</div>
-                    <div className="mt-4 space-y-3">
-                        {notes.map((note) => (
-                            <div key={note} className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
-                                {note}
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
                 <LaboratoryAIExplainer payload={aiPayload} disabled={!analyticSolution} />
@@ -136,7 +123,7 @@ export function CodeView({ analyticSolution, expression, lower, upper, solveMeth
                         <div>
                             <div className="site-eyebrow">Code Generator</div>
                             <div className="mt-1 text-sm font-semibold text-muted-foreground">
-                                {isDirty ? "Edited code draft" : `${selectedExportMode?.label || "Generated"} template`} · {solveMethod.replace(/-/g, " ")}
+                                {isDirty ? "Edited code draft" : `${selectedExportMode?.label || "Generated"} template`} · {method.replace(/-/g, " ")}
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -179,7 +166,7 @@ export function CodeView({ analyticSolution, expression, lower, upper, solveMeth
                 <div className="site-panel p-4">
                     <div className="site-eyebrow text-sky-600">Code export modes</div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-                        {integralCodeExportModes.map((option) => (
+                        {differentialCodeExportModes.map((option) => (
                             <button
                                 key={option.id}
                                 type="button"
