@@ -31,6 +31,30 @@ async function parseApiError(response: Response) {
     }
 }
 
+function normalizeWriterPayload(payload: PaperFormData) {
+    return {
+        ...payload,
+        sections: payload.sections.map((section, index) => {
+            const normalized: Record<string, unknown> = {
+                title: section.title,
+                slug: section.slug,
+                kind: section.kind,
+                progress_state: section.progress_state,
+                order: section.order || index + 1,
+                content: section.content,
+            };
+
+            if (typeof section.id === "number") {
+                normalized.id = section.id;
+            } else if (typeof section.id === "string" && /^\d+$/.test(section.id.trim())) {
+                normalized.id = Number(section.id);
+            }
+
+            return normalized;
+        }),
+    };
+}
+
 export async function fetchWriterPaper(id: string | number) {
     const response = await fetchPublic(`/api/builder/papers/${id}/`);
     if (!response.ok) {
@@ -42,7 +66,7 @@ export async function fetchWriterPaper(id: string | number) {
 export async function createWriterPaper(payload: PaperFormData) {
     const response = await fetchPublic("/api/builder/papers/", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(normalizeWriterPayload(payload)),
     });
     if (!response.ok) {
         throw new Error(await parseApiError(response));
@@ -53,7 +77,7 @@ export async function createWriterPaper(payload: PaperFormData) {
 export async function updateWriterPaper(id: string | number, payload: PaperFormData) {
     const response = await fetchPublic(`/api/builder/papers/${id}/`, {
         method: "PUT",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(normalizeWriterPayload(payload)),
     });
     if (!response.ok) {
         throw new Error(await parseApiError(response));
