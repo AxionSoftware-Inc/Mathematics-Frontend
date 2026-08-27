@@ -18,6 +18,9 @@ export function LaboratoryWorkspaceShell({ module }: { module: LaboratoryModuleM
                     <div
                         className="lab-workspace-stage min-h-[calc(100dvh-88px)] overflow-hidden rounded-[11px] border border-[#dde2e9] bg-white shadow-[0_4px_18px_rgba(20,32,50,0.025)]
                         [&>*]:!rounded-none [&>*]:!border-0 [&>*]:!bg-transparent
+                        [&_input]:!rounded-[8px] [&_textarea]:!rounded-[8px] [&_select]:!rounded-[8px]
+                        [&_.rounded-3xl]:!rounded-[10px] [&_.rounded-2xl]:!rounded-[8px]
+                        [&_.shadow-sm]:!shadow-none [&_.shadow-md]:!shadow-none [&_.shadow-lg]:!shadow-none [&_.shadow-xl]:!shadow-none [&_.shadow-2xl]:!shadow-none [&_.shadow-inner]:!shadow-none
                         [&_.site-lab-card]:!rounded-[9px] [&_.site-lab-card]:!border-[#e1e5eb] [&_.site-lab-card]:!bg-white [&_.site-lab-card]:!shadow-none
                         [&_.site-panel]:!rounded-[10px] [&_.site-panel]:!border-[#e1e5eb] [&_.site-panel]:!bg-white [&_.site-panel]:!shadow-none
                         [&_.site-panel-strong]:!rounded-[10px] [&_.site-panel-strong]:!border-[#dfe4ea] [&_.site-panel-strong]:!bg-white [&_.site-panel-strong]:!shadow-none
