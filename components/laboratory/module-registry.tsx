@@ -1,11 +1,35 @@
 "use client";
 
-import { IntegralStudioModule } from "@/components/laboratory/modules/integral-studio";
-import { DifferentialStudioModule } from "@/components/laboratory/modules/differential-studio";
-import { MatrixStudioModule } from "@/components/laboratory/modules/matrix-studio";
-import { ProbabilityStudioModule } from "@/components/laboratory/modules/probability-studio";
-import { SeriesLimitStudioModule } from "@/components/laboratory/modules/series-limit-studio";
+import dynamic from "next/dynamic";
+
 import { defineLaboratoryModule, type LaboratoryModuleDefinition } from "@/components/laboratory/module-contract";
+
+const moduleLoading = () => (
+    <div className="flex min-h-[420px] items-center justify-center bg-white">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a838f]">Loading workspace…</div>
+    </div>
+);
+
+const IntegralStudioModule = dynamic(
+    () => import("@/components/laboratory/modules/integral-studio").then((module) => module.IntegralStudioModule),
+    { loading: moduleLoading },
+);
+const DifferentialStudioModule = dynamic(
+    () => import("@/components/laboratory/modules/differential-studio").then((module) => module.DifferentialStudioModule),
+    { loading: moduleLoading },
+);
+const MatrixStudioModule = dynamic(
+    () => import("@/components/laboratory/modules/matrix-studio").then((module) => module.MatrixStudioModule),
+    { loading: moduleLoading },
+);
+const ProbabilityStudioModule = dynamic(
+    () => import("@/components/laboratory/modules/probability-studio").then((module) => module.ProbabilityStudioModule),
+    { loading: moduleLoading },
+);
+const SeriesLimitStudioModule = dynamic(
+    () => import("@/components/laboratory/modules/series-limit-studio").then((module) => module.SeriesLimitStudioModule),
+    { loading: moduleLoading },
+);
 
 export const laboratoryModuleRegistry: Record<string, LaboratoryModuleDefinition> = {
     "integral-studio": defineLaboratoryModule({
