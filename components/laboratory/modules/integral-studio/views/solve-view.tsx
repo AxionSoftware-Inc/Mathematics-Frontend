@@ -9,6 +9,7 @@ import {
     IntegralProblemComposerV2,
     type IntegralProblemComposerV2Props,
 } from "../components/integral-problem-composer-v2";
+import { IntegralPrimaryVisualization } from "../components/integral-primary-visualization";
 import { VisualizerDeck } from "../components/visualizer-deck";
 import { StudioExactStep, StudioMetricCard, StudioSignal } from "../presentation-types";
 import type { IntegralExperienceLevel } from "../types";
@@ -132,7 +133,7 @@ export function SolveView({
                         <div className="relative min-h-[360px] overflow-hidden rounded-[11px] border border-[#dfe4ea] bg-white p-2 [&>.site-panel-strong]:!static [&>.site-panel-strong]:!top-auto [&>.site-panel-strong]:!rounded-[8px] [&>.site-panel-strong]:!border-0 [&>.site-panel-strong]:!bg-white [&>.site-panel-strong]:!p-0 [&>.site-panel-strong]:!shadow-none">
                             {staleOverlay}
                             <div className={stalePanelClassName}>
-                                <VisualizerDeck {...visualizerProps} />
+                                <IntegralPrimaryVisualization {...visualizerProps} />
                             </div>
                         </div>
                     </section>
