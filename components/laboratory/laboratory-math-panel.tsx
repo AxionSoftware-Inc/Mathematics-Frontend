@@ -9,7 +9,7 @@ export function LaboratoryMathPanel({
     eyebrow,
     title,
     content,
-    accentClassName = "text-accent",
+    accentClassName = "text-[#184eb8]",
 }: {
     eyebrow: string;
     title: string;
@@ -17,10 +17,10 @@ export function LaboratoryMathPanel({
     accentClassName?: string;
 }) {
     return (
-        <div className="site-lab-card px-5 py-4">
-            <div className={`text-[10px] font-black uppercase tracking-[0.18em] ${accentClassName}`}>{eyebrow}</div>
-            <div className="mt-2 text-lg font-black tracking-tight text-foreground">{title}</div>
-            <div className="mt-3 prose prose-sm max-w-none text-foreground prose-p:my-3 prose-p:leading-7 prose-li:my-1 prose-li:leading-7 prose-strong:text-foreground prose-code:text-foreground">
+        <div className="rounded-[9px] border border-[#e1e5eb] bg-white px-4 py-4">
+            <div className={`text-[9px] font-semibold uppercase tracking-[0.13em] ${accentClassName}`}>{eyebrow}</div>
+            <div className="mt-1.5 font-serif text-[20px] tracking-[-0.025em] text-[#171a20]">{title}</div>
+            <div className="mt-3 prose prose-sm max-w-none text-[#4f5864] prose-headings:font-serif prose-headings:text-[#171a20] prose-p:my-2 prose-p:leading-6 prose-li:my-0.5 prose-li:leading-6 prose-strong:text-[#242931] prose-code:text-[#242931]">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {content}
                 </ReactMarkdown>
