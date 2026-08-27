@@ -1,50 +1,43 @@
-"use client";
-
 import Link from "next/link";
-import { Moon, Orbit, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
 
 import { SiteContainer } from "@/components/public-shell";
 
-export default function Navbar() {
-    const { theme, setTheme } = useTheme();
-
+function LaboratoryMark() {
     return (
-        <div className="sticky top-0 z-50 border-b border-black/[0.06] bg-[#fbfbfd]/88 backdrop-blur-2xl dark:border-white/[0.07] dark:bg-black/82">
-            <SiteContainer className="flex h-16 items-center justify-between gap-6">
-                <Link href="/" className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#1d4ed8]/20 bg-white text-[#1d4ed8] shadow-sm dark:border-blue-400/20 dark:bg-[#111]">
-                        <Orbit className="h-4 w-4" strokeWidth={1.7} />
-                    </div>
-                    <div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-[#17171b] dark:text-[#f5f5f7]">
+        <svg viewBox="0 0 36 36" className="h-8 w-8" aria-hidden="true">
+            <circle cx="18" cy="18" r="15.5" fill="none" stroke="#173d7a" strokeWidth="1.1" />
+            <ellipse cx="18" cy="18" rx="7" ry="15.5" fill="none" stroke="#173d7a" strokeWidth="0.8" opacity="0.72" />
+            <ellipse cx="18" cy="18" rx="15.5" ry="6.8" fill="none" stroke="#173d7a" strokeWidth="0.8" opacity="0.72" />
+            <path d="M3 18h30M18 2.5v31" stroke="#173d7a" strokeWidth="0.75" opacity="0.55" />
+        </svg>
+    );
+}
+
+export default function Navbar() {
+    return (
+        <header className="sticky top-0 z-50 border-b border-[#e4e7ec] bg-[#fbfcfe]">
+            <SiteContainer className="flex h-[64px] items-center justify-between gap-5">
+                <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="MathSphere Laboratory home">
+                    <LaboratoryMark />
+                    <span className="truncate text-[19px] font-medium tracking-[-0.025em] text-[#12151a] sm:text-[20px]">
                         MathSphere Laboratory
-                    </div>
+                    </span>
                 </Link>
 
-                <div className="flex items-center gap-1 sm:gap-2">
-                    <div className="hidden items-center gap-1 md:flex">
-                        <Link href="/#studios" className="rounded-full px-4 py-2 text-xs font-semibold text-[#606067] transition hover:bg-black/[0.035] hover:text-black dark:text-[#a5a5ab] dark:hover:bg-white/[0.05] dark:hover:text-white">
-                            Studios
-                        </Link>
-                        <Link href="/laboratory" className="rounded-full px-4 py-2 text-xs font-semibold text-[#606067] transition hover:bg-black/[0.035] hover:text-black dark:text-[#a5a5ab] dark:hover:bg-white/[0.05] dark:hover:text-white">
-                            Laboratory
-                        </Link>
+                <nav className="flex items-center gap-1 sm:gap-4">
+                    <div className="hidden items-center gap-7 lg:flex">
+                        <Link href="/#studios" className="text-[13px] font-medium text-[#20252d]">Studios</Link>
+                        <Link href="/#visualizations" className="text-[13px] font-medium text-[#20252d]">Visualizations</Link>
+                        <Link href="/#precision" className="text-[13px] font-medium text-[#20252d]">Precision</Link>
                     </div>
-
-                    <Link href="/laboratory" className="ml-1 inline-flex h-9 items-center rounded-full bg-[#101014] px-4 text-xs font-semibold text-white transition hover:scale-[1.015] dark:bg-white dark:text-black">
+                    <Link
+                        href="/laboratory"
+                        className="ml-2 inline-flex h-9 items-center rounded-[10px] bg-[#0b1f46] px-4 text-[12px] font-semibold text-white shadow-[0_4px_12px_rgba(11,31,70,0.12)]"
+                    >
                         Open Laboratory
                     </Link>
-
-                    <button
-                        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                        className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.07] bg-white text-[#55555b] transition hover:bg-black/[0.03] dark:border-white/[0.08] dark:bg-[#111] dark:text-[#c4c4c9] dark:hover:bg-white/[0.06]"
-                        aria-label="Toggle theme"
-                    >
-                        <Sun className="h-3.5 w-3.5 dark:hidden" />
-                        <Moon className="hidden h-3.5 w-3.5 dark:block" />
-                    </button>
-                </div>
+                </nav>
             </SiteContainer>
-        </div>
+        </header>
     );
 }
