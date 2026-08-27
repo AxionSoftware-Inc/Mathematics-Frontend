@@ -1,6 +1,12 @@
 import React from "react";
 import { LaboratoryInlineMathMarkdown } from "./laboratory-inline-math-markdown";
-import { LaboratoryFormattingService } from "./services/formatting-service";
+
+const toneClasses = {
+    neutral: "border-[#e2e6ec] bg-white text-[#7a838f]",
+    info: "border-[#dbe6f6] bg-[#fbfdff] text-[#184eb8]",
+    success: "border-[#dbe9e0] bg-[#fcfefd] text-[#357557]",
+    warn: "border-[#eee0c5] bg-[#fffdfa] text-[#946313]",
+} as const;
 
 export function LaboratorySolveDetailCard({
     id,
@@ -15,26 +21,20 @@ export function LaboratorySolveDetailCard({
     formula?: string;
     tone?: "neutral" | "info" | "success" | "warn";
 }) {
-    const tones = LaboratoryFormattingService.getStepToneClasses(tone);
     return (
-        <div className={`site-lab-card space-y-3 p-5 ${tones.card}`}>
-            <div className="flex items-center justify-between gap-4">
-                <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${tones.badge}`}>
-                    Step {id}
-                </div>
-                <div className="site-status-pill px-2 py-1 text-[9px] tracking-widening text-muted-foreground/60">
-                    Operation trace
-                </div>
+        <div className={`grid gap-3 rounded-[9px] border px-4 py-3.5 sm:grid-cols-[42px_1fr] ${toneClasses[tone]}`}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-white text-[10px] font-semibold">
+                {id}
             </div>
-            <div className="site-eyebrow text-foreground">{action}</div>
-            <div className="text-sm leading-7 text-muted-foreground/90">
-                {result}
+            <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#303741]">{action}</div>
+                <div className="mt-1 text-[12px] leading-5 text-[#68717d]">{result}</div>
+                {formula ? (
+                    <div className="mt-2 overflow-x-auto rounded-[7px] border border-[#e4e8ed] bg-white px-3 py-2 text-[#242931]">
+                        <LaboratoryInlineMathMarkdown content={formula} />
+                    </div>
+                ) : null}
             </div>
-            {formula ? (
-                <div className="mt-3 rounded-2xl border border-divider/40 bg-background/60 px-4 py-3 shadow-inner">
-                    <LaboratoryInlineMathMarkdown content={formula} />
-                </div>
-            ) : null}
         </div>
     );
 }
