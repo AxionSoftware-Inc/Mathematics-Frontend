@@ -1,128 +1,91 @@
 import Link from "next/link";
-import { Activity, ArrowRight, AreaChart, Blocks, BookOpenText, FlaskConical, Sigma, TrendingUp } from "lucide-react";
+import { Activity, ArrowRight, AreaChart, Blocks, Sigma, TrendingUp } from "lucide-react";
 
-import { HeroBadge, SiteContainer, SiteSection } from "@/components/public-shell";
 import { fetchLaboratoryModules } from "@/lib/laboratory";
-
-const focusCards = [
-    {
-        icon: AreaChart,
-        title: "Analitik + numerik",
-        text: "Single integral uchun avval exact yechim tekshiriladi, kerak bo'lsa keyin numerik tasdiq so'raladi.",
-    },
-    {
-        icon: Sigma,
-        title: "Qadam va vizual",
-        text: "2D/3D grafik, symbolic step kartalar, compare va report oqimi bitta studioda yig'ilgan.",
-    },
-    {
-        icon: Blocks,
-        title: "Notebook boshqaruvi",
-        text: "Kerakli kartalarni yuqoridagi workspace orqali yoqib-o'chirish mumkin.",
-    },
-];
 
 const moduleIcons = {
     "integral-studio": Sigma,
     "differential-studio": Activity,
     "matrix-studio": Blocks,
+    "probability-studio": AreaChart,
     "series-limit-studio": TrendingUp,
 } as const;
+
+const moduleDescriptions: Record<string, string> = {
+    "integral-studio": "Symbolic, numerical and geometric integration in one focused workspace.",
+    "differential-studio": "Derivatives, Jacobians, Hessians and differential systems with visual analysis.",
+    "matrix-studio": "Matrix algebra, spectral analysis and transformations with clear geometric output.",
+    "probability-studio": "Distributions, inference, regression and simulation built for visual inspection.",
+    "series-limit-studio": "Limits, sequences, series and convergence workflows with precise comparison.",
+};
 
 export default async function LaboratoryPage() {
     const modules = await fetchLaboratoryModules();
 
     return (
-        <div className="site-shell">
-            <SiteSection className="pb-10 pt-12 md:pt-16">
-                <SiteContainer>
-                    <div className="flex flex-col gap-12">
-                        <section className="site-panel-strong p-7 md:p-9">
-                            <HeroBadge>
-                                <FlaskConical className="h-4 w-4" />
-                                Mathematics Laboratory
-                            </HeroBadge>
+        <div className="bg-[#fbfcfe] text-[#101114]">
+            <section className="mx-auto max-w-[1180px] px-6 pb-8 pt-12 sm:px-8 lg:pb-10 lg:pt-16">
+                <div className="max-w-[760px]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7a828e]">MathSphere Laboratory</div>
+                    <h1 className="mt-4 font-serif text-[clamp(3rem,5vw,5.2rem)] font-medium leading-[0.98] tracking-[-0.05em]">
+                        Focused mathematical workspaces.
+                    </h1>
+                    <div className="mt-6 h-[3px] w-14 bg-[#184eb8]" />
+                    <p className="mt-5 max-w-[650px] text-[16px] leading-7 text-[#626b77]">
+                        Choose a studio, enter the problem and work directly with exact results, numerical checks and large visualizations. No extra product layers around the computation.
+                    </p>
+                </div>
+            </section>
 
-                            <h1 className="mt-5 font-serif text-4xl font-black tracking-tight text-foreground md:text-5xl">
-                                Professional Computational Workspaces.
-                            </h1>
-                            <p className="mt-4 max-w-2xl text-sm leading-8 text-muted-foreground md:text-base">
-                                Laboratoriya modullari yagona vizualizatsiya va tahlil arxitekturasi ustida qurilgan. 
-                                Har bir studio o&apos;z yo&apos;nalishi bo&apos;yicha research-grade hisoblash muhitini taqdim etadi.
-                            </p>
-                            <div className="mt-6 flex flex-wrap gap-3">
-                                <Link href="/notebook" className="site-btn-accent inline-flex items-center gap-2 px-5">
-                                    <BookOpenText className="h-4 w-4" />
-                                    Open Notebook / Worksheet
-                                </Link>
-                                <Link href="/write" className="site-btn inline-flex items-center gap-2 px-5">
-                                    Writer
-                                    <ArrowRight className="h-4 w-4" />
-                                </Link>
-                                <Link href="/observability" className="site-btn inline-flex items-center gap-2 px-5">
-                                    Observability
-                                    <Activity className="h-4 w-4" />
-                                </Link>
-                            </div>
-                        </section>
-
-                        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {modules.map((module) => (
-                                <Link 
-                                    key={module.id} 
-                                    href={`/laboratory/${module.slug}`}
-                                    className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-border/40 bg-background/50 p-8 transition-all hover:-translate-y-1 hover:border-accent/40 hover:bg-background hover:shadow-2xl hover:shadow-accent/5 backdrop-blur-xl"
-                                >
-                                    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-accent/5 blur-2xl transition-all group-hover:bg-accent/10" />
-                                    
-                                    <div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-background">
-                                                {(() => {
-                                                    const Icon = moduleIcons[module.slug as keyof typeof moduleIcons] ?? AreaChart;
-                                                    return <Icon className="h-6 w-6" />;
-                                                })()}
-                                            </div>
-                                            <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                                                {module.category}
-                                            </div>
+            <section className="mx-auto max-w-[1180px] px-6 pb-12 sm:px-8">
+                <div className="grid gap-4 md:grid-cols-2">
+                    {modules.map((module, index) => {
+                        const Icon = moduleIcons[module.slug as keyof typeof moduleIcons] ?? AreaChart;
+                        return (
+                            <Link
+                                key={module.id}
+                                href={`/laboratory/${module.slug}`}
+                                className="group grid min-h-[190px] grid-cols-[1fr_auto] rounded-[12px] border border-[#e0e5eb] bg-white p-6 shadow-[0_4px_18px_rgba(22,34,52,0.025)]"
+                                style={{ contentVisibility: "auto", containIntrinsicSize: "190px" }}
+                            >
+                                <div className="flex min-w-0 flex-col">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-[9px] bg-[#eef4ff] text-[#184eb8]">
+                                            <Icon className="h-5 w-5" />
                                         </div>
-                                        
-                                        <h3 className="mt-6 text-xl font-bold tracking-tight text-foreground">
-                                            {module.title}
-                                        </h3>
-                                        <p className="mt-3 text-sm leading-relaxed text-muted-foreground/80">
-                                            {module.summary}
-                                        </p>
-                                    </div>
-
-                                    <div className="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent opacity-0 transition-opacity group-hover:opacity-100">
-                                        Open Workspace
-                                        <ArrowRight className="h-4 w-4" />
-                                    </div>
-                                </Link>
-                            ))}
-                        </section>
-
-                        <section className="grid gap-4 md:grid-cols-3">
-                            {focusCards.map((card) => {
-                                const Icon = card.icon;
-                                return (
-                                    <div key={card.title} className="site-outline-card bg-background/50 px-6 py-6 backdrop-blur-md">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                                                <Icon className="h-5 w-5" />
-                                            </div>
-                                            <div className="text-sm font-black text-foreground">{card.title}</div>
+                                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a929d]">
+                                            {String(index + 1).padStart(2, "0")} · {module.category}
                                         </div>
-                                        <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">{card.text}</p>
                                     </div>
-                                );
-                            })}
-                        </section>
-                    </div>
-                </SiteContainer>
-            </SiteSection>
+                                    <h2 className="mt-5 font-serif text-[28px] tracking-[-0.035em] text-[#16191e]">{module.title}</h2>
+                                    <p className="mt-2 max-w-[500px] text-[13px] leading-6 text-[#68717d]">
+                                        {moduleDescriptions[module.slug] || module.summary}
+                                    </p>
+                                    <div className="mt-auto pt-5 text-[12px] font-semibold text-[#184eb8]">Open workspace</div>
+                                </div>
+                                <div className="flex items-end pl-5 text-[#184eb8]">
+                                    <ArrowRight className="h-5 w-5" />
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            </section>
+
+            <section className="border-y border-[#e7eaf0] bg-white">
+                <div className="mx-auto grid max-w-[1180px] gap-6 px-6 py-7 sm:px-8 md:grid-cols-3">
+                    {[
+                        ["Exact first", "Prefer exact symbolic results, then use numerical methods to verify or extend them."],
+                        ["Visual by default", "Plots are treated as primary mathematical output, not as a small afterthought."],
+                        ["Reproducible output", "Inputs, assumptions, methods and results remain structured for later use."],
+                    ].map(([title, text]) => (
+                        <div key={title}>
+                            <div className="text-[12px] font-semibold text-[#20242b]">{title}</div>
+                            <p className="mt-1.5 text-[11px] leading-5 text-[#6d7581]">{text}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
         </div>
     );
 }
