@@ -11,7 +11,7 @@ import { SERIES_LIMIT_PRESETS } from "@/components/laboratory/modules/series-lim
 import { useSeriesLimitStudio } from "@/components/laboratory/modules/series-limit-studio/use-series-limit-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/series-limit-studio/components/studio-header-bar";
 import { StudioStatusBar } from "@/components/laboratory/modules/series-limit-studio/components/studio-status-bar";
-import { SolveView } from "@/components/laboratory/modules/series-limit-studio/views/solve-view";
+import { SolveViewV2 as SolveView } from "@/components/laboratory/modules/series-limit-studio/views/solve-view-v2";
 import { VisualizeView } from "@/components/laboratory/modules/series-limit-studio/views/visualize-view";
 import { CompareView } from "@/components/laboratory/modules/series-limit-studio/views/compare-view";
 import { ReportView } from "@/components/laboratory/modules/series-limit-studio/views/report-view";
@@ -19,25 +19,7 @@ import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from 
 import type { SeriesLimitStudioState } from "@/components/laboratory/modules/series-limit-studio/types";
 
 function buildSeriesLimitReportMarkdown(state: SeriesLimitStudioState) {
-    return `# Series / Limit Report
-
-- mode: ${state.mode}
-- expression: ${state.expression}
-- auxiliary: ${state.auxiliaryExpression || "none"}
-- dimension: ${state.dimension}
-- family: ${state.summary.detectedFamily ?? "pending"}
-- final: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}
-- convergence: ${state.summary.convergenceSignal ?? state.summary.radiusSignal ?? "pending"}
-- proof signal: ${state.summary.proofSignal ?? "pending"}
-- error bound: ${state.summary.errorBoundSignal ?? "pending"}
-- method: ${state.analyticSolution?.exact.method_label ?? "client preview"}
-- readiness: ${state.contractSummary.readinessLabel}
-- contract: ${state.contractSummary.status}
-- contract risk: ${state.contractSummary.riskLevel}
-- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}
-
-## report notes
-${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
+    return `# Series / Limit Report\n\n- mode: ${state.mode}\n- expression: ${state.expression}\n- auxiliary: ${state.auxiliaryExpression || "none"}\n- dimension: ${state.dimension}\n- family: ${state.summary.detectedFamily ?? "pending"}\n- final: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}\n- convergence: ${state.summary.convergenceSignal ?? state.summary.radiusSignal ?? "pending"}\n- proof signal: ${state.summary.proofSignal ?? "pending"}\n- error bound: ${state.summary.errorBoundSignal ?? "pending"}\n- method: ${state.analyticSolution?.exact.method_label ?? "client preview"}\n- readiness: ${state.contractSummary.readinessLabel}\n- contract: ${state.contractSummary.status}\n- contract risk: ${state.contractSummary.riskLevel}\n- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}\n\n## report notes\n${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
 }
 
 function buildSeriesLimitLivePayload(state: SeriesLimitStudioState, targetId: string): WriterBridgeBlockData {
