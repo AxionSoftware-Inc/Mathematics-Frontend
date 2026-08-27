@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { LaboratoryWorkspaceShell } from "@/components/laboratory/workspace-shell";
-import { SiteContainer, SiteSection } from "@/components/public-shell";
-import { fetchLaboratoryModule, fetchLaboratoryModules } from "@/lib/laboratory";
+import { fetchLaboratoryModule } from "@/lib/laboratory";
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
     const params = await props.params;
@@ -15,19 +14,17 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
 
 export default async function LaboratoryModulePage(props: { params: Promise<{ slug: string }> }) {
     const params = await props.params;
-    const [labModule, modules] = await Promise.all([fetchLaboratoryModule(params.slug), fetchLaboratoryModules()]);
+    const labModule = await fetchLaboratoryModule(params.slug);
 
     if (!labModule) {
         notFound();
     }
 
     return (
-        <div className="site-shell">
-            <SiteSection className="py-4 md:py-6">
-                <SiteContainer className="max-w-[1880px] px-3 md:px-5 xl:px-6">
-                    <LaboratoryWorkspaceShell module={labModule} modules={modules} />
-                </SiteContainer>
-            </SiteSection>
+        <div className="bg-[#f7f9fc] px-2 py-2 sm:px-3 md:px-4 md:py-3">
+            <div className="mx-auto max-w-[1880px]">
+                <LaboratoryWorkspaceShell module={labModule} />
+            </div>
         </div>
     );
 }
