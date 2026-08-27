@@ -15,6 +15,7 @@ type CompareSection = {
 
 function sectionSpan(weight = 1) {
     if (weight >= 3) return "xl:col-span-8";
+    if (weight === 2) return "xl:col-span-6";
     return "xl:col-span-4";
 }
 
