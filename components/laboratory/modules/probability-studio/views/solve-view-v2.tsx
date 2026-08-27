@@ -196,6 +196,8 @@ function buildMetricCards(state: ProbabilityStudioState) {
                 { eyebrow: "Convergence", value: state.summary.convergenceSignal ?? "pending", detail: "Sampling convergence", tone: "neutral" as const },
                 { eyebrow: "Sampler", value: state.summary.samplerSignal ?? "pending", detail: "Sampling strategy", tone: "neutral" as const },
             ];
+        default:
+            return common;
     }
 }
 
