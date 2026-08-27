@@ -6,6 +6,18 @@ type LaboratorySolveLayoutSection = {
     weight?: number;
 };
 
+type LaboratorySolveLayoutSectionInput = LaboratorySolveLayoutSection | React.ReactNode;
+
+function isLayoutSection(value: LaboratorySolveLayoutSectionInput): value is LaboratorySolveLayoutSection {
+    return Boolean(
+        value &&
+            typeof value === "object" &&
+            "id" in value &&
+            "node" in value &&
+            typeof (value as LaboratorySolveLayoutSection).id === "string",
+    );
+}
+
 function sectionSpan(weight = 1) {
     if (weight >= 3) return "xl:col-span-8";
     if (weight === 2) return "xl:col-span-4";
@@ -21,9 +33,13 @@ export function LaboratorySolveLayout({
     control: React.ReactNode;
     visual: React.ReactNode;
     derivation?: React.ReactNode;
-    sections?: Array<LaboratorySolveLayoutSection | null | false>;
+    sections?: LaboratorySolveLayoutSectionInput[];
 }) {
-    const visibleSections = sections.filter((section): section is LaboratorySolveLayoutSection => Boolean(section));
+    const visibleSections = sections.flatMap((section, index): LaboratorySolveLayoutSection[] => {
+        if (!section) return [];
+        if (isLayoutSection(section)) return [section];
+        return [{ id: `legacy-section-${index}`, node: section, weight: 2 }];
+    });
 
     return (
         <div className="space-y-5">
