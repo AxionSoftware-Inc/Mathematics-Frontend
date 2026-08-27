@@ -70,7 +70,10 @@ export function LaboratoryCompareLayout({
             ) : null}
 
             {sections.length ? (
-                <section className="border-t border-[#e6e9ee] pt-5">
+                <section
+                    className="border-t border-[#e6e9ee] pt-5"
+                    style={{ contentVisibility: "auto", containIntrinsicSize: "720px" }}
+                >
                     <div className="mb-3 px-1">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">Evidence & diagnostics</div>
                         <div className="mt-1 font-serif text-[22px] tracking-[-0.025em] text-[#171a20]">Read the comparison in a fixed order</div>
