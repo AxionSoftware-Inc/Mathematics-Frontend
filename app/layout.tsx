@@ -16,8 +16,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-    title: "MathSphere | Premium matematika platformasi",
-    description: "Matematika, laboratoriya va ilmiy yozuv workflow'lari uchun premium raqamli platforma.",
+    title: "MathSphere Laboratory",
+    description: "Scientific computation, symbolic analysis and interactive mathematical visualization workspace.",
 };
 
 export default function MainLayout({
