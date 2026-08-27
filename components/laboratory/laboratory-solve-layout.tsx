@@ -72,7 +72,10 @@ export function LaboratorySolveLayout({
             </section>
 
             {visibleSections.length ? (
-                <section className="border-t border-[#e6e9ee] pt-5">
+                <section
+                    className="border-t border-[#e6e9ee] pt-5"
+                    style={{ contentVisibility: "auto", containIntrinsicSize: "760px" }}
+                >
                     <div className="mb-3 flex items-end justify-between gap-4 px-1">
                         <div>
                             <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">04 · Analysis</div>
