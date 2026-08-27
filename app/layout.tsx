@@ -28,7 +28,7 @@ export default function MainLayout({
 }>) {
     return (
         <html lang="uz">
-            <body className={`${manrope.variable} ${playfair.variable} min-h-screen bg-[#fbfcfe] text-[#101114]`}>
+            <body className={`${manrope.variable} ${playfair.variable} min-h-screen bg-[#fbfcfe] bg-none text-[#101114] transition-none`}>
                 <div className="flex min-h-screen flex-col">
                     <Navbar />
                     <main className="relative flex min-h-0 w-full flex-1 flex-col">{children}</main>
