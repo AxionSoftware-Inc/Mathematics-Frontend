@@ -14,16 +14,18 @@ export function LaboratoryDataTable({
     emptyMessage: string;
 }) {
     return (
-        <div className="site-panel p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</div>
-            <div className="mt-2 text-lg font-black tracking-tight text-foreground">{title}</div>
+        <section className="overflow-hidden rounded-[10px] border border-[#e1e5eb] bg-white">
+            <div className="border-b border-[#e8ebef] px-4 py-3.5">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">{eyebrow}</div>
+                <div className="mt-1 font-serif text-[19px] tracking-[-0.02em] text-[#171a20]">{title}</div>
+            </div>
             {rows.length ? (
-                <div className="mt-4 overflow-x-auto rounded-2xl border border-border/60 bg-background/80">
-                    <table className="min-w-full border-collapse text-left text-sm">
-                        <thead className="bg-muted/20 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse text-left">
+                        <thead className="bg-[#fafbfd] text-[9px] font-semibold uppercase tracking-[0.1em] text-[#7d8691]">
                             <tr>
                                 {columns.map((column) => (
-                                    <th key={column} className="border-b border-border/60 px-4 py-3">
+                                    <th key={column} className="border-b border-[#e8ebef] px-3.5 py-2.5 whitespace-nowrap">
                                         {column}
                                     </th>
                                 ))}
@@ -31,12 +33,9 @@ export function LaboratoryDataTable({
                         </thead>
                         <tbody>
                             {rows.map((row, rowIndex) => (
-                                <tr key={`${title}-${rowIndex}`} className="border-b border-border/40 last:border-b-0">
+                                <tr key={`${title}-${rowIndex}`} className="border-b border-[#edf0f3] last:border-b-0">
                                     {row.map((cell, cellIndex) => (
-                                        <td
-                                            key={`${title}-${rowIndex}-${cellIndex}`}
-                                            className="px-4 py-3 font-mono text-xs text-foreground"
-                                        >
+                                        <td key={`${title}-${rowIndex}-${cellIndex}`} className="px-3.5 py-2.5 font-mono text-[11px] leading-5 text-[#343b45]">
                                             {cell}
                                         </td>
                                     ))}
@@ -46,10 +45,10 @@ export function LaboratoryDataTable({
                     </table>
                 </div>
             ) : (
-                <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-background/45 px-4 py-5 text-sm leading-7 text-muted-foreground">
+                <div className="m-3 rounded-[8px] border border-dashed border-[#dfe4ea] bg-[#fbfcfe] px-4 py-4 text-[12px] leading-5 text-[#727b87]">
                     {emptyMessage}
                 </div>
             )}
-        </div>
+        </section>
     );
 }
