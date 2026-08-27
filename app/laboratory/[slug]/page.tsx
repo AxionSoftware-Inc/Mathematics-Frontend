@@ -2,6 +2,14 @@ import { notFound } from "next/navigation";
 
 import { LaboratoryWorkspaceShell } from "@/components/laboratory/workspace-shell";
 import { fetchLaboratoryModule } from "@/lib/laboratory";
+import { supportedLaboratorySlugs } from "@/lib/laboratory-catalog";
+
+export const revalidate = 60;
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+    return supportedLaboratorySlugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
     const params = await props.params;
