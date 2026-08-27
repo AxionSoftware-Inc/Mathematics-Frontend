@@ -3,6 +3,8 @@ import { Activity, ArrowRight, AreaChart, Blocks, Sigma, TrendingUp } from "luci
 
 import { fetchLaboratoryModules } from "@/lib/laboratory";
 
+export const revalidate = 60;
+
 const moduleIcons = {
     "integral-studio": Sigma,
     "differential-studio": Activity,
