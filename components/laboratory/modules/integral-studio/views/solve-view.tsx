@@ -141,7 +141,7 @@ export function SolveView({
                 </div>
             }
             sections={[
-                { id: "result", node: resultSection, weight: 2 },
+                { id: "result", node: resultSection, weight: 3 },
                 showResearchTools && methodTraceSection ? { id: "method-trace", node: methodTraceSection, weight: 2 } : null,
                 showAdvancedTools && exactStepsSection ? { id: "exact-steps", node: exactStepsSection, weight: 2 } : null,
                 showAdvancedTools ? { id: "audit", node: auditSection, weight: 1 } : null,
