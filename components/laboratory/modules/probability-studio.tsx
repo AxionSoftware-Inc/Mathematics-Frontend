@@ -11,7 +11,7 @@ import { PROBABILITY_PRESETS } from "@/components/laboratory/modules/probability
 import { useProbabilityStudio } from "@/components/laboratory/modules/probability-studio/use-probability-studio";
 import { StudioHeaderBar } from "@/components/laboratory/modules/probability-studio/components/studio-header-bar";
 import { StudioStatusBar } from "@/components/laboratory/modules/probability-studio/components/studio-status-bar";
-import { SolveView } from "@/components/laboratory/modules/probability-studio/views/solve-view";
+import { SolveViewV2 as SolveView } from "@/components/laboratory/modules/probability-studio/views/solve-view-v2";
 import { VisualizeView } from "@/components/laboratory/modules/probability-studio/views/visualize-view";
 import { CompareView } from "@/components/laboratory/modules/probability-studio/views/compare-view";
 import { ReportView } from "@/components/laboratory/modules/probability-studio/views/report-view";
@@ -19,22 +19,7 @@ import { type WriterBridgeBlockData, type WriterBridgePublicationProfile } from 
 import type { ProbabilityStudioState } from "@/components/laboratory/modules/probability-studio/types";
 
 function buildProbabilityReportMarkdown(state: ProbabilityStudioState) {
-    return `# Probability Report
-
-- mode: ${state.mode}
-- dimension: ${state.dimension}
-- sample size: ${state.summary.sampleSize ?? "pending"}
-- final: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}
-- auxiliary: ${state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? "pending"}
-- method: ${state.analyticSolution?.exact.method_label ?? "client fallback"}
-- risk: ${state.summary.riskSignal ?? "pending"}
-- readiness: ${state.contractSummary.readinessLabel}
-- contract: ${state.contractSummary.status}
-- contract risk: ${state.contractSummary.riskLevel}
-- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}
-
-## report notes
-${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
+    return `# Probability Report\n\n- mode: ${state.mode}\n- dimension: ${state.dimension}\n- sample size: ${state.summary.sampleSize ?? "pending"}\n- final: ${state.analyticSolution?.exact.result_latex ?? state.result.finalFormula ?? "pending"}\n- auxiliary: ${state.analyticSolution?.exact.auxiliary_latex ?? state.result.auxiliaryFormula ?? "pending"}\n- method: ${state.analyticSolution?.exact.method_label ?? "client fallback"}\n- risk: ${state.summary.riskSignal ?? "pending"}\n- readiness: ${state.contractSummary.readinessLabel}\n- contract: ${state.contractSummary.status}\n- contract risk: ${state.contractSummary.riskLevel}\n- benchmark: ${state.benchmarkSummary?.status ?? "n/a"}\n\n## report notes\n${state.reportNotes.map((note) => `- ${note}`).join("\n")}`;
 }
 
 function buildProbabilityLivePayload(state: ProbabilityStudioState, targetId: string): WriterBridgeBlockData {
