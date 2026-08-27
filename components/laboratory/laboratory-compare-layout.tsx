@@ -13,6 +13,11 @@ type CompareSection = {
     weight?: number;
 };
 
+function sectionSpan(weight = 1) {
+    if (weight >= 3) return "xl:col-span-8";
+    return "xl:col-span-4";
+}
+
 export function LaboratoryCompareLayout({
     overviewCards = [],
     sections = [],
@@ -47,22 +52,38 @@ export function LaboratoryCompareLayout({
     return (
         <div className="space-y-5">
             {overviewCards.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {overviewCards.map((card, index) => (
-                        <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}-${index}`} {...card} />
-                    ))}
-                </div>
+                <section>
+                    <div className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">Comparison overview</div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {overviewCards.map((card, index) => (
+                            <LaboratoryMetricCard key={`${card.eyebrow}-${card.value}-${index}`} {...card} />
+                        ))}
+                    </div>
+                </section>
             ) : null}
 
-            {methodRows.length ? <MethodIntelligenceTable rows={methodRows} /> : null}
+            {methodRows.length ? (
+                <section>
+                    <div className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">Method comparison</div>
+                    <MethodIntelligenceTable rows={methodRows} />
+                </section>
+            ) : null}
 
-            <div className="space-y-5 xl:columns-2 xl:gap-5 xl:space-y-0">
-                {sections.map((section) => (
-                    <div key={section.id} className="mb-5" style={{ breakInside: "avoid" }}>
-                        {section.node}
+            {sections.length ? (
+                <section className="border-t border-[#e6e9ee] pt-5">
+                    <div className="mb-3 px-1">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">Evidence & diagnostics</div>
+                        <div className="mt-1 font-serif text-[22px] tracking-[-0.025em] text-[#171a20]">Read the comparison in a fixed order</div>
                     </div>
-                ))}
-            </div>
+                    <div className="grid grid-cols-1 gap-5 xl:grid-cols-12 xl:[grid-auto-flow:dense]">
+                        {sections.map((section) => (
+                            <div key={section.id} className={`min-w-0 ${sectionSpan(section.weight)}`}>
+                                {section.node}
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            ) : null}
         </div>
     );
 }
