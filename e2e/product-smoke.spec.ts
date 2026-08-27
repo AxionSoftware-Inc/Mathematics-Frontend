@@ -25,4 +25,33 @@ test.describe("Laboratory product smoke", () => {
         await expect(page.getByRole("button", { name: /^Solve$/ })).toBeVisible();
         await expect(page.getByText("Advanced settings")).toBeVisible();
     });
+
+    test("differential studio uses the reference solve hierarchy", async ({ page }) => {
+        await page.goto("/laboratory/differential-studio");
+        await expect(page.getByText("Problem").first()).toBeVisible();
+        await expect(page.getByText("Visualization").first()).toBeVisible();
+        await expect(page.getByTestId("diff-solve-button")).toBeVisible();
+        await expect(page.getByText("Advanced settings")).toBeVisible();
+    });
+
+    test("matrix studio uses the reference solve hierarchy", async ({ page }) => {
+        await page.goto("/laboratory/matrix-studio");
+        await expect(page.getByText("Matrix algebra").first()).toBeVisible();
+        await expect(page.getByText("Visualization").first()).toBeVisible();
+        await expect(page.getByText("Advanced settings")).toBeVisible();
+    });
+
+    test("probability studio uses the reference solve hierarchy", async ({ page }) => {
+        await page.goto("/laboratory/probability-studio");
+        await expect(page.getByText("Descriptive statistics").first()).toBeVisible();
+        await expect(page.getByText("Visualization").first()).toBeVisible();
+        await expect(page.getByText("Advanced settings")).toBeVisible();
+    });
+
+    test("series studio uses the reference solve hierarchy", async ({ page }) => {
+        await page.goto("/laboratory/series-limit-studio");
+        await expect(page.getByText("Problem").first()).toBeVisible();
+        await expect(page.getByText("Visualization").first()).toBeVisible();
+        await expect(page.getByText("Advanced settings")).toBeVisible();
+    });
 });
