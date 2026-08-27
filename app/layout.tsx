@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/navbar";
@@ -19,6 +19,13 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
     title: "MathSphere Laboratory",
     description: "Scientific computation, symbolic analysis and interactive mathematical visualization workspace.",
+};
+
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    colorScheme: "light",
+    themeColor: "#fbfcfe",
 };
 
 export default function MainLayout({
