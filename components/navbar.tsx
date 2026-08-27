@@ -27,8 +27,8 @@ export default function Navbar() {
                 <nav className="flex items-center gap-1 sm:gap-4">
                     <div className="hidden items-center gap-7 lg:flex">
                         <Link href="/#studios" className="text-[13px] font-medium text-[#20252d]">Studios</Link>
-                        <Link href="/#visualizations" className="text-[13px] font-medium text-[#20252d]">Visualizations</Link>
-                        <Link href="/#precision" className="text-[13px] font-medium text-[#20252d]">Precision</Link>
+                        <Link href="/laboratory" className="text-[13px] font-medium text-[#20252d]">Visualizations</Link>
+                        <Link href="/laboratory/integral-studio" className="text-[13px] font-medium text-[#20252d]">Precision</Link>
                     </div>
                     <Link
                         href="/laboratory"
