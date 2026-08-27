@@ -3,16 +3,17 @@ import { Manrope, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { ThemeProvider } from "@/components/theme-provider";
 
 const manrope = Manrope({
     subsets: ["latin"],
     variable: "--font-inter",
+    display: "swap",
 });
 
 const playfair = Playfair_Display({
     subsets: ["latin"],
     variable: "--font-playfair",
+    display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -26,18 +27,13 @@ export default function MainLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="uz" suppressHydrationWarning>
-            <body className={`${manrope.variable} ${playfair.variable} min-h-screen flex flex-col`}>
-                <ThemeProvider
-                    attribute="class"
-                    defaultTheme="dark"
-                    enableSystem
-                    disableTransitionOnChange
-                >
+        <html lang="uz">
+            <body className={`${manrope.variable} ${playfair.variable} min-h-screen bg-[#fbfcfe] text-[#101114]`}>
+                <div className="flex min-h-screen flex-col">
                     <Navbar />
                     <main className="relative flex min-h-0 w-full flex-1 flex-col">{children}</main>
                     <Footer />
-                </ThemeProvider>
+                </div>
             </body>
         </html>
     );
