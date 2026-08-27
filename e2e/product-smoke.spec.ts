@@ -16,4 +16,12 @@ test.describe("Laboratory product smoke", () => {
         await expect(page.getByRole("link", { name: /Differential Studio/i })).toBeVisible();
         await expect(page.getByRole("link", { name: /Probability Studio/i })).toBeVisible();
     });
+
+    test("integral studio loads the shared workspace hierarchy", async ({ page }) => {
+        await page.goto("/laboratory/integral-studio");
+
+        await expect(page.getByText("Integral", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("01 · Problem").first()).toBeVisible();
+        await expect(page.getByText("02 · Primary view").first()).toBeVisible();
+    });
 });
