@@ -16,8 +16,8 @@ export function LaboratoryWorkspaceShell({ module }: { module: LaboratoryModuleM
             <main className="min-w-0">
                 {ModuleComponent ? (
                     <div
-                        className="lab-workspace-stage min-h-[calc(100dvh-88px)] overflow-hidden rounded-[11px] border border-[#dde2e9] bg-white shadow-[0_4px_18px_rgba(20,32,50,0.025)]
-                        [&>*]:!rounded-none [&>*]:!border-0 [&>*]:!bg-transparent
+                        className="lab-workspace-stage h-[calc(100dvh-88px)] min-h-[560px] overflow-hidden rounded-[11px] border border-[#dde2e9] bg-white shadow-[0_4px_18px_rgba(20,32,50,0.025)]
+                        [&>*]:!h-full [&>*]:!rounded-none [&>*]:!border-0 [&>*]:!bg-transparent
                         [&_input]:!rounded-[8px] [&_textarea]:!rounded-[8px] [&_select]:!rounded-[8px]
                         [&_.rounded-3xl]:!rounded-[10px] [&_.rounded-2xl]:!rounded-[8px]
                         [&_.shadow-sm]:!shadow-none [&_.shadow-md]:!shadow-none [&_.shadow-lg]:!shadow-none [&_.shadow-xl]:!shadow-none [&_.shadow-2xl]:!shadow-none [&_.shadow-inner]:!shadow-none
