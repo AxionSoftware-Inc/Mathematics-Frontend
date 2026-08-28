@@ -2,28 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { ECOSYSTEM_APPS, ECOSYSTEM_NAME, getEcosystemHref, type EcosystemApp } from "@/lib/ecosystem/apps";
-
-const LOCAL_PROJECTS_KEY = "axion.science.projects.v1";
-
-function findLocalProjectTitle(projectId: string) {
-  try {
-    const raw = window.localStorage.getItem(LOCAL_PROJECTS_KEY);
-    if (!raw) return null;
-    const projects = JSON.parse(raw) as Array<{ id?: string; title?: string }>;
-    return projects.find((project) => project.id === projectId)?.title || null;
-  } catch {
-    return null;
-  }
-}
+import { getLocalProjectTitle, resolveActiveProjectId } from "@/lib/ecosystem/project-context";
 
 export function EcosystemBar({ currentApp, projectId, projectTitle }: { currentApp: EcosystemApp; projectId?: string | null; projectTitle?: string | null; }) {
   const [activeProjectId, setActiveProjectId] = useState(projectId || null);
   const [activeProjectTitle, setActiveProjectTitle] = useState(projectTitle || null);
 
   useEffect(() => {
-    const resolvedId = projectId || new URLSearchParams(window.location.search).get("project");
+    const resolvedId = resolveActiveProjectId(projectId);
     setActiveProjectId(resolvedId);
-    setActiveProjectTitle(projectTitle || (resolvedId ? findLocalProjectTitle(resolvedId) : null));
+    setActiveProjectTitle(projectTitle || getLocalProjectTitle(resolvedId));
   }, [projectId, projectTitle]);
 
   return (
