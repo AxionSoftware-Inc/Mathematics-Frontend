@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { EcosystemBar } from "@/components/ecosystem/ecosystem-bar";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
@@ -17,7 +18,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-    title: "MathSphere Laboratory",
+    title: "MathSphere Laboratory | Axion Science",
     description: "Scientific computation, symbolic analysis and interactive mathematical visualization workspace.",
 };
 
@@ -37,6 +38,7 @@ export default function MainLayout({
         <html lang="uz">
             <body className={`${manrope.variable} ${playfair.variable} min-h-screen bg-[#fbfcfe] bg-none text-[#101114] transition-none`}>
                 <div className="flex min-h-screen flex-col">
+                    <EcosystemBar currentApp="math" />
                     <Navbar />
                     <main className="relative flex min-h-0 w-full flex-1 flex-col">{children}</main>
                     <Footer />
