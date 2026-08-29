@@ -1,6 +1,6 @@
 import React from "react";
 
-import { AxBadge, AxButton, AxField, AxInput, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
+import { AxBadge, AxButton, AxDisclosure, AxField, AxInput, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
 import type { DifferentialClassification, DifferentialExtendedMode } from "../types";
 
 const modeCopy: Record<DifferentialExtendedMode, { title: string; helper: string; expression: string; variable: string; point: string }> = {
@@ -163,9 +163,8 @@ export function DifferentialProblemComposerV2({ state, actions }: DifferentialPr
                     {solving ? "Analyzing…" : state.isResultStale ? "Update solution" : "Solve"}
                 </AxButton>
 
-                <details className="rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-surface)]">
-                    <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--ax-text-soft)]">Advanced settings</summary>
-                    <div className="space-y-3 border-t border-[var(--ax-line)] p-3">
+                <AxDisclosure title="Advanced settings" hint="Order, direction and detected differential structure">
+                    <div className="space-y-3">
                         {showOrder ? (
                             <AxField label="Derivative order">
                                 <AxInput data-testid="diff-order-input" value={order} onChange={(event) => setOrder(event.target.value)} onBlur={flush} className="h-9 font-mono text-[11px]" />
@@ -181,7 +180,7 @@ export function DifferentialProblemComposerV2({ state, actions }: DifferentialPr
                             <div className="mt-1">{state.classification.summary}</div>
                         </div>
                     </div>
-                </details>
+                </AxDisclosure>
             </div>
         </AxPanel>
     );
