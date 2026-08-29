@@ -33,10 +33,10 @@ export function LaboratoryReferenceSolveShell({
                 <main className="min-w-0 space-y-4">
                     <section>
                         <div className="mb-2 flex items-center justify-between gap-4 px-1">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#184eb8]">{visualTitle}</div>
-                            <div className="text-[10px] text-[#949ba5]">{visualHint}</div>
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-accent)]">{visualTitle}</div>
+                            <div className="text-[10px] text-[var(--ax-text-faint)]">{visualHint}</div>
                         </div>
-                        <div className="relative min-h-[360px] overflow-hidden rounded-[11px] border border-[#dfe4ea] bg-white p-2 [&_.site-panel-strong]:!static [&_.site-panel-strong]:!top-auto [&_.site-panel-strong]:!rounded-[8px] [&_.site-panel-strong]:!border-0 [&_.site-panel-strong]:!bg-white [&_.site-panel-strong]:!p-0 [&_.site-panel-strong]:!shadow-none">
+                        <div className="relative min-h-[360px] overflow-hidden rounded-[var(--ax-radius-panel)] border border-[var(--ax-line)] bg-[var(--ax-surface)] p-2 [&_.site-panel-strong]:!static [&_.site-panel-strong]:!top-auto [&_.site-panel-strong]:!rounded-[var(--ax-radius-control)] [&_.site-panel-strong]:!border-0 [&_.site-panel-strong]:!bg-[var(--ax-surface)] [&_.site-panel-strong]:!p-0 [&_.site-panel-strong]:!shadow-none">
                             {visual}
                         </div>
                     </section>
@@ -47,17 +47,17 @@ export function LaboratoryReferenceSolveShell({
             </div>
 
             {advanced ? (
-                <section className="border-t border-[#e5e8ed] pt-4">
-                    <details className="group rounded-[10px] border border-[#dfe4ea] bg-white" open={advancedOpen}>
-                        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5">
+                <section className="border-t border-[var(--ax-line)] pt-4">
+                    <details className="group rounded-[var(--ax-radius-panel)] border border-[var(--ax-line)] bg-[var(--ax-surface)]" open={advancedOpen}>
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
                             <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#7b8490]">{advancedTitle}</div>
-                                <div className="mt-1 text-[12px] text-[#59616c]">{advancedHint}</div>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--ax-text-soft)]">{advancedTitle}</div>
+                                <div className="mt-1 text-[12px] text-[var(--ax-text-soft)]">{advancedHint}</div>
                             </div>
-                            <div className="text-[10px] font-semibold text-[#184eb8] group-open:hidden">Show</div>
-                            <div className="hidden text-[10px] font-semibold text-[#184eb8] group-open:block">Hide</div>
+                            <div className="text-[10px] font-semibold text-[var(--ax-accent)] group-open:hidden">Show</div>
+                            <div className="hidden text-[10px] font-semibold text-[var(--ax-accent)] group-open:block">Hide</div>
                         </summary>
-                        <div className="border-t border-[#e8ebef] p-4">{advanced}</div>
+                        <div className="border-t border-[var(--ax-line)] p-4">{advanced}</div>
                     </details>
                 </section>
             ) : null}
