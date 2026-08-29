@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import "@/styles/axion-science-tokens.css";
+import "@/styles/axion-math-chrome.css";
 import { EcosystemBar } from "@/components/ecosystem/ecosystem-bar";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
@@ -27,7 +28,7 @@ export const viewport: Viewport = {
     width: "device-width",
     initialScale: 1,
     colorScheme: "light",
-    themeColor: "#fbfcfe",
+    themeColor: "#f7f9fc",
 };
 
 export default function MainLayout({
@@ -37,7 +38,7 @@ export default function MainLayout({
 }>) {
     return (
         <html lang="uz">
-            <body className={`${manrope.variable} ${playfair.variable} min-h-screen bg-[#fbfcfe] bg-none text-[#101114] transition-none`}>
+            <body className={`${manrope.variable} ${playfair.variable} min-h-screen`}>
                 <div className="flex min-h-screen flex-col">
                     <EcosystemBar currentApp="math" />
                     <Navbar />
