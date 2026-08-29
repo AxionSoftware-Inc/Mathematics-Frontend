@@ -1,7 +1,7 @@
 # Ecosystem Handoff — Mathematics
 
-Branch: `ecosystem-v1-foundation-2026-08-28`
-Base: `main` at `3aad0c5b8d77b2aa8f85d6b703215fa89bb450b8`
+Active development branch: `main`
+Pre-ecosystem baseline: `freeze/pre-ecosystem-main-2026-08-29`
 
 ## Role
 
