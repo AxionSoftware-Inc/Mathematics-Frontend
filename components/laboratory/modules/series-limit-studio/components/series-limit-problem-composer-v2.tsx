@@ -1,6 +1,6 @@
 import React from "react";
 
-import { AxBadge, AxField, AxInput, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
+import { AxBadge, AxDisclosure, AxField, AxInput, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
 import { LaboratoryInlineMathMarkdown } from "@/components/laboratory/laboratory-inline-math-markdown";
 import { buildSeriesLimitAuxPreview, buildSeriesLimitPreview, inferSeriesLimitMode } from "../series-limit-input";
 import type { SeriesLimitExperienceLevel, SeriesLimitMode, SeriesLimitSummary } from "../types";
@@ -108,9 +108,8 @@ export function SeriesLimitProblemComposerV2({
                     <LaboratoryInlineMathMarkdown content={preview} />
                 </div>
 
-                <details className="rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-surface)]">
-                    <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--ax-text-soft)]">Advanced settings</summary>
-                    <div className="space-y-3 border-t border-[var(--ax-line)] p-3">
+                <AxDisclosure title="Advanced settings" hint="Scope, detected family and context preview">
+                    <div className="space-y-3">
                         <AxField label="Scope">
                             <AxSelect value={resolvedDimension} onChange={(event) => setDimension(event.target.value)} className="h-9 text-[11px] font-semibold">
                                 {availableDimensions.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -127,7 +126,7 @@ export function SeriesLimitProblemComposerV2({
                         </div>
                         <div className="text-[10px] text-[var(--ax-text-faint)]">Experience: {experienceLevel}</div>
                     </div>
-                </details>
+                </AxDisclosure>
             </div>
         </AxPanel>
     );
