@@ -1,4 +1,4 @@
-import { AxBadge, AxField, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
+import { AxBadge, AxDisclosure, AxField, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
 import type { MatrixExperienceLevel, MatrixMode } from "../types";
 import { getMatrixDimensionOptions } from "../matrix-dimension-options";
 
@@ -117,9 +117,8 @@ export function MatrixProblemComposerV2({
                     Analysis updates automatically as the input changes.
                 </div>
 
-                <details className="rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-surface)]">
-                    <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--ax-text-soft)]">Advanced settings</summary>
-                    <div className="space-y-3 border-t border-[var(--ax-line)] p-3">
+                <AxDisclosure title="Advanced settings" hint="Dimension, input notation and experience context">
+                    <div className="space-y-3">
                         <AxField label="Dimension">
                             <AxSelect
                                 value={selectedDimension?.value ?? dimension}
@@ -138,7 +137,7 @@ export function MatrixProblemComposerV2({
                         </div>
                         <div className="text-[10px] text-[var(--ax-text-faint)]">Experience: {experienceLevel}</div>
                     </div>
-                </details>
+                </AxDisclosure>
             </div>
         </AxPanel>
     );
