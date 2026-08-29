@@ -1,4 +1,4 @@
-import { AxBadge, AxField, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
+import { AxBadge, AxDisclosure, AxField, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
 import type { ProbabilityExperienceLevel, ProbabilityMode } from "../types";
 import { getProbabilityDimensionOptions } from "../probability-dimension-options";
 
@@ -95,9 +95,8 @@ export function ProbabilityProblemComposerV2({
                     Results refresh live as the dataset or parameters change.
                 </div>
 
-                <details className="rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-surface)]">
-                    <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--ax-text-soft)]">Advanced settings</summary>
-                    <div className="space-y-3 border-t border-[var(--ax-line)] p-3">
+                <AxDisclosure title="Advanced settings" hint="Scope and experience context">
+                    <div className="space-y-3">
                         <AxField label="Scope">
                             <AxSelect
                                 value={active?.value ?? dimension}
@@ -110,7 +109,7 @@ export function ProbabilityProblemComposerV2({
                         <div className="text-[11px] leading-5 text-[var(--ax-text-soft)]">{active?.description}</div>
                         <div className="text-[10px] text-[var(--ax-text-faint)]">Experience: {experienceLevel}</div>
                     </div>
-                </details>
+                </AxDisclosure>
             </div>
         </AxPanel>
     );
