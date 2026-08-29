@@ -1,5 +1,6 @@
 import React from "react";
 
+import { AxPanel } from "@/components/axion";
 import { LaboratoryReferenceSolveShell } from "@/components/laboratory/laboratory-reference-solve-shell";
 import { LaboratoryMathPanel } from "@/components/laboratory/laboratory-math-panel";
 import { LaboratoryMetricCard } from "@/components/laboratory/laboratory-metric-card";
@@ -97,22 +98,22 @@ export function SolveViewV2({ state, actions, visibleSignals = [] }: Props) {
     ];
 
     const result = (
-        <section className="rounded-[10px] border border-[#dfe4ea] bg-white px-4 py-4">
+        <AxPanel className="px-4 py-4">
             <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#184eb8]">Result</div>
-                    <div className="mt-1 font-serif text-[22px] tracking-[-0.025em] text-[#171a20]">Primary result</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-accent)]">Result</div>
+                    <div className="mt-1 font-serif text-[22px] tracking-[-0.025em] text-[var(--ax-text)]">Primary result</div>
                 </div>
-                <div className="text-[10px] text-[#949ba5]">Symbolic first · numerical when required</div>
+                <div className="text-[10px] text-[var(--ax-text-faint)]">Symbolic first · numerical when required</div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {primaryCards.map((card) => <LaboratoryMetricCard key={card.eyebrow} {...card} />)}
             </div>
-        </section>
+        </AxPanel>
     );
 
     const interpretation = (
-        <section className="rounded-[10px] border border-[#dfe4ea] bg-white p-4">
+        <AxPanel className="p-4">
             <LaboratoryMathPanel
                 eyebrow={hasExact ? "Analytic interpretation" : "Numerical interpretation"}
                 title={state.analyticSolution?.exact?.method_label ?? state.classification.label}
@@ -122,9 +123,9 @@ export function SolveViewV2({ state, actions, visibleSignals = [] }: Props) {
                     state.analyticSolution?.message ? `**Solver note:** ${state.analyticSolution.message}` : null,
                     !state.analyticSolution?.message ? `**Reading:** ${state.classification.summary}` : null,
                 ].filter(Boolean).join("\n\n")}
-                accentClassName={hasExact ? "text-emerald-600" : "text-[#184eb8]"}
+                accentClassName={hasExact ? "text-emerald-600" : "text-[var(--ax-accent)]"}
             />
-        </section>
+        </AxPanel>
     );
 
     const advanced = (
@@ -143,7 +144,7 @@ export function SolveViewV2({ state, actions, visibleSignals = [] }: Props) {
                     ))}
                 </div>
             ) : (
-                <div className="rounded-[8px] border border-[#e2e6ec] bg-[#fcfdff] px-4 py-3 text-[12px] leading-5 text-[#68717d]">
+                <div className="rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-surface-soft)] px-4 py-3 text-[12px] leading-5 text-[var(--ax-text-soft)]">
                     Detailed symbolic steps will appear here when the active solver emits a derivation trace.
                 </div>
             )}
