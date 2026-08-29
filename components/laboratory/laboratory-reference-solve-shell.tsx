@@ -1,5 +1,7 @@
 import React from "react";
 
+import { AxDisclosure } from "@/components/axion";
+
 type Props = {
     composer: React.ReactNode;
     visual: React.ReactNode;
@@ -48,17 +50,9 @@ export function LaboratoryReferenceSolveShell({
 
             {advanced ? (
                 <section className="border-t border-[var(--ax-line)] pt-4">
-                    <details className="group rounded-[var(--ax-radius-panel)] border border-[var(--ax-line)] bg-[var(--ax-surface)]" open={advancedOpen}>
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
-                            <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--ax-text-soft)]">{advancedTitle}</div>
-                                <div className="mt-1 text-[12px] text-[var(--ax-text-soft)]">{advancedHint}</div>
-                            </div>
-                            <div className="text-[10px] font-semibold text-[var(--ax-accent)] group-open:hidden">Show</div>
-                            <div className="hidden text-[10px] font-semibold text-[var(--ax-accent)] group-open:block">Hide</div>
-                        </summary>
-                        <div className="border-t border-[var(--ax-line)] p-4">{advanced}</div>
-                    </details>
+                    <AxDisclosure title={advancedTitle} hint={advancedHint} open={advancedOpen}>
+                        {advanced}
+                    </AxDisclosure>
                 </section>
             ) : null}
         </div>
