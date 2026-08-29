@@ -23,65 +23,52 @@ export default async function LaboratoryPage() {
     const modules = await fetchLaboratoryModules();
 
     return (
-        <div className="bg-[#fbfcfe] text-[#101114]">
+        <div className="min-h-full bg-[var(--ax-canvas)] text-[var(--ax-text)]">
             <section className="mx-auto max-w-[1180px] px-6 pb-8 pt-12 sm:px-8 lg:pb-10 lg:pt-16">
-                <div className="max-w-[760px]">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7a828e]">MathSphere Laboratory</div>
-                    <h1 className="mt-4 font-serif text-[clamp(3rem,5vw,5.2rem)] font-medium leading-[0.98] tracking-[-0.05em]">
-                        Focused mathematical workspaces.
-                    </h1>
-                    <div className="mt-6 h-[3px] w-14 bg-[#184eb8]" />
-                    <p className="mt-5 max-w-[650px] text-[16px] leading-7 text-[#626b77]">
-                        Choose a studio, enter the problem and work directly with exact results, numerical checks and large visualizations. No extra product layers around the computation.
-                    </p>
+                <div className="grid gap-8 border-b border-[var(--ax-line)] pb-9 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-end">
+                    <div className="max-w-[760px]">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-accent)]">MathSphere Laboratory</div>
+                        <h1 className="mt-4 font-serif text-[clamp(3rem,5vw,5.2rem)] font-medium leading-[0.98] tracking-[-0.05em]">Focused mathematical workspaces.</h1>
+                        <div className="mt-6 h-[3px] w-14 bg-[var(--ax-accent)]" />
+                        <p className="mt-5 max-w-[650px] text-[16px] leading-7 text-[var(--ax-text-soft)]">Choose a studio, enter the problem and work directly with exact results, numerical checks and large visualizations.</p>
+                    </div>
+                    <div className="grid grid-cols-3 divide-x divide-[var(--ax-line)] border-y border-[var(--ax-line)] py-3 text-center">
+                        <div><div className="font-serif text-2xl">{modules.length}</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[var(--ax-text-faint)]">Studios</div></div>
+                        <div><div className="font-serif text-2xl">2D/3D</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[var(--ax-text-faint)]">Visual</div></div>
+                        <div><div className="font-serif text-2xl">Local</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[var(--ax-text-faint)]">Compute</div></div>
+                    </div>
                 </div>
             </section>
 
             <section className="mx-auto max-w-[1180px] px-6 pb-12 sm:px-8">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="divide-y divide-[var(--ax-line)] border-y border-[var(--ax-line)] bg-[var(--ax-surface)]">
                     {modules.map((module, index) => {
                         const Icon = moduleIcons[module.slug as keyof typeof moduleIcons] ?? AreaChart;
                         return (
-                            <Link
-                                key={module.id}
-                                href={`/laboratory/${module.slug}`}
-                                className="group grid min-h-[190px] grid-cols-[1fr_auto] rounded-[12px] border border-[#e0e5eb] bg-white p-6 shadow-[0_4px_18px_rgba(22,34,52,0.025)]"
-                                style={{ contentVisibility: "auto", containIntrinsicSize: "190px" }}
-                            >
-                                <div className="flex min-w-0 flex-col">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-[9px] bg-[#eef4ff] text-[#184eb8]">
-                                            <Icon className="h-5 w-5" />
-                                        </div>
-                                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a929d]">
-                                            {String(index + 1).padStart(2, "0")} · {module.category}
-                                        </div>
-                                    </div>
-                                    <h2 className="mt-5 font-serif text-[28px] tracking-[-0.035em] text-[#16191e]">{module.title}</h2>
-                                    <p className="mt-2 max-w-[500px] text-[13px] leading-6 text-[#68717d]">
-                                        {moduleDescriptions[module.slug] || module.summary}
-                                    </p>
-                                    <div className="mt-auto pt-5 text-[12px] font-semibold text-[#184eb8]">Open workspace</div>
+                            <Link key={module.id} href={`/laboratory/${module.slug}`} className="group grid min-h-[142px] gap-5 px-4 py-5 transition-colors hover:bg-[var(--ax-surface-soft)] sm:grid-cols-[52px_minmax(0,1fr)_auto] sm:items-center sm:px-6" style={{ contentVisibility: "auto", containIntrinsicSize: "142px" }}>
+                                <div className="flex h-11 w-11 items-center justify-center rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-accent-soft)] text-[var(--ax-accent)]"><Icon className="h-5 w-5" /></div>
+                                <div className="min-w-0">
+                                    <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-text-faint)]">{String(index + 1).padStart(2, "0")} · {module.category}</div>
+                                    <h2 className="mt-1.5 font-serif text-[27px] tracking-[-0.035em]">{module.title}</h2>
+                                    <p className="mt-1 max-w-[700px] text-[12px] leading-5 text-[var(--ax-text-soft)]">{moduleDescriptions[module.slug] || module.summary}</p>
                                 </div>
-                                <div className="flex items-end pl-5 text-[#184eb8]">
-                                    <ArrowRight className="h-5 w-5" />
-                                </div>
+                                <div className="flex items-center gap-2 text-[11px] font-semibold text-[var(--ax-accent)]">Open workspace <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></div>
                             </Link>
                         );
                     })}
                 </div>
             </section>
 
-            <section className="border-y border-[#e7eaf0] bg-white">
-                <div className="mx-auto grid max-w-[1180px] gap-6 px-6 py-7 sm:px-8 md:grid-cols-3">
+            <section className="border-y border-[var(--ax-line)] bg-[var(--ax-surface)]">
+                <div className="mx-auto grid max-w-[1180px] gap-0 px-6 sm:px-8 md:grid-cols-3">
                     {[
                         ["Exact first", "Prefer exact symbolic results, then use numerical methods to verify or extend them."],
                         ["Visual by default", "Plots are treated as primary mathematical output, not as a small afterthought."],
                         ["Reproducible output", "Inputs, assumptions, methods and results remain structured for later use."],
-                    ].map(([title, text]) => (
-                        <div key={title}>
-                            <div className="text-[12px] font-semibold text-[#20242b]">{title}</div>
-                            <p className="mt-1.5 text-[11px] leading-5 text-[#6d7581]">{text}</p>
+                    ].map(([title, text], index) => (
+                        <div key={title} className={`py-6 md:px-7 ${index ? "md:border-l md:border-[var(--ax-line)]" : ""}`}>
+                            <div className="text-[12px] font-semibold">{title}</div>
+                            <p className="mt-1.5 text-[11px] leading-5 text-[var(--ax-text-soft)]">{text}</p>
                         </div>
                     ))}
                 </div>
