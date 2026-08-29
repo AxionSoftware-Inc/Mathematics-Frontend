@@ -1,5 +1,6 @@
 import React from "react";
 
+import { AxBadge, AxButton, AxField, AxInput, AxPanel, AxSelect, AxTextarea } from "@/components/axion";
 import type { DifferentialClassification, DifferentialExtendedMode } from "../types";
 
 const modeCopy: Record<DifferentialExtendedMode, { title: string; helper: string; expression: string; variable: string; point: string }> = {
@@ -84,36 +85,35 @@ export function DifferentialProblemComposerV2({ state, actions }: DifferentialPr
     const showOrder = state.mode === "derivative";
     const showDirection = state.mode === "directional";
     const status = solving ? "Analyzing" : state.isResultStale ? "Needs update" : state.solvePhase === "exact-ready" ? "Exact ready" : state.solvePhase === "numerical-ready" ? "Numerical ready" : "Ready";
+    const statusTone = solving || state.isResultStale ? "warning" : state.solvePhase === "exact-ready" || state.solvePhase === "numerical-ready" ? "success" : "neutral";
 
     return (
-        <div className="overflow-hidden rounded-[11px] border border-[#dfe4ea] bg-white">
-            <div className="border-b border-[#e8ebef] px-4 py-4">
+        <AxPanel className="overflow-hidden">
+            <div className="border-b border-[var(--ax-line)] px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#184eb8]">Problem</div>
-                        <div className="mt-1 font-serif text-[22px] tracking-[-0.025em] text-[#171a20]">{meta.title}</div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-accent)]">Problem</div>
+                        <div className="mt-1 font-serif text-[22px] tracking-[-0.025em] text-[var(--ax-text)]">{meta.title}</div>
                     </div>
-                    <div className="rounded-[7px] bg-[#f5f7fa] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[#747d88]">{status}</div>
+                    <AxBadge tone={statusTone}>{status}</AxBadge>
                 </div>
-                <p className="mt-2 text-[12px] leading-5 text-[#6f7782]">{meta.helper}</p>
+                <p className="mt-2 text-[12px] leading-5 text-[var(--ax-text-soft)]">{meta.helper}</p>
             </div>
 
             <div className="space-y-4 p-4">
-                <label className="block">
-                    <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#747d88]">Operation</span>
-                    <select
+                <AxField label="Operation">
+                    <AxSelect
                         data-testid="diff-mode-select"
                         value={state.mode}
                         onChange={(event) => actions.setMode(event.target.value as DifferentialExtendedMode)}
-                        className="h-10 w-full rounded-[8px] border border-[#dfe4ea] bg-white px-3 text-[12px] font-semibold text-[#20242b] outline-none focus:border-[#9db5dc]"
+                        className="text-[12px] font-semibold"
                     >
                         {modes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
-                </label>
+                    </AxSelect>
+                </AxField>
 
-                <label className="block">
-                    <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#747d88]">Expression / equation</span>
-                    <textarea
+                <AxField label="Expression / equation">
+                    <AxTextarea
                         data-testid="diff-expression-input"
                         value={expression}
                         onChange={(event) => setExpression(event.target.value)}
@@ -121,72 +121,68 @@ export function DifferentialProblemComposerV2({ state, actions }: DifferentialPr
                         rows={5}
                         spellCheck={false}
                         placeholder={meta.expression}
-                        className="min-h-[124px] w-full resize-y rounded-[8px] border border-[#dfe4ea] bg-[#fcfdff] px-3 py-3 font-mono text-[13px] leading-6 text-[#20242b] outline-none focus:border-[#9db5dc]"
+                        className="min-h-[124px] bg-[var(--ax-surface)] font-mono text-[13px]"
                     />
-                </label>
+                </AxField>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                    <label className="block">
-                        <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#747d88]">Variable(s)</span>
-                        <input
+                    <AxField label="Variable(s)">
+                        <AxInput
                             data-testid="diff-variable-input"
                             value={variable}
                             onChange={(event) => setVariable(event.target.value)}
                             onBlur={flush}
                             placeholder={meta.variable}
                             spellCheck={false}
-                            className="h-10 w-full rounded-[8px] border border-[#dfe4ea] bg-white px-3 font-mono text-[12px] text-[#20242b] outline-none focus:border-[#9db5dc]"
+                            className="font-mono text-[12px]"
                         />
-                    </label>
-                    <label className="block">
-                        <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#747d88]">Point / condition</span>
-                        <input
+                    </AxField>
+                    <AxField label="Point / condition">
+                        <AxInput
                             data-testid="diff-point-input"
                             value={point}
                             onChange={(event) => setPoint(event.target.value)}
                             onBlur={flush}
                             placeholder={meta.point}
                             spellCheck={false}
-                            className="h-10 w-full rounded-[8px] border border-[#dfe4ea] bg-white px-3 font-mono text-[12px] text-[#20242b] outline-none focus:border-[#9db5dc]"
+                            className="font-mono text-[12px]"
                         />
-                    </label>
+                    </AxField>
                 </div>
 
-                <button
+                <AxButton
                     data-testid="diff-solve-button"
-                    type="button"
+                    variant="primary"
                     disabled={solving}
                     onClick={() => {
                         flush();
                         window.setTimeout(actions.requestSolve, 0);
                     }}
-                    className="flex h-10 w-full items-center justify-center rounded-[8px] bg-[#0b1f46] px-4 text-[11px] font-semibold text-white disabled:cursor-wait disabled:opacity-60"
+                    className="w-full disabled:cursor-wait"
                 >
                     {solving ? "Analyzing…" : state.isResultStale ? "Update solution" : "Solve"}
-                </button>
+                </AxButton>
 
-                <details className="rounded-[8px] border border-[#e2e6ec] bg-white">
-                    <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[#66707c]">Advanced settings</summary>
-                    <div className="space-y-3 border-t border-[#edf0f3] p-3">
+                <details className="rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-surface)]">
+                    <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--ax-text-soft)]">Advanced settings</summary>
+                    <div className="space-y-3 border-t border-[var(--ax-line)] p-3">
                         {showOrder ? (
-                            <label className="block">
-                                <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.11em] text-[#7a838e]">Derivative order</span>
-                                <input data-testid="diff-order-input" value={order} onChange={(event) => setOrder(event.target.value)} onBlur={flush} className="h-9 w-full rounded-[7px] border border-[#dfe4ea] px-3 font-mono text-[11px] outline-none" />
-                            </label>
+                            <AxField label="Derivative order">
+                                <AxInput data-testid="diff-order-input" value={order} onChange={(event) => setOrder(event.target.value)} onBlur={flush} className="h-9 font-mono text-[11px]" />
+                            </AxField>
                         ) : null}
                         {showDirection ? (
-                            <label className="block">
-                                <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.11em] text-[#7a838e]">Direction vector</span>
-                                <input data-testid="diff-direction-input" value={direction} onChange={(event) => setDirection(event.target.value)} onBlur={flush} placeholder="1, 0" className="h-9 w-full rounded-[7px] border border-[#dfe4ea] px-3 font-mono text-[11px] outline-none" />
-                            </label>
+                            <AxField label="Direction vector">
+                                <AxInput data-testid="diff-direction-input" value={direction} onChange={(event) => setDirection(event.target.value)} onBlur={flush} placeholder="1, 0" className="h-9 font-mono text-[11px]" />
+                            </AxField>
                         ) : null}
-                        <div className="rounded-[7px] bg-[#f7f8fa] px-3 py-2 text-[11px] leading-5 text-[#66707c]">
-                            <div className="font-semibold text-[#303640]">{state.classification.label}</div>
+                        <div className="rounded-[var(--ax-radius-control)] bg-[var(--ax-surface-soft)] px-3 py-2 text-[11px] leading-5 text-[var(--ax-text-soft)]">
+                            <div className="font-semibold text-[var(--ax-text)]">{state.classification.label}</div>
                             <div className="mt-1">{state.classification.summary}</div>
                         </div>
                     </div>
                 </details>
             </div>
-        </div>
+        </AxPanel>
     );
 }
