@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, ChartNoAxesCombined, FileDown, Sigma } from "lucide-react";
 
+import { AnimatedMathSurface } from "@/components/home/animated-math-surface";
+
 const studios = [
   {
     title: "Integral Studio",
@@ -21,72 +23,6 @@ const studios = [
     visual: "probability",
   },
 ];
-
-function HeroSurface() {
-  return (
-    <svg viewBox="0 0 520 260" className="h-full w-full" aria-hidden="true">
-      <defs>
-        <linearGradient id="surface-fill" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#dce9ff" />
-          <stop offset="0.48" stopColor="#79a9ef" />
-          <stop offset="1" stopColor="#124d9f" />
-        </linearGradient>
-      </defs>
-      <g stroke="#c9d1de" strokeWidth="1" opacity="0.72">
-        <path d="M48 208H468" />
-        <path d="M72 230L408 66" />
-        <path d="M96 240L96 55" />
-        <path d="M142 220L142 72" opacity="0.45" />
-        <path d="M190 202L190 86" opacity="0.45" />
-        <path d="M238 184L238 98" opacity="0.45" />
-        <path d="M286 165L286 110" opacity="0.45" />
-        <path d="M334 147L334 122" opacity="0.45" />
-        <path d="M382 128L382 134" opacity="0.45" />
-        <path d="M118 219L440 82" opacity="0.45" />
-        <path d="M145 232L458 103" opacity="0.45" />
-        <path d="M84 199L397 72" opacity="0.45" />
-      </g>
-      <path
-        d="M96 199 C130 189 149 179 170 163 C195 143 211 116 241 103 C274 88 303 88 333 101 C359 112 376 137 401 151 C424 163 447 166 466 169 L466 211 C430 213 399 209 365 199 C331 188 306 169 276 164 C239 158 211 177 177 190 C147 201 122 204 96 205 Z"
-        fill="url(#surface-fill)"
-        opacity="0.95"
-      />
-      <g fill="none" stroke="#174d97" strokeWidth="1" opacity="0.52">
-        <path d="M97 199 C145 190 176 142 232 112 C289 81 345 99 378 139 C406 173 433 165 465 169" />
-        <path d="M101 205 C148 197 183 153 236 124 C287 96 337 109 369 146 C398 178 432 174 463 178" />
-        <path d="M113 211 C158 204 191 165 240 138 C286 113 329 124 359 155 C388 185 424 184 451 188" />
-        <path d="M131 215 C172 210 200 177 244 153 C282 132 321 140 349 166 C374 190 405 194 432 197" />
-        <path d="M153 217 C187 213 213 188 248 169 C280 151 313 157 337 178 C357 196 384 202 408 204" />
-      </g>
-      <g fill="#657080" fontSize="11" fontFamily="system-ui, sans-serif">
-        <text x="473" y="216">x</text>
-        <text x="411" y="62">y</text>
-        <text x="87" y="49">z</text>
-      </g>
-    </svg>
-  );
-}
-
-function TwoDPlot() {
-  return (
-    <svg viewBox="0 0 320 210" className="h-full w-full" aria-hidden="true">
-      <g stroke="#cbd1db" strokeWidth="1">
-        <path d="M18 105H303" />
-        <path d="M160 18V194" />
-      </g>
-      <path
-        d="M18 55 C50 52 70 65 88 88 C107 113 124 145 143 135 C159 126 169 83 187 76 C205 68 221 88 234 108 C248 130 266 145 302 143"
-        fill="none"
-        stroke="#225bd3"
-        strokeWidth="2"
-      />
-      <g fill="#737b87" fontSize="9" fontFamily="system-ui, sans-serif">
-        <text x="296" y="99">x</text>
-        <text x="165" y="25">y</text>
-      </g>
-    </svg>
-  );
-}
 
 function StudioVisual({ visual }: { visual: string }) {
   if (visual === "differential") {
@@ -132,77 +68,36 @@ function StudioVisual({ visual }: { visual: string }) {
 
 export default function HomePage() {
   return (
-    <div className="bg-[#fbfcfe] text-[#101114]">
-      <section className="mx-auto grid max-w-[1440px] items-center gap-10 px-6 pb-10 pt-12 sm:px-8 lg:grid-cols-[0.66fr_1.34fr] lg:gap-12 lg:px-10 lg:pb-8 lg:pt-7 xl:px-12">
-        <div className="max-w-[470px] lg:pb-5">
-          <h1 className="font-serif text-[clamp(3.4rem,5.5vw,6rem)] font-medium leading-[0.95] tracking-[-0.055em] text-[#0b0c0f]">
+    <div className="bg-[var(--ax-canvas)] text-[var(--ax-text)]">
+      <section className="relative mx-auto grid min-h-[600px] max-w-[1540px] items-center gap-4 overflow-hidden px-6 pb-6 pt-8 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:gap-0 lg:px-10 lg:pb-4 lg:pt-4 xl:px-12">
+        <div className="relative z-10 max-w-[560px] py-8 lg:py-14">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--ax-accent)]">MathSphere Laboratory · scientific computation</p>
+          <h1 className="mt-4 font-serif text-[clamp(3.65rem,5.9vw,6.65rem)] font-medium leading-[0.92] tracking-[-0.058em] text-[var(--ax-text)]">
             Mathematics,
             <br />
-            made visible.
+            made <span className="italic">visible.</span>
           </h1>
-          <div className="mt-6 h-[3px] w-14 bg-[#184eb8]" />
-          <p className="mt-5 max-w-[420px] text-[17px] leading-7 text-[#5f6671] sm:text-[18px]">
-            Solve problems, visualize results in 2D, 3D and animation, and preserve precise scientific output.
+          <div className="mt-7 flex items-center gap-2" aria-hidden="true">
+            <span className="h-[3px] w-16 rounded-full bg-[var(--ax-accent)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#9b8cf0]" />
+          </div>
+          <p className="mt-6 max-w-[460px] text-[17px] leading-8 text-[var(--ax-text-soft)] sm:text-[18px]">
+            Solve, explore and understand mathematics through exact computation, clear visualization and living 3D scientific scenes.
           </p>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href="/laboratory" className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-[#0b1f46] px-5 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(11,31,70,0.12)]">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link href="/laboratory" className="inline-flex h-11 items-center gap-2 rounded-[var(--ax-radius-control)] bg-[var(--ax-accent-strong)] px-5 text-sm font-semibold text-white shadow-[var(--ax-shadow-subtle)] transition-colors hover:bg-[var(--ax-accent)]">
               Open Laboratory
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="#studios" className="inline-flex h-11 items-center rounded-[10px] border border-[#dfe3ea] bg-white px-5 text-sm font-semibold text-[#252a32]">
+            <Link href="#studios" className="inline-flex h-11 items-center gap-2 rounded-[var(--ax-radius-control)] px-4 text-sm font-semibold text-[var(--ax-text)] transition-colors hover:bg-[var(--ax-surface-soft)]">
               Explore studios
+              <ArrowRight className="h-3.5 w-3.5 text-[var(--ax-text-faint)]" />
             </Link>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[15px] border border-[#dfe3ea] bg-white shadow-[0_18px_48px_rgba(25,38,60,0.08)]">
-          <div className="flex h-9 items-center justify-between border-b border-[#e8ebf0] px-3.5 text-[10px] text-[#707784]">
-            <span>Workspace</span>
-            <span>×</span>
-          </div>
-          <div className="grid min-h-[385px] md:grid-cols-[145px_1fr]">
-            <aside className="border-b border-[#e7eaf0] bg-[#fafbfd] p-3 md:border-b-0 md:border-r">
-              <div className="text-[8px] font-semibold uppercase tracking-[0.13em] text-[#9299a5]">Input</div>
-              <div className="mt-2 rounded-[8px] border border-[#dde2e9] bg-white px-3 py-3 font-serif text-[18px] text-[#1b1e24] shadow-[0_2px_5px_rgba(15,23,42,0.025)]">∫₀∞ x²e⁻ˣ dx</div>
-              <div className="mt-3 text-[8px] font-semibold text-[#9299a5]">Assumptions</div>
-              <div className="mt-1 font-serif text-xs text-[#626a76]">x ∈ [0, ∞)</div>
-              <div className="mt-5 text-[8px] font-semibold uppercase tracking-[0.13em] text-[#9299a5]">Operations</div>
-              <div className="mt-2 space-y-0.5 text-[10px] text-[#505866]">
-                {['Solve', 'Simplify', 'Differentiate', 'Integrate', 'Series', 'Transform'].map((item) => (
-                  <div key={item} className="flex items-center justify-between rounded-[5px] px-1.5 py-1.5">
-                    <span>{item}</span><span className="text-[#a3a9b2]">›</span>
-                  </div>
-                ))}
-              </div>
-            </aside>
-
-            <div className="grid gap-2 p-2">
-              <div className="grid gap-2 xl:grid-cols-[1.2fr_0.8fr]">
-                <div className="min-h-[225px] rounded-[9px] border border-[#e2e6ec] bg-[#fcfdff] p-3">
-                  <div className="text-[9px] text-[#777f8b]">3D Surface</div>
-                  <div className="mt-1 h-[188px]"><HeroSurface /></div>
-                </div>
-                <div className="min-h-[225px] rounded-[9px] border border-[#e2e6ec] bg-[#fcfdff] p-3">
-                  <div className="text-[9px] text-[#777f8b]">2D Plot</div>
-                  <div className="mt-1 h-[188px]"><TwoDPlot /></div>
-                </div>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-[9px] border border-[#e2e6ec] bg-[#fcfdff] p-4">
-                  <div className="text-[9px] text-[#777f8b]">Symbolic Result</div>
-                  <div className="mt-2 font-serif text-[20px]">∫₀∞ x²e⁻ˣ dx = 2! = 2</div>
-                  <div className="mt-1 text-[11px] text-[#737b86]">Gamma(3) = 2</div>
-                </div>
-                <div className="rounded-[9px] border border-[#e2e6ec] bg-[#fcfdff] p-4">
-                  <div className="text-[9px] text-[#777f8b]">Steps</div>
-                  <div className="mt-2 space-y-2 font-serif text-[12px] text-[#4d5560]">
-                    <div>1. ∫₀∞ x²e⁻ˣ dx = Γ(3)</div>
-                    <div>2. Γ(3) = (3 − 1)! = 2</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="relative min-w-0 lg:-ml-14 lg:-mr-12 xl:-ml-20 xl:-mr-20">
+          <AnimatedMathSurface />
         </div>
       </section>
 
