@@ -2,23 +2,26 @@
 
 import { useEffect, useRef } from "react";
 
-type Point3 = { x: number; y: number; z: number };
+type Point3 = { x: number; y: number; z: number; edge: number };
 type ProjectedPoint = Point3 & { sx: number; sy: number; depth: number };
 
-const GRID = 22;
-const RANGE = 2.7;
+const RINGS = 15;
+const SEGMENTS = 44;
+const RADIUS = 2.65;
 const TARGET_FRAME_MS = 1000 / 30;
 
-function surfaceHeight(x: number, y: number, time: number) {
-  const radial = Math.exp(-(x * x + y * y) * 0.24);
-  const wave = Math.sin(x * 1.28 + time * 0.32) * Math.cos(y * 1.08 - time * 0.2);
-  const secondary = Math.sin((x + y) * 0.72 - time * 0.16) * 0.24;
-  return radial * 1.18 + wave * 0.72 + secondary - 0.14 * (x * x + y * y);
+function surfaceHeight(x: number, y: number, r: number, time: number) {
+  const envelope = Math.pow(Math.max(0, 1 - Math.pow(r / RADIUS, 2.25)), 1.25);
+  const saddle = (x * x - y * y) * 0.16;
+  const wave = Math.sin(x * 1.48 + time * 0.28) * Math.cos(y * 1.18 - time * 0.19) * 0.72;
+  const radial = Math.cos(r * 2.05 - time * 0.22) * 0.28;
+  const crown = Math.exp(-r * r * 0.5) * 0.72;
+  return (wave + radial + saddle + crown) * envelope;
 }
 
 function project(point: Point3, width: number, height: number, time: number): ProjectedPoint {
-  const yaw = -0.62 + Math.sin(time * 0.12) * 0.06;
-  const pitch = 0.86 + Math.cos(time * 0.1) * 0.025;
+  const yaw = -0.56 + Math.sin(time * 0.1) * 0.055;
+  const pitch = 0.76 + Math.cos(time * 0.09) * 0.025;
 
   const cosY = Math.cos(yaw);
   const sinY = Math.sin(yaw);
@@ -30,147 +33,143 @@ function project(point: Point3, width: number, height: number, time: number): Pr
   const y2 = point.y * cosX - z1 * sinX;
   const z2 = point.y * sinX + z1 * cosX;
 
-  const camera = 8.2;
-  const perspective = camera / Math.max(3.5, camera - z2);
-  const scale = Math.min(width / 8.1, height / 6.0);
+  const camera = 9.4;
+  const perspective = camera / Math.max(4.8, camera - z2);
+  const scale = Math.min(width / 7.35, height / 6.55);
 
   return {
     ...point,
-    sx: width * 0.52 + x1 * scale * perspective,
-    sy: height * 0.53 + y2 * scale * perspective,
+    sx: width * 0.545 + x1 * scale * perspective,
+    sy: height * 0.505 + y2 * scale * perspective,
     depth: z2,
   };
 }
 
-function drawOrbit(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  rx: number,
-  ry: number,
-  rotation: number,
-  alpha: number,
-) {
+function drawOrbit(ctx: CanvasRenderingContext2D, width: number, height: number, rx: number, ry: number, rotation: number, alpha: number) {
   ctx.save();
-  ctx.translate(width * 0.52, height * 0.54);
+  ctx.translate(width * 0.545, height * 0.515);
   ctx.rotate(rotation);
-  ctx.strokeStyle = `rgba(63, 113, 196, ${alpha})`;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 7]);
+  ctx.strokeStyle = `rgba(62, 110, 190, ${alpha})`;
+  ctx.lineWidth = 0.9;
+  ctx.setLineDash([5, 8]);
   ctx.beginPath();
   ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
 
+function buildMesh(width: number, height: number, time: number) {
+  const rings: ProjectedPoint[][] = [];
+  for (let ring = 0; ring <= RINGS; ring += 1) {
+    const r = (ring / RINGS) * RADIUS;
+    const line: ProjectedPoint[] = [];
+    for (let segment = 0; segment < SEGMENTS; segment += 1) {
+      const angle = (segment / SEGMENTS) * Math.PI * 2;
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      const edge = Math.max(0, 1 - ring / RINGS);
+      const z = surfaceHeight(x, y, r, time);
+      line.push(project({ x, y, z, edge }, width, height, time));
+    }
+    rings.push(line);
+  }
+  return rings;
+}
+
 function drawScene(ctx: CanvasRenderingContext2D, width: number, height: number, time: number) {
   ctx.clearRect(0, 0, width, height);
 
-  const halo = ctx.createRadialGradient(
-    width * 0.53,
-    height * 0.48,
-    0,
-    width * 0.53,
-    height * 0.48,
-    Math.min(width, height) * 0.54,
-  );
-  halo.addColorStop(0, "rgba(95, 171, 255, 0.16)");
-  halo.addColorStop(0.45, "rgba(124, 151, 244, 0.07)");
-  halo.addColorStop(1, "rgba(255, 255, 255, 0)");
+  const halo = ctx.createRadialGradient(width * 0.56, height * 0.48, 0, width * 0.56, height * 0.48, Math.min(width, height) * 0.58);
+  halo.addColorStop(0, "rgba(91, 174, 255, 0.15)");
+  halo.addColorStop(0.42, "rgba(117, 130, 239, 0.065)");
+  halo.addColorStop(0.76, "rgba(127, 218, 238, 0.025)");
+  halo.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = halo;
   ctx.fillRect(0, 0, width, height);
 
-  drawOrbit(ctx, width, height, width * 0.38, height * 0.12, -0.18, 0.17);
-  drawOrbit(ctx, width, height, width * 0.32, height * 0.17, 0.48, 0.11);
-  drawOrbit(ctx, width, height, width * 0.28, height * 0.2, -0.68, 0.08);
+  drawOrbit(ctx, width, height, width * 0.37, height * 0.105, -0.18, 0.16);
+  drawOrbit(ctx, width, height, width * 0.30, height * 0.155, 0.52, 0.105);
+  drawOrbit(ctx, width, height, width * 0.255, height * 0.19, -0.72, 0.075);
 
-  const points: ProjectedPoint[][] = [];
-  for (let row = 0; row < GRID; row += 1) {
-    const y = -RANGE + (row / (GRID - 1)) * RANGE * 2;
-    const line: ProjectedPoint[] = [];
-    for (let col = 0; col < GRID; col += 1) {
-      const x = -RANGE + (col / (GRID - 1)) * RANGE * 2;
-      const z = surfaceHeight(x, y, time);
-      line.push(project({ x, y, z }, width, height, time));
-    }
-    points.push(line);
-  }
+  const mesh = buildMesh(width, height, time);
+  const cells: Array<{ points: ProjectedPoint[]; depth: number; height: number; edge: number }> = [];
 
-  const cells: Array<{ points: ProjectedPoint[]; depth: number; height: number }> = [];
-  for (let row = 0; row < GRID - 1; row += 1) {
-    for (let col = 0; col < GRID - 1; col += 1) {
-      const quad = [points[row][col], points[row][col + 1], points[row + 1][col + 1], points[row + 1][col]];
+  for (let ring = 0; ring < RINGS; ring += 1) {
+    for (let segment = 0; segment < SEGMENTS; segment += 1) {
+      const next = (segment + 1) % SEGMENTS;
+      const quad = [mesh[ring][segment], mesh[ring][next], mesh[ring + 1][next], mesh[ring + 1][segment]];
       cells.push({
         points: quad,
         depth: quad.reduce((sum, point) => sum + point.depth, 0) / 4,
         height: quad.reduce((sum, point) => sum + point.z, 0) / 4,
+        edge: quad.reduce((sum, point) => sum + point.edge, 0) / 4,
       });
     }
   }
 
   cells.sort((a, b) => a.depth - b.depth);
   for (const cell of cells) {
-    const normalized = Math.max(0, Math.min(1, (cell.height + 2.2) / 4.4));
-    const red = Math.round(70 + normalized * 36);
-    const green = Math.round(125 + normalized * 82);
-    const blue = Math.round(205 + normalized * 45);
-    ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${0.09 + normalized * 0.16})`;
+    const h = Math.max(0, Math.min(1, (cell.height + 1.35) / 2.7));
+    const depth = Math.max(0, Math.min(1, (cell.depth + 2.4) / 4.8));
+    const red = Math.round(55 + h * 76 + depth * 12);
+    const green = Math.round(118 + h * 78 + depth * 20);
+    const blue = Math.round(204 + h * 42);
+    const alpha = (0.07 + h * 0.14 + depth * 0.04) * (0.52 + cell.edge * 0.48);
+    ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
     ctx.beginPath();
     ctx.moveTo(cell.points[0].sx, cell.points[0].sy);
-    for (let index = 1; index < cell.points.length; index += 1) {
-      ctx.lineTo(cell.points[index].sx, cell.points[index].sy);
-    }
+    for (let index = 1; index < cell.points.length; index += 1) ctx.lineTo(cell.points[index].sx, cell.points[index].sy);
     ctx.closePath();
     ctx.fill();
   }
 
-  ctx.lineWidth = Math.max(0.7, Math.min(1.15, width / 900));
-  for (let row = 0; row < GRID; row += 1) {
-    const rowAlpha = 0.18 + (row / GRID) * 0.16;
-    ctx.strokeStyle = `rgba(45, 102, 181, ${rowAlpha})`;
+  ctx.globalCompositeOperation = "screen";
+  const highlight = ctx.createRadialGradient(width * 0.56, height * 0.43, 0, width * 0.56, height * 0.43, Math.min(width, height) * 0.24);
+  highlight.addColorStop(0, "rgba(255,255,255,0.24)");
+  highlight.addColorStop(0.35, "rgba(105,202,255,0.08)");
+  highlight.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = highlight;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = "source-over";
+
+  ctx.setLineDash([]);
+  ctx.lineWidth = Math.max(0.65, Math.min(1.05, width / 980));
+
+  for (let ring = 2; ring <= RINGS; ring += 2) {
+    const alpha = 0.08 + (1 - ring / RINGS) * 0.17;
+    ctx.strokeStyle = `rgba(46, 102, 181, ${alpha})`;
     ctx.beginPath();
-    points[row].forEach((point, index) => {
+    mesh[ring].forEach((point, index) => {
       if (index === 0) ctx.moveTo(point.sx, point.sy);
       else ctx.lineTo(point.sx, point.sy);
     });
+    ctx.closePath();
     ctx.stroke();
   }
 
-  for (let col = 0; col < GRID; col += 1) {
-    ctx.strokeStyle = "rgba(113, 159, 226, 0.2)";
+  for (let segment = 0; segment < SEGMENTS; segment += 4) {
+    ctx.strokeStyle = "rgba(91, 143, 216, 0.145)";
     ctx.beginPath();
-    for (let row = 0; row < GRID; row += 1) {
-      const point = points[row][col];
-      if (row === 0) ctx.moveTo(point.sx, point.sy);
+    for (let ring = 1; ring <= RINGS; ring += 1) {
+      const point = mesh[ring][segment];
+      if (ring === 1) ctx.moveTo(point.sx, point.sy);
       else ctx.lineTo(point.sx, point.sy);
     }
     ctx.stroke();
   }
 
-  const axisLength = Math.min(width, height) * 0.2;
-  ctx.setLineDash([]);
-  ctx.strokeStyle = "rgba(30, 77, 145, 0.28)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(width * 0.52 - axisLength, height * 0.75);
-  ctx.lineTo(width * 0.52 + axisLength * 1.25, height * 0.75);
-  ctx.moveTo(width * 0.52, height * 0.75 + axisLength * 0.46);
-  ctx.lineTo(width * 0.52, height * 0.75 - axisLength * 1.45);
-  ctx.stroke();
-
-  const orbitDots = 7;
-  for (let index = 0; index < orbitDots; index += 1) {
-    const angle = time * (0.12 + index * 0.006) + (index / orbitDots) * Math.PI * 2;
-    const x = width * 0.52 + Math.cos(angle) * width * 0.35;
-    const y = height * 0.54 + Math.sin(angle) * height * 0.105;
-    const radius = 1.8 + (index % 3) * 0.6;
-    const dot = ctx.createRadialGradient(x - 1, y - 1, 0, x, y, radius * 2.4);
-    dot.addColorStop(0, "rgba(255,255,255,0.95)");
-    dot.addColorStop(0.35, "rgba(77,158,235,0.9)");
-    dot.addColorStop(1, "rgba(77,158,235,0)");
+  for (let index = 0; index < 7; index += 1) {
+    const angle = time * (0.105 + index * 0.0045) + (index / 7) * Math.PI * 2;
+    const x = width * 0.545 + Math.cos(angle) * width * 0.34;
+    const y = height * 0.515 + Math.sin(angle) * height * 0.096;
+    const radius = 1.5 + (index % 3) * 0.55;
+    const dot = ctx.createRadialGradient(x - 1, y - 1, 0, x, y, radius * 2.5);
+    dot.addColorStop(0, "rgba(255,255,255,0.98)");
+    dot.addColorStop(0.28, "rgba(75,165,235,0.88)");
+    dot.addColorStop(1, "rgba(75,165,235,0)");
     ctx.fillStyle = dot;
     ctx.beginPath();
-    ctx.arc(x, y, radius * 2.4, 0, Math.PI * 2);
+    ctx.arc(x, y, radius * 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -211,31 +210,19 @@ export function AnimatedMathSurface() {
     const animate = (timestamp: number) => {
       if (stopped) return;
       frame = window.requestAnimationFrame(animate);
-      if (!visible || document.hidden || reducedMotion.matches) return;
-      if (timestamp - previousFrame < TARGET_FRAME_MS) return;
+      if (!visible || document.hidden || reducedMotion.matches || timestamp - previousFrame < TARGET_FRAME_MS) return;
       previousFrame = timestamp;
       drawScene(context, width, height, timestamp / 1000);
     };
 
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(container);
-
-    const intersectionObserver = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry?.isIntersecting ?? true;
-        if (visible && reducedMotion.matches) drawScene(context, width, height, performance.now() / 1000);
-      },
-      { rootMargin: "120px" },
-    );
+    const intersectionObserver = new IntersectionObserver(([entry]) => { visible = entry?.isIntersecting ?? true; }, { rootMargin: "120px" });
     intersectionObserver.observe(container);
 
-    const onVisibilityChange = () => {
-      if (!document.hidden) drawScene(context, width, height, performance.now() / 1000);
-    };
-    const onMotionChange = () => drawScene(context, width, height, performance.now() / 1000);
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    reducedMotion.addEventListener("change", onMotionChange);
+    const redraw = () => drawScene(context, width, height, performance.now() / 1000);
+    document.addEventListener("visibilitychange", redraw);
+    reducedMotion.addEventListener("change", redraw);
     resize();
     frame = window.requestAnimationFrame(animate);
 
@@ -244,38 +231,21 @@ export function AnimatedMathSurface() {
       window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      reducedMotion.removeEventListener("change", onMotionChange);
+      document.removeEventListener("visibilitychange", redraw);
+      reducedMotion.removeEventListener("change", redraw);
     };
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative min-h-[390px] w-full overflow-hidden sm:min-h-[460px] lg:min-h-[560px]"
-      aria-label="Animated three-dimensional mathematical surface"
-      role="img"
-    >
+    <div ref={containerRef} className="relative min-h-[390px] w-full overflow-hidden sm:min-h-[460px] lg:min-h-[550px]" aria-label="Animated three-dimensional mathematical surface" role="img">
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />
-
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_58%_50%,rgba(69,144,236,0.08),transparent_34%),radial-gradient(circle_at_80%_38%,rgba(124,102,238,0.055),transparent_28%)]" />
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-[20%] bg-gradient-to-r from-[var(--ax-canvas)] to-transparent" />
-
-      <div className="pointer-events-none absolute right-[8%] top-[14%] font-serif text-[clamp(13px,1.25vw,18px)] italic text-[#6687bd]/55">
-        ∇ · F = 0
-      </div>
-      <div className="pointer-events-none absolute left-[11%] top-[18%] font-serif text-[clamp(12px,1.15vw,17px)] italic text-[#7192c5]/48">
-        e<sup>iπ</sup> + 1 = 0
-      </div>
-      <div className="pointer-events-none absolute bottom-[16%] left-[8%] font-serif text-[clamp(13px,1.35vw,20px)] italic text-[#5b76b6]/52">
-        ∫<sub>a</sub><sup>b</sup> f(x) dx
-      </div>
-      <div className="pointer-events-none absolute bottom-[11%] right-[5%] font-serif text-[clamp(11px,1.1vw,16px)] italic text-[#7588b6]/45">
-        ds² = dx² + dy² + dz²
-      </div>
-      <div className="pointer-events-none absolute right-[5%] top-[48%] font-serif text-[clamp(11px,1vw,15px)] italic text-[#657fb7]/48">
-        d/dx sin x = cos x
-      </div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_58%_47%,rgba(69,144,236,0.07),transparent_32%),radial-gradient(circle_at_77%_36%,rgba(133,102,238,0.04),transparent_27%)]" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-[18%] bg-gradient-to-r from-[var(--ax-canvas)] to-transparent" />
+      <div className="pointer-events-none absolute right-[8%] top-[14%] font-serif text-[clamp(13px,1.25vw,18px)] italic text-[#6687bd]/48">∇ · F = 0</div>
+      <div className="pointer-events-none absolute left-[13%] top-[18%] font-serif text-[clamp(12px,1.15vw,17px)] italic text-[#7192c5]/42">e<sup>iπ</sup> + 1 = 0</div>
+      <div className="pointer-events-none absolute bottom-[16%] left-[9%] font-serif text-[clamp(13px,1.35vw,20px)] italic text-[#5b76b6]/46">∫<sub>a</sub><sup>b</sup> f(x) dx</div>
+      <div className="pointer-events-none absolute bottom-[12%] right-[6%] font-serif text-[clamp(11px,1.1vw,16px)] italic text-[#7588b6]/40">ds² = dx² + dy² + dz²</div>
+      <div className="pointer-events-none absolute right-[4%] top-[48%] font-serif text-[clamp(11px,1vw,15px)] italic text-[#657fb7]/42">d/dx sin x = cos x</div>
     </div>
   );
 }
