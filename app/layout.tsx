@@ -4,6 +4,7 @@ import "./globals.css";
 import "@/styles/axion-science-tokens.css";
 import "@/styles/axion-premium-landing.css";
 import "@/styles/axion-math-chrome.css";
+import "@/styles/axion-premium-workspace.css";
 import { EcosystemBar } from "@/components/ecosystem/ecosystem-bar";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
