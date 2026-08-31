@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import "@/styles/axion-science-tokens.css";
+import "@/styles/axion-premium-landing.css";
 import "@/styles/axion-math-chrome.css";
 import { EcosystemBar } from "@/components/ecosystem/ecosystem-bar";
 import Navbar from "@/components/navbar";
