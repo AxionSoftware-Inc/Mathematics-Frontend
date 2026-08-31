@@ -16,12 +16,10 @@ export default async function LaboratoryModulePage(props: { params: Promise<{ sl
     const params = await props.params;
     const labModule = await fetchLaboratoryModule(params.slug);
 
-    if (!labModule) {
-        notFound();
-    }
+    if (!labModule) notFound();
 
     return (
-        <div className="bg-[#f7f9fc] px-2 py-2 sm:px-3 md:px-4 md:py-3">
+        <div className="ax-workspace-root px-3 py-3 sm:px-5 sm:py-4 lg:px-6 xl:px-8">
             <div className="mx-auto max-w-[1880px]">
                 <LaboratoryWorkspaceShell module={labModule} />
             </div>
