@@ -23,52 +23,66 @@ export default async function LaboratoryPage() {
     const modules = await fetchLaboratoryModules();
 
     return (
-        <div className="min-h-full bg-[var(--ax-canvas)] text-[var(--ax-text)]">
-            <section className="mx-auto max-w-[1180px] px-6 pb-8 pt-12 sm:px-8 lg:pb-10 lg:pt-16">
-                <div className="grid gap-8 border-b border-[var(--ax-line)] pb-9 lg:grid-cols-[minmax(0,1fr)_330px] lg:items-end">
-                    <div className="max-w-[760px]">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-accent)]">MathSphere Laboratory</div>
-                        <h1 className="mt-4 font-serif text-[clamp(3rem,5vw,5.2rem)] font-medium leading-[0.98] tracking-[-0.05em]">Focused mathematical workspaces.</h1>
-                        <div className="mt-6 h-[3px] w-14 bg-[var(--ax-accent)]" />
-                        <p className="mt-5 max-w-[650px] text-[16px] leading-7 text-[var(--ax-text-soft)]">Choose a studio, enter the problem and work directly with exact results, numerical checks and large visualizations.</p>
+        <div className="ax-workspace-root">
+            <div className="ax-work-container">
+                <section className="ax-work-pagehead">
+                    <div>
+                        <div className="ax-work-kicker">MathSphere Laboratory</div>
+                        <h1 className="ax-work-title">Focused mathematical workspaces.</h1>
+                        <p className="ax-work-lead">Choose a studio and work directly with exact results, numerical checks and large scientific visualizations. The chrome stays quiet; the mathematics stays primary.</p>
                     </div>
-                    <div className="grid grid-cols-3 divide-x divide-[var(--ax-line)] border-y border-[var(--ax-line)] py-3 text-center">
-                        <div><div className="font-serif text-2xl">{modules.length}</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[var(--ax-text-faint)]">Studios</div></div>
-                        <div><div className="font-serif text-2xl">2D/3D</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[var(--ax-text-faint)]">Visual</div></div>
-                        <div><div className="font-serif text-2xl">Local</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[var(--ax-text-faint)]">Compute</div></div>
+                    <div className="ax-work-stats">
+                        <div className="ax-work-stat"><div className="ax-work-stat-value">{modules.length}</div><div className="ax-work-stat-label">Studios</div></div>
+                        <div className="ax-work-stat"><div className="ax-work-stat-value">2D/3D</div><div className="ax-work-stat-label">Visual</div></div>
+                        <div className="ax-work-stat"><div className="ax-work-stat-value">Local</div><div className="ax-work-stat-label">Compute</div></div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <section className="mx-auto max-w-[1180px] px-6 pb-12 sm:px-8">
-                <div className="divide-y divide-[var(--ax-line)] border-y border-[var(--ax-line)] bg-[var(--ax-surface)]">
-                    {modules.map((module, index) => {
-                        const Icon = moduleIcons[module.slug as keyof typeof moduleIcons] ?? AreaChart;
-                        return (
-                            <Link key={module.id} href={`/laboratory/${module.slug}`} className="group grid min-h-[142px] gap-5 px-4 py-5 transition-colors hover:bg-[var(--ax-surface-soft)] sm:grid-cols-[52px_minmax(0,1fr)_auto] sm:items-center sm:px-6" style={{ contentVisibility: "auto", containIntrinsicSize: "142px" }}>
-                                <div className="flex h-11 w-11 items-center justify-center rounded-[var(--ax-radius-control)] border border-[var(--ax-line)] bg-[var(--ax-accent-soft)] text-[var(--ax-accent)]"><Icon className="h-5 w-5" /></div>
-                                <div className="min-w-0">
-                                    <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--ax-text-faint)]">{String(index + 1).padStart(2, "0")} · {module.category}</div>
-                                    <h2 className="mt-1.5 font-serif text-[27px] tracking-[-0.035em]">{module.title}</h2>
-                                    <p className="mt-1 max-w-[700px] text-[12px] leading-5 text-[var(--ax-text-soft)]">{moduleDescriptions[module.slug] || module.summary}</p>
-                                </div>
-                                <div className="flex items-center gap-2 text-[11px] font-semibold text-[var(--ax-accent)]">Open workspace <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></div>
-                            </Link>
-                        );
-                    })}
-                </div>
-            </section>
+                <section className="ax-work-section">
+                    <div className="mb-5 flex items-end justify-between gap-6">
+                        <div>
+                            <div className="ax-work-kicker">Studios</div>
+                            <div className="mt-2 font-serif text-[26px] tracking-[-0.035em]">Choose the mathematical instrument.</div>
+                        </div>
+                        <div className="hidden text-[11px] text-[var(--ax-text-faint)] sm:block">Exact first · visual by default · reproducible output</div>
+                    </div>
 
-            <section className="border-y border-[var(--ax-line)] bg-[var(--ax-surface)]">
-                <div className="mx-auto grid max-w-[1180px] gap-0 px-6 sm:px-8 md:grid-cols-3">
+                    <div className="ax-work-list">
+                        {modules.map((module, index) => {
+                            const Icon = moduleIcons[module.slug as keyof typeof moduleIcons] ?? AreaChart;
+                            return (
+                                <Link
+                                    key={module.id}
+                                    href={`/laboratory/${module.slug}`}
+                                    className="ax-work-row group grid min-h-[136px] gap-5 px-1 py-6 sm:grid-cols-[56px_minmax(0,1fr)_auto] sm:items-center sm:px-5 lg:px-7"
+                                    style={{ contentVisibility: "auto", containIntrinsicSize: "136px" }}
+                                >
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--ax-work-line)] bg-[var(--ax-surface)] text-[var(--ax-accent)]">
+                                        <Icon className="h-[18px] w-[18px]" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--ax-text-faint)]">{String(index + 1).padStart(2, "0")} · {module.category}</div>
+                                        <h2 className="mt-2 font-serif text-[30px] tracking-[-0.04em] text-[var(--ax-text)]">{module.title}</h2>
+                                        <p className="mt-2 max-w-[760px] text-[12px] leading-6 text-[var(--ax-text-soft)]">{moduleDescriptions[module.slug] || module.summary}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[11px] font-semibold text-[var(--ax-accent)]">Open studio <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </section>
+            </div>
+
+            <section className="border-y border-[var(--ax-work-line)] bg-[var(--ax-surface)]">
+                <div className="ax-work-container grid md:grid-cols-3 md:divide-x md:divide-[var(--ax-work-line)]">
                     {[
-                        ["Exact first", "Prefer exact symbolic results, then use numerical methods to verify or extend them."],
-                        ["Visual by default", "Plots are treated as primary mathematical output, not as a small afterthought."],
-                        ["Reproducible output", "Inputs, assumptions, methods and results remain structured for later use."],
-                    ].map(([title, text], index) => (
-                        <div key={title} className={`py-6 md:px-7 ${index ? "md:border-l md:border-[var(--ax-line)]" : ""}`}>
-                            <div className="text-[12px] font-semibold">{title}</div>
-                            <p className="mt-1.5 text-[11px] leading-5 text-[var(--ax-text-soft)]">{text}</p>
+                        ["Exact first", "Prefer symbolic structure before approximation."],
+                        ["Visual by default", "Treat plots and geometry as primary mathematical output."],
+                        ["Reproducible", "Keep inputs, assumptions and results structured for reuse."],
+                    ].map(([title, text]) => (
+                        <div key={title} className="py-7 md:px-8 md:first:pl-0 md:last:pr-0">
+                            <div className="font-serif text-[22px] tracking-[-0.03em]">{title}</div>
+                            <p className="mt-2 max-w-sm text-[11px] leading-5 text-[var(--ax-text-soft)]">{text}</p>
                         </div>
                     ))}
                 </div>
