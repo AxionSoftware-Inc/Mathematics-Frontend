@@ -23,11 +23,11 @@ export default function Navbar() {
     return (
         <header className="ax-premium-nav">
             <div className="ax-landing-container ax-premium-nav-inner" style={{ minHeight: inLaboratory ? 64 : 72 }}>
-                <Link href="/" className="flex min-w-0 items-center gap-3.5 outline-none focus-visible:shadow-[var(--ax-focus-ring)]" aria-label="MathSphere Laboratory home">
+                <Link href="/" className="flex min-w-0 items-center gap-3.5 outline-none focus-visible:shadow-[var(--ax-focus-ring)]" aria-label="Axion Mathematics home">
                     <LaboratoryMark />
                     <span className="min-w-0 leading-none">
-                        <span className="block truncate font-serif text-[22px] font-medium tracking-[-0.035em] text-[var(--ax-text)]">MathSphere</span>
-                        <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.25em] text-[var(--ax-text-faint)]">Mathematics Laboratory</span>
+                        <span className="block truncate font-serif text-[22px] font-medium tracking-[-0.035em] text-[var(--ax-text)]">Axion Mathematics</span>
+                        <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.25em] text-[var(--ax-text-faint)]">MathSphere Laboratory</span>
                     </span>
                 </Link>
 
@@ -39,7 +39,7 @@ export default function Navbar() {
                         <Link href="/#ecosystem" className="ax-premium-nav-link">Ecosystem</Link>
                     </nav>
                 ) : (
-                    <div className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ax-text-faint)] xl:block">Scientific workspace</div>
+                    <div className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ax-text-faint)] xl:block">MathSphere · scientific workspace</div>
                 )}
 
                 <div className="flex items-center gap-1.5">
