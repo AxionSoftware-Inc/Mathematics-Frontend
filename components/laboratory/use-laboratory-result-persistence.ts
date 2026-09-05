@@ -111,9 +111,7 @@ export function useLaboratoryResultPersistence(options: UseLaboratoryResultPersi
     const [saveError, setSaveError] = React.useState<string | null>(null);
 
     const saveResult = React.useCallback(async () => {
-        if (!ready) {
-            return null;
-        }
+        if (!ready) return null;
 
         setSaveState("saving");
         setSaveError(null);
@@ -157,10 +155,15 @@ export function useLaboratoryResultPersistence(options: UseLaboratoryResultPersi
         ready,
     ]);
 
-    return {
-        saveResult,
-        saveState,
-        saveError,
-        lastSavedResult,
-    };
+    React.useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!ready || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+            event.preventDefault();
+            void saveResult();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [ready, saveResult]);
+
+    return { saveResult, saveState, saveError, lastSavedResult };
 }
