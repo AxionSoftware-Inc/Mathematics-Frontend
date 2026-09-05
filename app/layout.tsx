@@ -6,24 +6,16 @@ import "@/styles/axion-premium-landing.css";
 import "@/styles/axion-math-chrome.css";
 import "@/styles/axion-premium-workspace.css";
 import { EcosystemBar } from "@/components/ecosystem/ecosystem-bar";
+import { EcosystemKeyboardNav } from "@/components/ecosystem/ecosystem-keyboard-nav";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
-const manrope = Manrope({
-    subsets: ["latin"],
-    variable: "--font-inter",
-    display: "swap",
-});
-
-const playfair = Playfair_Display({
-    subsets: ["latin"],
-    variable: "--font-playfair",
-    display: "swap",
-});
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", display: "swap" });
 
 export const metadata: Metadata = {
-    title: "MathSphere Laboratory | Axion Science",
-    description: "Scientific computation, symbolic analysis and interactive mathematical visualization workspace.",
+    title: "Axion Mathematics | MathSphere Laboratory",
+    description: "Scientific computation, symbolic analysis and interactive mathematical visualization workspace in Axion Science.",
 };
 
 export const viewport: Viewport = {
@@ -33,14 +25,11 @@ export const viewport: Viewport = {
     themeColor: "#f7f9fc",
 };
 
-export default function MainLayout({
-    children,
-}: Readonly<{
-    children: React.ReactNode;
-}>) {
+export default function MainLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <html lang="uz">
             <body className={`${manrope.variable} ${playfair.variable} min-h-screen`}>
+                <EcosystemKeyboardNav currentApp="math" />
                 <div className="flex min-h-screen flex-col">
                     <EcosystemBar currentApp="math" />
                     <Navbar />
